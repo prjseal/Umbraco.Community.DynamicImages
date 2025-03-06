@@ -1,0 +1,14 @@
+{
+  "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
+  "AuthorDetails": {
+    "Name": "Paul Seal",
+    "ImageUrl": "https://github.com/prjseal.png"
+  },
+  "Category": "",
+  "Description": "",
+  "LicenseTypes": ["Free"],
+  "IssueTrackerUrl": "https://github.com/prjseal/Umbraco.Community.DynamicImages/issues",
+  "PackageType": "Package",
+  "Tags": [],
+  "Title": "Umbraco.Community.DynamicImages "
+}

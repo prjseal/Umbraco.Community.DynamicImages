@@ -1,0 +1,38 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.4.33020.496
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{FF1E2A9A-E976-41D2-82E7-C05E634C41DC}"
+	ProjectSection(SolutionItems) = preProject
+		..\LICENSE = ..\LICENSE
+		..\.github\README.md = ..\.github\README.md
+		..\umbraco-marketplace.json = ..\umbraco-marketplace.json
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamicImages", "DynamicImages\DynamicImages.csproj", "{2E719AA4-0A0F-421B-AAD6-9EA26F2E5864}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamicImages.TestSite", "DynamicImages.TestSite\DynamicImages.TestSite.csproj", "{D58D9D19-A1AE-4097-9AFF-34449757F169}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2E719AA4-0A0F-421B-AAD6-9EA26F2E5864}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2E719AA4-0A0F-421B-AAD6-9EA26F2E5864}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2E719AA4-0A0F-421B-AAD6-9EA26F2E5864}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2E719AA4-0A0F-421B-AAD6-9EA26F2E5864}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D58D9D19-A1AE-4097-9AFF-34449757F169}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D58D9D19-A1AE-4097-9AFF-34449757F169}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D58D9D19-A1AE-4097-9AFF-34449757F169}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D58D9D19-A1AE-4097-9AFF-34449757F169}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6F07004F-9903-4AEB-9ED0-BE57A0326D20}
+	EndGlobalSection
+EndGlobal

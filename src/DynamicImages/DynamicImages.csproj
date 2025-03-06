@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <StaticWebAssetBasePath>App_Plugins</StaticWebAssetBasePath>
+    <ContentTargetFolders>.</ContentTargetFolders>
+    <Product>Umbraco.Community.DynamicImages</Product>
+    <PackageId>Umbraco.Community.DynamicImages</PackageId>
+    <Title>DynamicImages</Title>
+    <Description>...</Description>
+    <PackageTags>umbraco;umbraco-marketplace</PackageTags>
+    <RootNamespace>DynamicImages</RootNamespace>
+    <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+    <Version>0.1.0</Version>
+    <Authors>Paul Seal</Authors>
+    <Copyright>$([System.DateTime]::UtcNow.ToString(`yyyy`)) © Paul Seal</Copyright>
+    <PackageProjectUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</RepositoryUrl>
+    <PackageReadmeFile>README_nuget.md</PackageReadmeFile>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta18" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="1.0.0-beta15" />
+    <PackageReference Include="Umbraco.Cms.Web.Website" Version="13.7.0" />
+    <PackageReference Include="Umbraco.Cms.Web.BackOffice" Version="13.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\docs\README_nuget.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
+</Project>
