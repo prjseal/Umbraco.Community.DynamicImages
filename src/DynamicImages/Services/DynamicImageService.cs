@@ -1,8 +1,13 @@
+using System.Drawing;
+using DynamicImages.Extensions;
 using Microsoft.AspNetCore.Hosting;
 using SixLabors.Fonts;
+using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Umbraco.Cms.Core.IO;
+using Umbraco.Cms.Core.Media.EmbedProviders;
 using Umbraco.Extensions;
 using Color = SixLabors.ImageSharp.Color;
 using Font = SixLabors.Fonts.Font;
@@ -23,11 +28,8 @@ public sealed class DynamicImageService : IDynamicImageService
 
     private readonly Font _largeFont;
 
-    private const string sourceImagePath = "/assets/background.jpg";
-
-    private static string preText = DateTime.Now.ToString("dd MMMM yyyy");
-
-    private const string communityText = "by Paul Seal";
+    private const string sourceImagePath = "/assets/skrift-background.png";
+    private const string avatarImagePath = "/assets/paul-seal.jpg";
 
     public DynamicImageService(
         IFontCollection fontCollection,
@@ -45,54 +47,96 @@ public sealed class DynamicImageService : IDynamicImageService
             family = _fontCollection.Families.FirstOrDefault();
         }
 
-        _smallFont = family.CreateFont(40, FontStyle.Bold);
-        _largeFont = family.CreateFont(70, FontStyle.Bold);
+        _smallFont = family.CreateFont(30, FontStyle.Bold);
+        _largeFont = family.CreateFont(80, FontStyle.Bold);
         _fileSystem = fileSystem;
         _hostEnvironment = hostEnvironment;
     }
 
-    public async Task<Image> GenerateImage(string title, CancellationToken cancellationToken = default)
+    public async Task<Image> GenerateImageAsync(string title, CancellationToken cancellationToken = default)
     {
         using var source = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(sourceImagePath));
 
         var image = await Image.LoadAsync(source, cancellationToken);
 
-        WriteResultText(image, title);
+
+        var titleLines = new string[]
+        {
+        "GENERATING DYNAMIC",
+        "IMAGES FOR THE PACKAGE",
+        "JAM AT UMBRACO SPARK"
+        };
+
+        await WriteMultipleLinesAsync(image, titleLines, cancellationToken, Color.White, _largeFont, 50, 60);
+
+        await WriteLineAsync(image,"Paul Seal", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
+        await WriteLineAsync(image, "114", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 526, 526);
+        await WriteLineAsync(image, DateTime.Now.ToString("dd MMMM yyyy"), cancellationToken, Color.White, _smallFont, 606, 526);
+        await AddAvatarToImageAsync(image, avatarImagePath, cancellationToken, 50, 480);
+
         return image;
     }
 
-    private void WriteResultText(Image image, string title)
+    private async Task WriteMultipleLinesAsync(Image image, string[] lines, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
     {
-        var lines = new string[]
+        var currentFont = font;
+        var origin = new PointF(xPosition, yPosition);
+
+        await Task.Run(() =>
         {
-            DateTime.Now.ToString("dd MMMM yyyy"),
-            title,
-            "by Paul Seal"
+            image.Mutate(x =>
+            {
+                for (var i = 0; i < lines.Length; i++)
+                {
+                    var line = lines[i];
+                    var newOrigin = origin;
+                    WriteSingleLine(x, line, ref newOrigin, currentFont, color);
+                    origin = newOrigin;
+                }
+            });
+        }, cancellationToken);
+    }
+
+    private void WriteSingleLine(IImageProcessingContext context, string line, ref PointF origin, Font currentFont, Color color)
+    {
+        var options = new TextOptions(currentFont)
+        {
+            Origin = origin
         };
 
-        var currentFont = _smallFont;
-        var origin = new PointF(20, 20);
+        context.DrawText(options, line, color);
 
-        image.Mutate(x => {
-            for (var i = 0; i < lines.Length; i++)
+        var size = TextMeasurer.Measure(line, options);
+        origin = new PointF(50, origin.Y + (size.Height * 0.8f));
+    }
+
+    private async Task WriteLineAsync(Image image,string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
+    {
+        var point = new PointF(xPosition, yPosition);
+        var currentFont = font;
+        await Task.Run(() =>
+        {
+            image.Mutate(x =>
             {
-                var line = lines[i];
-
-                //TODO:Need to check against long usernames once the background and positions is done
-                //You can use the wrap settings in TextOptions so it wraps instead.
                 var options = new TextOptions(currentFont)
                 {
-                    Origin = origin
+                    Origin = point
                 };
 
-                x.DrawText(options, line, Color.White);
+                x.DrawText(options, text, color);
+            });
+        }, cancellationToken);
+    }
 
-                //Or using this information, you could loader a new options with a smaller font size.
-                var size = TextMeasurer.Measure(line, options);
+    private async Task AddAvatarToImageAsync(Image image, string avatarImagePath, CancellationToken cancellationToken, int xPosition, int yPosition)
+    {
+        using var avatar = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(avatarImagePath));
+        var avatarImage = await Image.LoadAsync(avatar, cancellationToken);
 
-                origin = new PointF(20, origin.Y + size.Height);
-                currentFont = i % 2 != 0 ? _smallFont : _largeFont;
-            }
-        });
+        var roundedAvatar = avatarImage.Clone(x =>
+        x.ConvertToAvatar(new SixLabors.ImageSharp.Size(100, 100), 50, new Rgba32(0, 0, 0, 1)));
+
+
+        image.Mutate(x => x.DrawImage(roundedAvatar, new SixLabors.ImageSharp.Point(xPosition, yPosition), 1f));
     }
 }

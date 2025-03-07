@@ -4,6 +4,6 @@ namespace DynamicImages.Services
 {
     public interface IDynamicImageService
     {
-        Task<Image> GenerateImage(string title, CancellationToken cancellationToken = default);
+        Task<Image> GenerateImageAsync(string title, CancellationToken cancellationToken = default);
     }
 }
