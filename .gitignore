@@ -354,3 +354,5 @@ MigrationBackup/
 
 # Rider
 src/.idea
+/src/DynamicImages.TestSite/umbraco/Data
+/src/DynamicImages.TestSite/uSync/v9/Media

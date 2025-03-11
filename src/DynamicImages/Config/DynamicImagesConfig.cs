@@ -1,15 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+namespace DynamicImages.Config;
 
-namespace DynamicImages.Config
+public class DynamicImagesConfig
 {
-    public class DynamicImagesConfig
-    {
-        public bool Enabled { get; set; }
+    public bool Enabled { get; set; }
 
-        public List<Instruction> Instructions { get; set; }
-    }
+    public List<Instruction> Instructions { get; set; }
+
+    public List<string> Fonts { get; set; }
 }

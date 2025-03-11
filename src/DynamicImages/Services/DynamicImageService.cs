@@ -1,19 +1,21 @@
-using System.Drawing;
 using DynamicImages.Config;
 using DynamicImages.Extensions;
+
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.IO;
+
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
+
 using Umbraco.Cms.Core.IO;
-using Umbraco.Cms.Core.Media.EmbedProviders;
 using Umbraco.Cms.Core.PropertyEditors;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Strings;
 using Umbraco.Extensions;
+
 using Color = SixLabors.ImageSharp.Color;
 using Font = SixLabors.Fonts.Font;
 using Image = SixLabors.ImageSharp.Image;
@@ -89,7 +91,7 @@ public sealed class DynamicImageService : IDynamicImageService
 
         await WriteMultipleLinesAsync(image, titleLines, cancellationToken, Color.White, _largeFont, 50, 60);
 
-        await WriteLineAsync(image,instruction.Author, cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
+        await WriteLineAsync(image, instruction.Author, cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
         await WriteLineAsync(image, "114", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 526, 526);
         await WriteLineAsync(image, DateTime.Now.ToString("dd MMMM yyyy"), cancellationToken, Color.White, _smallFont, 606, 526);
         await AddAvatarToImageAsync(image, avatarImagePath, cancellationToken, 50, 480);
@@ -130,7 +132,7 @@ public sealed class DynamicImageService : IDynamicImageService
         origin = new PointF(50, origin.Y + (size.Height * 0.8f));
     }
 
-    private async Task WriteLineAsync(Image image,string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
+    private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
     {
         var point = new PointF(xPosition, yPosition);
         var currentFont = font;
