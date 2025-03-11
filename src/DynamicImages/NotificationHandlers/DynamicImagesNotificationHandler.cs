@@ -1,8 +1,6 @@
 using DynamicImages.Config;
 using DynamicImages.Services;
 
-using MailKit.Search;
-
 using Microsoft.Extensions.Options;
 
 using Umbraco.Cms.Core;
@@ -10,7 +8,6 @@ using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Notifications;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Web;
-using Umbraco.Cms.Web.Common.UmbracoContext;
 using Umbraco.Extensions;
 
 namespace DynamicImages.NotificationHandlers;
@@ -45,34 +42,25 @@ public class DynamicImagesNotificationHandler : INotificationHandler<ContentPubl
             var publishedNode = context.UmbracoContext.Content.GetById(node.Id);
             var instructionAliases = _config.Instructions.Select(x => x.DocTypeAlias).ToList();
 
-            if (instructionAliases.Contains(node.ContentType.Alias))
-            {
-                var instruction = _config.Instructions.Where(x => x.DocTypeAlias == node.ContentType.Alias).FirstOrDefault();
-                if (instruction == null) { return; }
+            if (!instructionAliases.Contains(node.ContentType.Alias)) { return; }
 
-                var canBeSet = !string.IsNullOrWhiteSpace(instruction?.TargetPropertyAlias)
-                    && publishedNode.Value(instruction.TargetPropertyAlias) == null
-                    && (node.GetValue(instruction.TargetPropertyAlias) == null
-                    || node.GetValue(instruction.TargetPropertyAlias)?.ToString() == "[]");
+            var instruction = _config.Instructions.Where(x => x.DocTypeAlias == node.ContentType.Alias).FirstOrDefault();
+            if (instruction == null) { return; }
 
-                if (!canBeSet)
-                {
-                    return;
-                }
+            var canBeSet = !string.IsNullOrWhiteSpace(instruction?.TargetPropertyAlias)
+                && publishedNode.Value(instruction.TargetPropertyAlias) == null
+                && (node.GetValue(instruction.TargetPropertyAlias) == null
+                || node.GetValue(instruction.TargetPropertyAlias)?.ToString() == "[]");
 
-                var imageName = node.Name;
-                var mediaKey = await _imageService.CreateMediaItemAsync(instruction);
-                if (mediaKey != null)
-                {
-                    var udi = Udi.Create(Constants.UdiEntityType.Media, mediaKey);
+            if (!canBeSet) { return; }
 
-                    // Set the value of the property with alias 'featuredBanner'. 
-                    node.SetValue(instruction.TargetPropertyAlias, udi.ToString());
-                    _contentService.SaveAndPublish(node);
-                }
-            }
+            var imageName = node.Name;
+            var mediaKey = await _imageService.CreateMediaItemAsync(instruction);
+            
+            var udi = Udi.Create(Constants.UdiEntityType.Media, mediaKey);
+
+            node.SetValue(instruction.TargetPropertyAlias, udi.ToString());
+            _contentService.SaveAndPublish(node);
         }
-
-
     }
 }
