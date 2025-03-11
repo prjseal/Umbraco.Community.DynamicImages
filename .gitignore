@@ -356,3 +356,5 @@ MigrationBackup/
 src/.idea
 /src/DynamicImages.TestSite/umbraco/Data
 /src/DynamicImages.TestSite/uSync/v9/Media
+/src/DynamicImages.TestSite/uSync/v9/Content/generating-dynaimic-images-for-the-package-jam-at-umbraco-spark.config
+/src/DynamicImages.TestSite/uSync/v9/Content/generating-dynaimic-images-for-the-package-jam-at-umbraco-spark.config
