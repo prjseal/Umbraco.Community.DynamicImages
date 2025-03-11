@@ -1,5 +1,5 @@
-using DynamicImages.Config;
 using DynamicImages.Extensions;
+using DynamicImages.Models;
 
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.IO;
@@ -11,6 +11,8 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 using Umbraco.Cms.Core.IO;
+using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Models.PublishedContent;
 using Umbraco.Cms.Core.PropertyEditors;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Strings;
@@ -40,7 +42,6 @@ public sealed class DynamicImageService : IDynamicImageService
     private readonly IShortStringHelper _shortStringHelper;
     private readonly IContentTypeBaseServiceProvider _contentTypeBaseServiceProvider;
 
-    private const string sourceImagePath = "/assets/skrift-background.png";
     private const string avatarImagePath = "/assets/paul-seal.jpg";
 
     public DynamicImageService(
@@ -75,26 +76,48 @@ public sealed class DynamicImageService : IDynamicImageService
         _contentTypeBaseServiceProvider = contentTypeBaseServiceProvider;
     }
 
-    public async Task<Image> GenerateImageAsync(Instruction instruction, CancellationToken cancellationToken = default)
+    public async Task<Image> GenerateImageAsync(Instruction instruction, IContent contentNode, IPublishedContent publishedContentNode, CancellationToken cancellationToken = default)
     {
-        using var source = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(sourceImagePath));
+        using var source = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(instruction.SourceImagePath));
 
         var image = await Image.LoadAsync(source, cancellationToken);
 
-
-        var titleLines = new string[]
+        foreach (var layer in instruction.Layers)
         {
-        "GENERATING DYNAMIC",
-        "IMAGES FOR THE PACKAGE",
-        "JAM AT UMBRACO SPARK"
-        };
+            switch (layer.LayerType)
+            {
+                case LayerType.Text:
+                    if (!string.IsNullOrWhiteSpace(layer.SourcePropertyAlias))
+                    {
+                        var text = "";
+                        if (layer.SourcePropertyAlias == "name")
+                        {
+                            text = contentNode.Name;
+                        }
+                        else
+                        {
+                            text = contentNode.GetValue<string>(layer.SourcePropertyAlias);
+                        }
+                        await WriteMultipleLinesAsync(image, new[] { text }, cancellationToken, Color.ParseHex(layer.Colour), _largeFont, layer.xPosition, layer.yPosition);
+                    }
+                    break;
+            }
+        }
 
-        await WriteMultipleLinesAsync(image, titleLines, cancellationToken, Color.White, _largeFont, 50, 60);
 
-        await WriteLineAsync(image, instruction.Author, cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
-        await WriteLineAsync(image, "114", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 526, 526);
-        await WriteLineAsync(image, DateTime.Now.ToString("dd MMMM yyyy"), cancellationToken, Color.White, _smallFont, 606, 526);
-        await AddAvatarToImageAsync(image, avatarImagePath, cancellationToken, 50, 480);
+        //var titleLines = new string[]
+        //{
+        //"GENERATING DYNAMIC",
+        //"IMAGES FOR THE PACKAGE",
+        //"JAM AT UMBRACO SPARK"
+        //};
+
+        //await WriteMultipleLinesAsync(image, titleLines, cancellationToken, Color.White, _largeFont, 50, 60);
+
+        //await WriteLineAsync(image, instruction.Author, cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
+        //await WriteLineAsync(image, "114", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 526, 526);
+        //await WriteLineAsync(image, DateTime.Now.ToString("dd MMMM yyyy"), cancellationToken, Color.White, _smallFont, 606, 526);
+        //await AddAvatarToImageAsync(image, avatarImagePath, cancellationToken, 50, 480);
 
         return image;
     }
@@ -162,9 +185,9 @@ public sealed class DynamicImageService : IDynamicImageService
         image.Mutate(x => x.DrawImage(roundedAvatar, new SixLabors.ImageSharp.Point(xPosition, yPosition), 1f));
     }
 
-    public async Task<Guid> CreateMediaItemAsync(Instruction instruction)
+    public async Task<Guid> CreateMediaItemAsync(Instruction instruction, IContent contentNode, IPublishedContent publishedContentNode)
     {
-        using var image = await GenerateImageAsync(instruction);
+        using var image = await GenerateImageAsync(instruction, contentNode, publishedContentNode);
 
         var manager = new RecyclableMemoryStreamManager();
         var stream = manager.GetStream();

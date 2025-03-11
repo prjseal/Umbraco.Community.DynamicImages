@@ -1,3 +1,5 @@
+using DynamicImages.Models;
+
 namespace DynamicImages.Config;
 
 public class DynamicImagesConfig

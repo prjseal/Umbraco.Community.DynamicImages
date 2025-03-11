@@ -55,7 +55,7 @@ public class DynamicImagesNotificationHandler : INotificationHandler<ContentPubl
             if (!canBeSet) { return; }
 
             var imageName = node.Name;
-            var mediaKey = await _imageService.CreateMediaItemAsync(instruction);
+            var mediaKey = await _imageService.CreateMediaItemAsync(instruction, node, publishedNode);
 
             var udi = Udi.Create(Constants.UdiEntityType.Media, mediaKey);
 
