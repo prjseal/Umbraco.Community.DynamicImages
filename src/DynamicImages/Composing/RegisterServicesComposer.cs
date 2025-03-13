@@ -39,9 +39,9 @@ public class RegisterServicesComposer : IComposer
 
                     var host = sp.GetRequiredService<IWebHostEnvironment>();
 
-                    foreach (var fontPath in config.Fonts)
+                    foreach (var fontConfig in config.Fonts)
                     {
-                        var path = host.MapPathWebRoot(fontPath);
+                        var path = host.MapPathWebRoot(fontConfig.Path);
                         collection.Add(path);
                     }
 

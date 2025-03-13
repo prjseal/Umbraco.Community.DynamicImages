@@ -8,5 +8,5 @@ public class DynamicImagesConfig
 
     public List<Instruction> Instructions { get; set; }
 
-    public List<string> Fonts { get; set; }
+    public List<FontConfig> Fonts { get; set; }
 }

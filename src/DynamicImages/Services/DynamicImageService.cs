@@ -1,7 +1,9 @@
+using DynamicImages.Config;
 using DynamicImages.Extensions;
 using DynamicImages.Models;
 
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.Options;
 using Microsoft.IO;
 
 using SixLabors.Fonts;
@@ -41,6 +43,8 @@ public sealed class DynamicImageService : IDynamicImageService
     private readonly MediaUrlGeneratorCollection _mediaUrlGeneratorCollection;
     private readonly IShortStringHelper _shortStringHelper;
     private readonly IContentTypeBaseServiceProvider _contentTypeBaseServiceProvider;
+    private readonly Dictionary<string, Font> _fonts;
+    private readonly DynamicImagesConfig _config;
 
     private const string avatarImagePath = "/assets/paul-seal.jpg";
 
@@ -52,21 +56,29 @@ public sealed class DynamicImageService : IDynamicImageService
         MediaFileManager mediaFileManager,
         MediaUrlGeneratorCollection mediaUrlGeneratorCollection,
         IShortStringHelper shortStringHelper,
-        IContentTypeBaseServiceProvider contentTypeBaseServiceProvider)
+        IContentTypeBaseServiceProvider contentTypeBaseServiceProvider,
+        IOptions<DynamicImagesConfig> config)
     {
+        _config = config.Value;
+
         if (fontCollection.Families?.Any() != true)
         {
             throw new ArgumentOutOfRangeException(nameof(fontCollection), "No fonts loaded");
         }
 
-        _fontCollection = fontCollection;
-        if (_fontCollection.TryGet("Open Sans", out var family) == false)
+        _fonts = new Dictionary<string, Font>();
+        var fontFamilyIndex = 0;
+        var fontFamilies = fontCollection.Families.ToArray();
+        foreach (var fontFamily in _config.Fonts)
         {
-            family = _fontCollection.Families.FirstOrDefault();
+            var fontFam = fontFamilies[fontFamilyIndex];
+            foreach (var style in fontFamily.Styles)
+            {
+                var name = $"{fontFamily.FamilyName}_{style.Name}";
+                _fonts.Add(name, fontFam.CreateFont(style.Size, style.Style));
+            }
         }
 
-        _smallFont = family.CreateFont(30, FontStyle.Bold);
-        _largeFont = family.CreateFont(80, FontStyle.Bold);
         _fileSystem = fileSystem;
         _hostEnvironment = hostEnvironment;
         _mediaService = mediaService;
@@ -96,9 +108,20 @@ public sealed class DynamicImageService : IDynamicImageService
                         }
                         else
                         {
-                            text = contentNode.GetValue<string>(layer.SourcePropertyAlias);
+                            if(!string.IsNullOrWhiteSpace(layer.DateFormat))
+                            {
+                                var date = contentNode.GetValue<DateTime>(layer.SourcePropertyAlias);
+                                text = date.ToString(layer.DateFormat);
+                            }
+                            else
+                            {
+                                text = contentNode.GetValue<string>(layer.SourcePropertyAlias);
+                            }
                         }
-                        await WriteMultipleLinesAsync(image, new[] { text }, cancellationToken, Color.ParseHex(layer.Colour), _largeFont, layer.xPosition, layer.yPosition);
+                        var linePoint = new PointF(layer.xPosition, layer.yPosition);
+                        var font = _fonts[layer.Font];
+                        await WriteLineAsync(image, text, cancellationToken, Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition);
+                        //await WriteMultipleLinesAsync(image, new[] { text }, cancellationToken, Color.ParseHex(layer.Colour), _largeFont, layer.xPosition, layer.yPosition);
                     }
                     break;
             }
