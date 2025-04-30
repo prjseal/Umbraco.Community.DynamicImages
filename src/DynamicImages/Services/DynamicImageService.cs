@@ -108,7 +108,7 @@ public sealed class DynamicImageService : IDynamicImageService
                         }
                         else
                         {
-                            if(!string.IsNullOrWhiteSpace(layer.DateFormat))
+                            if (!string.IsNullOrWhiteSpace(layer.DateFormat))
                             {
                                 var date = contentNode.GetValue<DateTime>(layer.SourcePropertyAlias);
                                 text = date.ToString(layer.DateFormat);
@@ -231,17 +231,17 @@ public sealed class DynamicImageService : IDynamicImageService
         using var imageStream = new MemoryStream(byteArray);
 
         var parentFolder = _mediaService.GetByLevel(1)
-            ?.FirstOrDefault(m => m.ContentType.Alias == "Folder" && m.Name == "Demo");
+            ?.FirstOrDefault(m => m.ContentType.Alias == "Folder" && m.Name == instruction.MediaFolder);
 
         if (parentFolder == null)
         {
-            parentFolder = _mediaService.CreateMedia("Demo", -1, "Folder");
+            parentFolder = _mediaService.CreateMedia(instruction.MediaFolder, -1, "Folder");
             _mediaService.Save(parentFolder);
         }
 
-        var folderId = HandleMediaWithTheSameNames(instruction.ImageName, parentFolder.Id) ?? parentFolder.Id;
-        var media = _mediaService.CreateMedia(instruction.ImageName, folderId, "Image");
-        media.SetValue(_mediaFileManager, _mediaUrlGeneratorCollection, _shortStringHelper, _contentTypeBaseServiceProvider, Umbraco.Cms.Core.Constants.Conventions.Media.File, $"{instruction.ImageName}.png", imageStream);
+        var folderId = HandleMediaWithTheSameNames(contentNode.Name, parentFolder.Id) ?? parentFolder.Id;
+        var media = _mediaService.CreateMedia(contentNode.Name, folderId, "Image");
+        media.SetValue(_mediaFileManager, _mediaUrlGeneratorCollection, _shortStringHelper, _contentTypeBaseServiceProvider, Umbraco.Cms.Core.Constants.Conventions.Media.File, $"{contentNode.Name.ToSafeFileName(_shortStringHelper)}.png", imageStream);
         _mediaService.Save(media);
         return media.Key;
     }
