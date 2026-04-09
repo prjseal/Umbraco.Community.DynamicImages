@@ -74,7 +74,7 @@ This plan outlines the documentation to be written for the `Umbraco.Community.Dy
 | Phase | File | Status |
 |-------|------|--------|
 | Plan  | `docs/documentation-plan.md` | Done |
-| 1     | `docs/how-it-works.md`        | Pending |
-| 2     | `docs/configuration.md`       | Pending |
-| 3     | `docs/usage.md`               | Pending |
-| 4     | `docs/testing.md`             | Pending |
+| 1     | `docs/how-it-works.md`        | Done |
+| 2     | `docs/configuration.md`       | Done |
+| 3     | `docs/usage.md`               | Done |
+| 4     | `docs/testing.md`             | Done |
