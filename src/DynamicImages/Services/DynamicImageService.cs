@@ -11,6 +11,9 @@ using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Processing;
 
+using System.Text.Json;
+
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.IO;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
@@ -118,9 +121,9 @@ public sealed class DynamicImageService : IDynamicImageService
                     break;
 
                 case LayerType.Image:
-                    if (!string.IsNullOrWhiteSpace(layer.ImagePath))
+                    if (!string.IsNullOrWhiteSpace(layer.ImagePath) || !string.IsNullOrWhiteSpace(layer.SourcePropertyAlias))
                     {
-                        await DrawImageLayerAsync(image, layer, cancellationToken);
+                        await DrawImageLayerAsync(image, layer, contentNode, cancellationToken);
                     }
                     break;
             }
@@ -129,9 +132,15 @@ public sealed class DynamicImageService : IDynamicImageService
         return image;
     }
 
-    private async Task DrawImageLayerAsync(Image baseImage, Layer layer, CancellationToken cancellationToken)
+    private async Task DrawImageLayerAsync(Image baseImage, Layer layer, IContent contentNode, CancellationToken cancellationToken)
     {
-        using var stream = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(layer.ImagePath));
+        var imagePath = !string.IsNullOrWhiteSpace(layer.SourcePropertyAlias)
+            ? ResolveMediaPath(contentNode, layer.SourcePropertyAlias)
+            : layer.ImagePath;
+
+        if (string.IsNullOrWhiteSpace(imagePath)) return;
+
+        using var stream = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(imagePath));
         using var overlay = await Image.LoadAsync(stream, cancellationToken);
 
         if (layer.Width.HasValue || layer.Height.HasValue)
@@ -155,6 +164,26 @@ public sealed class DynamicImageService : IDynamicImageService
         {
             baseImage.Mutate(x => x.DrawImage(overlay, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
         }
+    }
+
+    private string? ResolveMediaPath(IContent contentNode, string propertyAlias)
+    {
+        var rawValue = contentNode.GetValue<string>(propertyAlias);
+        if (string.IsNullOrWhiteSpace(rawValue)) return null;
+
+        if (!UdiParser.TryParse(rawValue, out var udi) || udi is not GuidUdi guidUdi) return null;
+
+        var media = _mediaService.GetById(guidUdi.Guid);
+        var fileValue = media?.GetValue<string>(Constants.Conventions.Media.File);
+        if (string.IsNullOrWhiteSpace(fileValue)) return null;
+
+        if (fileValue.StartsWith('{'))
+        {
+            using var doc = JsonDocument.Parse(fileValue);
+            return doc.RootElement.GetProperty("src").GetString();
+        }
+
+        return fileValue;
     }
 
     private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition, int? maxWidth = null)
@@ -193,8 +222,6 @@ public sealed class DynamicImageService : IDynamicImageService
             stream.CopyTo(memoryStream);
             byteArray = memoryStream.ToArray();
         }
-
-        //var imageBytes = await DownloadImageAsync(url);
 
         using var imageStream = new MemoryStream(byteArray);
 
