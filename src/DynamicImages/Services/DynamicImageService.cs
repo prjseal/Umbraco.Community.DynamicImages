@@ -118,67 +118,17 @@ public sealed class DynamicImageService : IDynamicImageService
                                 text = contentNode.GetValue<string>(layer.SourcePropertyAlias);
                             }
                         }
-                        var linePoint = new PointF(layer.xPosition, layer.yPosition);
                         var font = _fonts[layer.Font];
-                        await WriteLineAsync(image, text, cancellationToken, Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition);
-                        //await WriteMultipleLinesAsync(image, new[] { text }, cancellationToken, Color.ParseHex(layer.Colour), _largeFont, layer.xPosition, layer.yPosition);
+                        await WriteLineAsync(image, text, cancellationToken, Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition, layer.MaxWidth);
                     }
                     break;
             }
         }
 
-
-        //var titleLines = new string[]
-        //{
-        //"GENERATING DYNAMIC",
-        //"IMAGES FOR THE PACKAGE",
-        //"JAM AT UMBRACO SPARK"
-        //};
-
-        //await WriteMultipleLinesAsync(image, titleLines, cancellationToken, Color.White, _largeFont, 50, 60);
-
-        //await WriteLineAsync(image, instruction.Author, cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
-        //await WriteLineAsync(image, "114", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 526, 526);
-        //await WriteLineAsync(image, DateTime.Now.ToString("dd MMMM yyyy"), cancellationToken, Color.White, _smallFont, 606, 526);
-        //await AddAvatarToImageAsync(image, avatarImagePath, cancellationToken, 50, 480);
-
         return image;
     }
 
-    private async Task WriteMultipleLinesAsync(Image image, string[] lines, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
-    {
-        var currentFont = font;
-        var origin = new PointF(xPosition, yPosition);
-
-        await Task.Run(() =>
-        {
-            image.Mutate(x =>
-            {
-                for (var i = 0; i < lines.Length; i++)
-                {
-                    var line = lines[i];
-                    var newOrigin = origin;
-                    WriteSingleLine(x, line, ref newOrigin, currentFont, color);
-                    origin = newOrigin;
-                }
-            });
-        }, cancellationToken);
-    }
-
-    private void WriteSingleLine(IImageProcessingContext context, string line, ref PointF origin, Font currentFont, Color color)
-    {
-        var options = new TextOptions(currentFont)
-        {
-            Origin = origin
-        };
-
-        context.DrawText(options, line, color);
-
-        var size = TextMeasurer.Measure(line, options);
-        origin = new PointF(50, origin.Y + (size.Height * 0.8f));
-    }
-
-    private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
+    private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition, int? maxWidth = null)
     {
         var point = new PointF(xPosition, yPosition);
         var currentFont = font;
@@ -188,7 +138,8 @@ public sealed class DynamicImageService : IDynamicImageService
             {
                 var options = new TextOptions(currentFont)
                 {
-                    Origin = point
+                    Origin = point,
+                    WrappingLength = maxWidth ?? -1
                 };
 
                 x.DrawText(options, text, color);

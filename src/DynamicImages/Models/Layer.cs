@@ -9,4 +9,5 @@ public class Layer
     public int yPosition { get; set; }
     public string Colour { get; set; }
     public string Font { get; set; }
+    public int? MaxWidth { get; set; }
 }
