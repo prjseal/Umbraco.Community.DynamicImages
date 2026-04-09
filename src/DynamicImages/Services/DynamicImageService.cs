@@ -9,9 +9,11 @@ using Microsoft.IO;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
+using System.Text.Json;
+
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.IO;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
@@ -35,9 +37,6 @@ public sealed class DynamicImageService : IDynamicImageService
 
     private readonly IWebHostEnvironment _hostEnvironment;
 
-    private readonly Font _smallFont;
-
-    private readonly Font _largeFont;
     private readonly IMediaService _mediaService;
     private readonly MediaFileManager _mediaFileManager;
     private readonly MediaUrlGeneratorCollection _mediaUrlGeneratorCollection;
@@ -45,8 +44,6 @@ public sealed class DynamicImageService : IDynamicImageService
     private readonly IContentTypeBaseServiceProvider _contentTypeBaseServiceProvider;
     private readonly Dictionary<string, Font> _fonts;
     private readonly DynamicImagesConfig _config;
-
-    private const string avatarImagePath = "/assets/paul-seal.jpg";
 
     public DynamicImageService(
         IFontCollection fontCollection,
@@ -118,67 +115,78 @@ public sealed class DynamicImageService : IDynamicImageService
                                 text = contentNode.GetValue<string>(layer.SourcePropertyAlias);
                             }
                         }
-                        var linePoint = new PointF(layer.xPosition, layer.yPosition);
                         var font = _fonts[layer.Font];
-                        await WriteLineAsync(image, text, cancellationToken, Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition);
-                        //await WriteMultipleLinesAsync(image, new[] { text }, cancellationToken, Color.ParseHex(layer.Colour), _largeFont, layer.xPosition, layer.yPosition);
+                        await WriteLineAsync(image, text, cancellationToken, Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition, layer.MaxWidth);
+                    }
+                    break;
+
+                case LayerType.Image:
+                    if (!string.IsNullOrWhiteSpace(layer.ImagePath) || !string.IsNullOrWhiteSpace(layer.SourcePropertyAlias))
+                    {
+                        await DrawImageLayerAsync(image, layer, contentNode, cancellationToken);
                     }
                     break;
             }
         }
 
-
-        //var titleLines = new string[]
-        //{
-        //"GENERATING DYNAMIC",
-        //"IMAGES FOR THE PACKAGE",
-        //"JAM AT UMBRACO SPARK"
-        //};
-
-        //await WriteMultipleLinesAsync(image, titleLines, cancellationToken, Color.White, _largeFont, 50, 60);
-
-        //await WriteLineAsync(image, instruction.Author, cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 178, 525);
-        //await WriteLineAsync(image, "114", cancellationToken, new Rgba32(193, 62, 169, 1), _smallFont, 526, 526);
-        //await WriteLineAsync(image, DateTime.Now.ToString("dd MMMM yyyy"), cancellationToken, Color.White, _smallFont, 606, 526);
-        //await AddAvatarToImageAsync(image, avatarImagePath, cancellationToken, 50, 480);
-
         return image;
     }
 
-    private async Task WriteMultipleLinesAsync(Image image, string[] lines, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
+    private async Task DrawImageLayerAsync(Image baseImage, Layer layer, IContent contentNode, CancellationToken cancellationToken)
     {
-        var currentFont = font;
-        var origin = new PointF(xPosition, yPosition);
+        var imagePath = !string.IsNullOrWhiteSpace(layer.SourcePropertyAlias)
+            ? ResolveMediaPath(contentNode, layer.SourcePropertyAlias)
+            : layer.ImagePath;
 
-        await Task.Run(() =>
+        if (string.IsNullOrWhiteSpace(imagePath)) return;
+
+        using var stream = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(imagePath));
+        using var overlay = await Image.LoadAsync(stream, cancellationToken);
+
+        if (layer.Width.HasValue || layer.Height.HasValue)
         {
-            image.Mutate(x =>
+            var targetWidth = layer.Width ?? overlay.Width;
+            var targetHeight = layer.Height ?? overlay.Height;
+            overlay.Mutate(x => x.Resize(new ResizeOptions
             {
-                for (var i = 0; i < lines.Length; i++)
-                {
-                    var line = lines[i];
-                    var newOrigin = origin;
-                    WriteSingleLine(x, line, ref newOrigin, currentFont, color);
-                    origin = newOrigin;
-                }
-            });
-        }, cancellationToken);
-    }
+                Size = new Size(targetWidth, targetHeight),
+                Mode = ResizeMode.Crop
+            }));
+        }
 
-    private void WriteSingleLine(IImageProcessingContext context, string line, ref PointF origin, Font currentFont, Color color)
-    {
-        var options = new TextOptions(currentFont)
+        if (layer.CornerRadius.HasValue)
         {
-            Origin = origin
-        };
-
-        context.DrawText(options, line, color);
-
-        var size = TextMeasurer.Measure(line, options);
-        origin = new PointF(50, origin.Y + (size.Height * 0.8f));
+            using var rounded = overlay.Clone(x => x.ConvertToAvatar(
+                new Size(overlay.Width, overlay.Height), layer.CornerRadius.Value, Color.Black));
+            baseImage.Mutate(x => x.DrawImage(rounded, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
+        }
+        else
+        {
+            baseImage.Mutate(x => x.DrawImage(overlay, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
+        }
     }
 
-    private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition)
+    private string? ResolveMediaPath(IContent contentNode, string propertyAlias)
+    {
+        var rawValue = contentNode.GetValue<string>(propertyAlias);
+        if (string.IsNullOrWhiteSpace(rawValue)) return null;
+
+        if (!UdiParser.TryParse(rawValue, out var udi) || udi is not GuidUdi guidUdi) return null;
+
+        var media = _mediaService.GetById(guidUdi.Guid);
+        var fileValue = media?.GetValue<string>(Constants.Conventions.Media.File);
+        if (string.IsNullOrWhiteSpace(fileValue)) return null;
+
+        if (fileValue.StartsWith('{'))
+        {
+            using var doc = JsonDocument.Parse(fileValue);
+            return doc.RootElement.GetProperty("src").GetString();
+        }
+
+        return fileValue;
+    }
+
+    private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition, int? maxWidth = null)
     {
         var point = new PointF(xPosition, yPosition);
         var currentFont = font;
@@ -188,24 +196,13 @@ public sealed class DynamicImageService : IDynamicImageService
             {
                 var options = new TextOptions(currentFont)
                 {
-                    Origin = point
+                    Origin = point,
+                    WrappingLength = maxWidth ?? -1
                 };
 
                 x.DrawText(options, text, color);
             });
         }, cancellationToken);
-    }
-
-    private async Task AddAvatarToImageAsync(Image image, string avatarImagePath, CancellationToken cancellationToken, int xPosition, int yPosition)
-    {
-        using var avatar = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(avatarImagePath));
-        var avatarImage = await Image.LoadAsync(avatar, cancellationToken);
-
-        var roundedAvatar = avatarImage.Clone(x =>
-        x.ConvertToAvatar(new SixLabors.ImageSharp.Size(100, 100), 50, new Rgba32(0, 0, 0, 1)));
-
-
-        image.Mutate(x => x.DrawImage(roundedAvatar, new SixLabors.ImageSharp.Point(xPosition, yPosition), 1f));
     }
 
     public async Task<Guid> CreateMediaItemAsync(Instruction instruction, IContent contentNode, IPublishedContent publishedContentNode)
@@ -225,8 +222,6 @@ public sealed class DynamicImageService : IDynamicImageService
             stream.CopyTo(memoryStream);
             byteArray = memoryStream.ToArray();
         }
-
-        //var imageBytes = await DownloadImageAsync(url);
 
         using var imageStream = new MemoryStream(byteArray);
 
