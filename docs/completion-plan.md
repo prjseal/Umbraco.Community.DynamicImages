@@ -2,146 +2,278 @@
 
 ## Overview
 
-The core text-on-image pipeline works end-to-end. This plan covers the three remaining features needed to ship:
+The core text-on-image pipeline works end-to-end. This plan covers the three remaining features needed to ship, split into four self-contained phases that can each be committed and tested independently.
 
-1. Multi-line / wrapping text
-2. Image overlay layers (static assets)
-3. Avatar layers (circular-cropped images, optionally from a content property)
+1. **Phase 1** — Multi-line / wrapping text
+2. **Phase 2** — Static image overlays
+3. **Phase 3** — Avatar / circular image layers
+4. **Phase 4** — Dynamic image layers from content properties + cleanup
 
 ---
 
-## Step 1 — Extend the `Layer` model
+## Phase 1 — Multi-line / wrapping text
+
+**Goal:** Text layers that are too wide wrap onto the next line automatically.
+
+### 1.1 Add `MaxWidth` to `Layer`
 
 **File:** `src/DynamicImages/Models/Layer.cs`
 
-Add the following properties:
-
-| Property | Type | Purpose |
-|---|---|---|
-| `MaxWidth` | `int?` | If set, text wraps at this pixel width |
-| `Width` | `int?` | Resize an image layer to this width |
-| `Height` | `int?` | Resize an image layer to this height |
-| `CornerRadius` | `float?` | Rounds image corners. Set to `Width / 2` for a circle |
-| `Opacity` | `float` | Image layer opacity. Default `1f` (currently hardcoded) |
-
-No new `LayerType` enum values are needed. `LayerType.Image` covers both flat overlays and avatars — a circular avatar is just an image layer where `CornerRadius >= Width / 2`.
-
----
-
-## Step 2 — Multi-line text
-
-**File:** `src/DynamicImages/Services/DynamicImageService.cs`
-
-ImageSharp's `TextOptions` has a `WrappingLength` property that handles auto-wrapping natively. No manual line-splitting is needed.
-
-Update `WriteLineAsync` to accept an optional `maxWidth` parameter and set it on `TextOptions`:
+Add one property:
 
 ```csharp
-var options = new TextOptions(font)
-{
-    Origin = point,
-    WrappingLength = maxWidth ?? -1  // -1 = no wrapping
-};
+public int? MaxWidth { get; set; }
 ```
 
-In `GenerateImageAsync`, pass `layer.MaxWidth` through to `WriteLineAsync`.
-
-The existing `WriteMultipleLinesAsync` and `WriteSingleLine` methods can be removed since ImageSharp's native wrapping replaces them.
-
----
-
-## Step 3 — Image layer handler
+### 1.2 Enable wrapping in `WriteLineAsync`
 
 **File:** `src/DynamicImages/Services/DynamicImageService.cs`
 
-Add a `case LayerType.Image:` block to the switch in `GenerateImageAsync`. The sequence is:
+Add a `maxWidth` parameter and set `WrappingLength` on `TextOptions`. ImageSharp handles the rest natively — no manual line-splitting needed.
 
-1. **Resolve path** — if `layer.SourcePropertyAlias` is set, read the path from the content property (see Step 4); otherwise use `layer.ImagePath` directly.
-2. **Load** — open with `_fileSystem.OpenFile(...)`, same pattern as the base image.
-3. **Resize** — if `layer.Width` or `layer.Height` is set, apply `ResizeOptions` with `ResizeMode.Crop`.
-4. **Circular mask** — if `layer.CornerRadius` is set, call `overlayImage.Clone(x => x.ConvertToAvatar(new Size(width, height), cornerRadius, Color.Transparent))`. The extension already exists in `ImageProcessingContextExtensions`.
-5. **Composite** — `image.Mutate(x => x.DrawImage(overlayImage, new Point(layer.xPosition, layer.yPosition), layer.Opacity))`.
+```csharp
+private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken,
+    Color color, Font font, int xPosition, int yPosition, int? maxWidth = null)
+{
+    var point = new PointF(xPosition, yPosition);
+    await Task.Run(() =>
+    {
+        image.Mutate(x =>
+        {
+            var options = new TextOptions(font)
+            {
+                Origin = point,
+                WrappingLength = maxWidth ?? -1
+            };
+            x.DrawText(options, text, color);
+        });
+    }, cancellationToken);
+}
+```
 
----
+### 1.3 Pass `MaxWidth` through in `GenerateImageAsync`
 
-## Step 4 — Resolve media picker paths
+Update the `LayerType.Text` case to pass `layer.MaxWidth`:
 
-For image layers driven by a content property (e.g. an author avatar stored as a media picker), the physical path needs to be resolved from the media item.
+```csharp
+await WriteLineAsync(image, text, cancellationToken,
+    Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition, layer.MaxWidth);
+```
 
-`IMediaService` is already injected into `DynamicImageService`. The approach:
+### 1.4 Remove the unused manual line methods
 
-1. Get the raw value from the content node — it will be a `Udi`.
-2. Parse to a `GuidUdi` and look up the media item via `_mediaService.GetById(guid)`.
-3. Read the file path from the media item's `umbracoFile` property.
-4. Map to a physical path via `_hostEnvironment.MapPathWebRoot(...)`.
+Delete `WriteMultipleLinesAsync` and `WriteSingleLine` — they are superseded by `WrappingLength`.
 
----
+### 1.5 Update appsettings example
 
-## Step 5 — Clean up dead code
-
-**File:** `src/DynamicImages/Services/DynamicImageService.cs`
-
-- Remove `private const string avatarImagePath` (hardcoded path, no longer needed).
-- Remove unused private fields `_smallFont` and `_largeFont` (declared but never assigned).
-- Remove `AddAvatarToImageAsync` (replaced by the generic image layer handler).
-- Remove `WriteMultipleLinesAsync` and `WriteSingleLine` (replaced by `WrappingLength`).
-- Delete all commented-out code blocks in `GenerateImageAsync`.
-
----
-
-## Step 6 — Update test site configuration
-
-**File:** `src/DynamicImages.TestSite/appsettings.Development.json`
-
-Update the example instruction to demonstrate all three layer types:
+Add `MaxWidth` to the title layer in `src/DynamicImages.TestSite/appsettings.Development.json`:
 
 ```json
 {
-  "Layers": [
-    {
-      "LayerType": 0,
-      "Font": "OpenSans_large",
-      "SourcePropertyAlias": "title",
-      "MaxWidth": 600,
-      "xPosition": 50,
-      "yPosition": 60,
-      "Colour": "FFFFFF"
-    },
-    {
-      "LayerType": 1,
-      "ImagePath": "/assets/overlay-logo.png",
-      "xPosition": 850,
-      "yPosition": 20,
-      "Width": 120,
-      "Height": 120,
-      "Opacity": 0.9
-    },
-    {
-      "LayerType": 1,
-      "SourcePropertyAlias": "authorPhoto",
-      "xPosition": 50,
-      "yPosition": 480,
-      "Width": 100,
-      "Height": 100,
-      "CornerRadius": 50,
-      "Opacity": 1.0
-    }
-  ]
+  "LayerType": 0,
+  "SourcePropertyAlias": "name",
+  "MaxWidth": 600,
+  "xPosition": 50,
+  "yPosition": 60,
+  "Colour": "#c13ea9",
+  "Font": "OpenSans_Large"
 }
 ```
 
 ---
 
-## Order of work
+## Phase 2 — Static image overlays
 
-| # | Task | File(s) |
+**Goal:** A layer can composite a static image asset (e.g. a logo) onto the base image.
+
+### 2.1 Add image sizing properties to `Layer`
+
+**File:** `src/DynamicImages/Models/Layer.cs`
+
+```csharp
+public int? Width { get; set; }
+public int? Height { get; set; }
+public float Opacity { get; set; } = 1f;
+```
+
+### 2.2 Implement `LayerType.Image` in `GenerateImageAsync`
+
+**File:** `src/DynamicImages/Services/DynamicImageService.cs`
+
+Add a new private method and wire it into the switch:
+
+```csharp
+case LayerType.Image:
+    if (!string.IsNullOrWhiteSpace(layer.ImagePath))
+    {
+        await DrawImageLayerAsync(image, layer, cancellationToken);
+    }
+    break;
+```
+
+```csharp
+private async Task DrawImageLayerAsync(Image baseImage, Layer layer, CancellationToken cancellationToken)
+{
+    using var stream = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(layer.ImagePath));
+    using var overlay = await Image.LoadAsync(stream, cancellationToken);
+
+    if (layer.Width.HasValue || layer.Height.HasValue)
+    {
+        var targetWidth = layer.Width ?? overlay.Width;
+        var targetHeight = layer.Height ?? overlay.Height;
+        overlay.Mutate(x => x.Resize(new ResizeOptions
+        {
+            Size = new Size(targetWidth, targetHeight),
+            Mode = ResizeMode.Crop
+        }));
+    }
+
+    baseImage.Mutate(x => x.DrawImage(overlay, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
+}
+```
+
+### 2.3 Update appsettings example
+
+Add a static overlay layer to the instruction:
+
+```json
+{
+  "LayerType": 1,
+  "ImagePath": "/assets/overlay-logo.png",
+  "xPosition": 850,
+  "yPosition": 20,
+  "Width": 120,
+  "Height": 120,
+  "Opacity": 0.9
+}
+```
+
+---
+
+## Phase 3 — Avatar / circular image layers
+
+**Goal:** An image layer can be cropped to a circle (or any rounded rectangle) before compositing.
+
+### 3.1 Add `CornerRadius` to `Layer`
+
+**File:** `src/DynamicImages/Models/Layer.cs`
+
+```csharp
+public float? CornerRadius { get; set; }
+```
+
+For a perfect circle, set `CornerRadius` to half the `Width` (e.g. `Width: 100, CornerRadius: 50`).
+
+### 3.2 Apply the circular mask in `DrawImageLayerAsync`
+
+After the resize step, add:
+
+```csharp
+if (layer.CornerRadius.HasValue)
+{
+    var size = new Size(layer.Width ?? overlay.Width, layer.Height ?? overlay.Height);
+    var rounded = overlay.Clone(x => x.ConvertToAvatar(size, layer.CornerRadius.Value, Color.Transparent));
+    // use rounded instead of overlay for the DrawImage call
+}
+```
+
+`ConvertToAvatar` already exists in `ImageProcessingContextExtensions` — no new code needed there.
+
+### 3.3 Remove `AddAvatarToImageAsync`
+
+**File:** `src/DynamicImages/Services/DynamicImageService.cs`
+
+Delete the `AddAvatarToImageAsync` method — it is now fully replaced by `DrawImageLayerAsync` with `CornerRadius` set.
+
+Also remove `private const string avatarImagePath` and the unused `_smallFont` / `_largeFont` fields.
+
+### 3.4 Update appsettings example
+
+Add a circular avatar layer:
+
+```json
+{
+  "LayerType": 1,
+  "ImagePath": "/assets/paul-seal.jpg",
+  "xPosition": 50,
+  "yPosition": 480,
+  "Width": 100,
+  "Height": 100,
+  "CornerRadius": 50,
+  "Opacity": 1.0
+}
+```
+
+---
+
+## Phase 4 — Dynamic image layers from content properties
+
+**Goal:** An image layer's source can be a media picker property on the content node (e.g. an author photo chosen per article), rather than a hardcoded path.
+
+### 4.1 Resolve a media picker property to a file path
+
+**File:** `src/DynamicImages/Services/DynamicImageService.cs`
+
+`IMediaService` is already injected. Add a helper:
+
+```csharp
+private string? ResolveMediaPath(IContent contentNode, string propertyAlias)
+{
+    var rawValue = contentNode.GetValue<string>(propertyAlias);
+    if (string.IsNullOrWhiteSpace(rawValue)) return null;
+
+    if (!UdiParser.TryParse(rawValue, out var udi) || udi is not GuidUdi guidUdi)
+        return null;
+
+    var media = _mediaService.GetById(guidUdi.Guid);
+    return media?.GetValue<string>(Umbraco.Cms.Core.Constants.Conventions.Media.File);
+}
+```
+
+### 4.2 Use it in `DrawImageLayerAsync`
+
+At the top of `DrawImageLayerAsync`, resolve the path before opening the file:
+
+```csharp
+var imagePath = !string.IsNullOrWhiteSpace(layer.SourcePropertyAlias)
+    ? ResolveMediaPath(contentNode, layer.SourcePropertyAlias)
+    : layer.ImagePath;
+
+if (string.IsNullOrWhiteSpace(imagePath)) return;
+```
+
+This means `DrawImageLayerAsync` needs `contentNode` passed in — update the signature accordingly.
+
+### 4.3 Final cleanup
+
+Remove all remaining commented-out code blocks in `GenerateImageAsync`.
+
+### 4.4 Update appsettings example
+
+Show the dynamic avatar using a content property:
+
+```json
+{
+  "LayerType": 1,
+  "SourcePropertyAlias": "authorPhoto",
+  "xPosition": 50,
+  "yPosition": 480,
+  "Width": 100,
+  "Height": 100,
+  "CornerRadius": 50,
+  "Opacity": 1.0
+}
+```
+
+---
+
+## Summary
+
+| Phase | Feature | Files changed |
 |---|---|---|
-| 1 | Add 5 properties to `Layer` | `Models/Layer.cs` |
-| 2 | Add `maxWidth` param to `WriteLineAsync`, set `WrappingLength` | `Services/DynamicImageService.cs` |
-| 3 | Pass `layer.MaxWidth` through in the Text case | `Services/DynamicImageService.cs` |
-| 4 | Implement `LayerType.Image` case (load, resize, mask, composite) | `Services/DynamicImageService.cs` |
-| 5 | Add media picker path resolution helper | `Services/DynamicImageService.cs` |
-| 6 | Remove dead code and unused fields | `Services/DynamicImageService.cs` |
-| 7 | Update appsettings example | `appsettings.Development.json` |
+| 1 | Multi-line / wrapping text | `Layer.cs`, `DynamicImageService.cs`, `appsettings.Development.json` |
+| 2 | Static image overlays | `Layer.cs`, `DynamicImageService.cs`, `appsettings.Development.json` |
+| 3 | Avatar / circular mask | `Layer.cs`, `DynamicImageService.cs`, `appsettings.Development.json` |
+| 4 | Dynamic image layers from content + cleanup | `DynamicImageService.cs`, `appsettings.Development.json` |
 
-Roughly 100–150 lines of real changes across 3 files.
+Each phase builds on the last and can be committed, pushed, and tested independently.
