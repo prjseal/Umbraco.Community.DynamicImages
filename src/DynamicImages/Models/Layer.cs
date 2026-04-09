@@ -13,4 +13,5 @@ public class Layer
     public int? Width { get; set; }
     public int? Height { get; set; }
     public float Opacity { get; set; } = 1f;
+    public float? CornerRadius { get; set; }
 }

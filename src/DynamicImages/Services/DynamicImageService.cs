@@ -9,7 +9,6 @@ using Microsoft.IO;
 using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing.Processing;
-using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
 using Umbraco.Cms.Core.IO;
@@ -35,9 +34,6 @@ public sealed class DynamicImageService : IDynamicImageService
 
     private readonly IWebHostEnvironment _hostEnvironment;
 
-    private readonly Font _smallFont;
-
-    private readonly Font _largeFont;
     private readonly IMediaService _mediaService;
     private readonly MediaFileManager _mediaFileManager;
     private readonly MediaUrlGeneratorCollection _mediaUrlGeneratorCollection;
@@ -45,8 +41,6 @@ public sealed class DynamicImageService : IDynamicImageService
     private readonly IContentTypeBaseServiceProvider _contentTypeBaseServiceProvider;
     private readonly Dictionary<string, Font> _fonts;
     private readonly DynamicImagesConfig _config;
-
-    private const string avatarImagePath = "/assets/paul-seal.jpg";
 
     public DynamicImageService(
         IFontCollection fontCollection,
@@ -151,7 +145,16 @@ public sealed class DynamicImageService : IDynamicImageService
             }));
         }
 
-        baseImage.Mutate(x => x.DrawImage(overlay, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
+        if (layer.CornerRadius.HasValue)
+        {
+            using var rounded = overlay.Clone(x => x.ConvertToAvatar(
+                new Size(overlay.Width, overlay.Height), layer.CornerRadius.Value, Color.Black));
+            baseImage.Mutate(x => x.DrawImage(rounded, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
+        }
+        else
+        {
+            baseImage.Mutate(x => x.DrawImage(overlay, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
+        }
     }
 
     private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition, int? maxWidth = null)
@@ -171,18 +174,6 @@ public sealed class DynamicImageService : IDynamicImageService
                 x.DrawText(options, text, color);
             });
         }, cancellationToken);
-    }
-
-    private async Task AddAvatarToImageAsync(Image image, string avatarImagePath, CancellationToken cancellationToken, int xPosition, int yPosition)
-    {
-        using var avatar = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(avatarImagePath));
-        var avatarImage = await Image.LoadAsync(avatar, cancellationToken);
-
-        var roundedAvatar = avatarImage.Clone(x =>
-        x.ConvertToAvatar(new SixLabors.ImageSharp.Size(100, 100), 50, new Rgba32(0, 0, 0, 1)));
-
-
-        image.Mutate(x => x.DrawImage(roundedAvatar, new SixLabors.ImageSharp.Point(xPosition, yPosition), 1f));
     }
 
     public async Task<Guid> CreateMediaItemAsync(Instruction instruction, IContent contentNode, IPublishedContent publishedContentNode)
