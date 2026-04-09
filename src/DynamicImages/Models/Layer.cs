@@ -10,4 +10,7 @@ public class Layer
     public string Colour { get; set; }
     public string Font { get; set; }
     public int? MaxWidth { get; set; }
+    public int? Width { get; set; }
+    public int? Height { get; set; }
+    public float Opacity { get; set; } = 1f;
 }

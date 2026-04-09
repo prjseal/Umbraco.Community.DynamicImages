@@ -122,10 +122,36 @@ public sealed class DynamicImageService : IDynamicImageService
                         await WriteLineAsync(image, text, cancellationToken, Color.ParseHex(layer.Colour), font, layer.xPosition, layer.yPosition, layer.MaxWidth);
                     }
                     break;
+
+                case LayerType.Image:
+                    if (!string.IsNullOrWhiteSpace(layer.ImagePath))
+                    {
+                        await DrawImageLayerAsync(image, layer, cancellationToken);
+                    }
+                    break;
             }
         }
 
         return image;
+    }
+
+    private async Task DrawImageLayerAsync(Image baseImage, Layer layer, CancellationToken cancellationToken)
+    {
+        using var stream = _fileSystem.OpenFile(_hostEnvironment.MapPathWebRoot(layer.ImagePath));
+        using var overlay = await Image.LoadAsync(stream, cancellationToken);
+
+        if (layer.Width.HasValue || layer.Height.HasValue)
+        {
+            var targetWidth = layer.Width ?? overlay.Width;
+            var targetHeight = layer.Height ?? overlay.Height;
+            overlay.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Size = new Size(targetWidth, targetHeight),
+                Mode = ResizeMode.Crop
+            }));
+        }
+
+        baseImage.Mutate(x => x.DrawImage(overlay, new Point(layer.xPosition, layer.yPosition), layer.Opacity));
     }
 
     private async Task WriteLineAsync(Image image, string text, CancellationToken cancellationToken, Color color, Font font, int xPosition, int yPosition, int? maxWidth = null)
