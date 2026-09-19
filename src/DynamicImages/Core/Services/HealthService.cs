@@ -1,4 +1,7 @@
 using Umbraco.Community.DynamicImages.Configuration;
+using Umbraco.Community.DynamicImages.Core.Fonts;
+using Umbraco.Community.DynamicImages.Core.Fonts.Remote;
+using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Persistence;
 
 namespace Umbraco.Community.DynamicImages.Core.Services;
@@ -8,6 +11,7 @@ public sealed class HealthService(
     IFontRepository fontRepository,
     ITemplateValidator validator,
     ILegacyConfigImporter legacyImporter,
+    IFontFileProvider fontFiles,
     IOptionsMonitor<DynamicImagesOptions> options) : IHealthService
 {
     public async Task<HealthReport> CheckAsync(CancellationToken cancellationToken = default)
@@ -48,6 +52,20 @@ public sealed class HealthService(
         {
             issues.Add(new HealthIssue("warning", "NoFonts",
                 "No fonts are registered, so text layers cannot render."));
+        }
+
+        // Health runs on demand from the dashboard, so a network call is acceptable here where
+        // it is not in the validator. A font already in this server's cache costs no network.
+        foreach (var font in fonts.Where(f => f.SourceKind == ImageSourceKind.Url))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await using var stream = await fontFiles.OpenAsync(font, cancellationToken);
+            if (stream is not null) continue;
+
+            var provider = WebFontProviders.Get(font.Provider)?.DisplayName ?? "web";
+            issues.Add(new HealthIssue("warning", "FontUnreachable",
+                $"The {provider} font '{font.FamilyName}' (weight {font.Weight}{(font.IsItalic ? ", italic" : string.Empty)}) could not be fetched from {font.SourceUrl}. Text layers using it will not render until it can be."));
         }
 
         return new HealthReport(
