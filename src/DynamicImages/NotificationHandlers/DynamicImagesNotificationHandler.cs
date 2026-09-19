@@ -35,18 +35,19 @@ public class DynamicImagesNotificationHandler(
 
         foreach (var node in notification.PublishedEntities)
         {
-            var template = templateCache
-                .GetForDocType(node.ContentType.Alias)
-                .FirstOrDefault(t => t.Trigger.OnPublish);
-
-            if (template is null || string.IsNullOrWhiteSpace(template.TargetPropertyAlias)) continue;
-
-            var published = contextRef.UmbracoContext.Content?.GetById(node.Key);
-
-            if (!ShouldGenerate(template, node, published)) continue;
-
+            Template? template = null;
             try
             {
+                template = templateCache
+                    .GetForDocType(node.ContentType.Alias)
+                    .FirstOrDefault(t => t.Trigger.OnPublish);
+
+                if (template is null || string.IsNullOrWhiteSpace(template.TargetPropertyAlias)) continue;
+
+                var published = contextRef.UmbracoContext.Content?.GetById(node.Key);
+
+                if (!ShouldGenerate(template, node, published)) continue;
+
                 var values = new ContentRenderValueSource(node, published);
 
                 using var render = await renderer.RenderAsync(template, values, cancellationToken);
@@ -62,9 +63,11 @@ public class DynamicImagesNotificationHandler(
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                // A failed image must never block an editor's publish.
+                // A failed image must never block an editor's publish - including when the template
+                // lookup itself fails, e.g. another package's startup migration publishes content
+                // before this package's own migration (which creates its tables) has run.
                 logger.LogError(ex, "Dynamic Images: generation failed for {ContentKey} ({ContentName}) using template '{Template}'",
-                    node.Key, node.Name, template.Alias);
+                    node.Key, node.Name, template?.Alias);
             }
         }
     }

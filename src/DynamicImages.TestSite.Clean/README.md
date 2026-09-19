@@ -45,3 +45,17 @@ means every start re-imports Clean's views and assets. That matches Clean's own 
 site that's still being set up. If this site is later used for anything beyond exercising Dynamic
 Images against Clean's content types, switch to `Clean.Core` first - see
 ["Important" in the Clean README](https://github.com/prjseal/Clean#umbraco-17-lts).
+
+The copied-in `Views/` and `wwwroot/assets|css|favicon.ico` are gitignored on purpose - they are
+Clean's, regenerated on every restore, and not this repo's to diff or maintain.
+
+## Known issue: the front end 500s
+
+As of `Clean` 7.0.7 and 7.0.8, the sample `home.cshtml` view Clean seeds calls
+`Html.GetBlockListHtml(...)`, which does not exist in the published `Clean.Core` 7.x assembly -
+confirmed by booting this site and by inspecting both nupkgs directly. The front end 500s as a
+result; this is an upstream packaging bug in Clean, not something this project can fix. It does
+not block Dynamic Images work: the backoffice boots fine, content publishes fine (Clean's sample
+content imports and publishes on first boot), and templates are built entirely in the backoffice
+designer, which never touches Clean's front-end views. If Clean ships a fix, bump the version
+pinned in `Directory.Packages.props`.
