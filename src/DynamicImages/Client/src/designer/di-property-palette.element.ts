@@ -1,11 +1,15 @@
 import { css, customElement, html, property, repeat, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
-import type { DiProperty, PropertyClassification } from "../api/types.js";
+import type { DiProperty, PropertyClassification, ShapeKind } from "../api/types.js";
 
-/** What the palette puts on the drag payload. The canvas turns it into a layer on drop. */
+/**
+ * What the palette puts on the drag payload. The canvas turns it into a layer on drop. A "rect"
+ * chip may name the shape it starts as; polygon and star are a select away in the inspector,
+ * where their sides and inner ratio live anyway.
+ */
 export type PalettePayload =
   | { kind: "property"; property: DiProperty }
-  | { kind: "static"; layerType: "text" | "image" | "badges" | "rect" };
+  | { kind: "static"; layerType: "text" | "image" | "badges" | "rect"; shape?: ShapeKind };
 
 const ICONS: Record<PropertyClassification, string> = {
   text: "icon-font",
@@ -106,7 +110,8 @@ export class DiPropertyPaletteElement extends UmbLitElement {
         ${this.#renderChip("Text", "icon-font", "text", { kind: "static", layerType: "text" })}
         ${this.#renderChip("Image", "icon-picture", "media", { kind: "static", layerType: "image" })}
         ${this.#renderChip("Badge row", "icon-tags", "list", { kind: "static", layerType: "badges" })}
-        ${this.#renderChip("Shape", "icon-layers", "other", { kind: "static", layerType: "rect" })}
+        ${this.#renderChip("Rectangle", "icon-stop", "other", { kind: "static", layerType: "rect", shape: "rectangle" })}
+        ${this.#renderChip("Ellipse", "icon-record", "other", { kind: "static", layerType: "rect", shape: "ellipse" })}
       </div>
     `;
   }

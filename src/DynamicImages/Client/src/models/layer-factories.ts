@@ -35,6 +35,7 @@ export function createTextLayer(context: NewLayerContext, name: string, binding:
     // Dropped layers are centred on the pointer, which is what "I put it there" means.
     position: { x, y, anchor: "middleCentre" },
     size: { width: Math.round(context.template.canvas.width * 0.8), height: null },
+    rotation: 0,
     visibility: { rule: "always" },
     binding,
     prefix: "",
@@ -67,6 +68,7 @@ export function createImageLayer(context: NewLayerContext, name: string, propert
     opacity: 1,
     position: { x, y, anchor: "middleCentre" },
     size: { width: 320, height: 180 },
+    rotation: 0,
     visibility: { rule: "always" },
     source: propertyAlias
       ? { kind: "property", propertyAlias, fallback: null }
@@ -89,6 +91,7 @@ export function createBadgesLayer(context: NewLayerContext, name: string, itemsP
     opacity: 1,
     position: { x, y, anchor: "middleCentre" },
     size: {},
+    rotation: 0,
     visibility: { rule: "always" },
     itemsPropertyAlias,
     labelPropertyAlias: null,
@@ -125,6 +128,7 @@ export function createRectLayer(context: NewLayerContext, name = "Shape", shape:
     position: { x, y, anchor: "middleCentre" },
     // A circle is the ellipse people reach for; a scrim is wide.
     size: shape === "ellipse" ? { width: 200, height: 200 } : { width: 400, height: 200 },
+    rotation: 0,
     visibility: { rule: "always" },
     shape,
     fill: "#00000099",

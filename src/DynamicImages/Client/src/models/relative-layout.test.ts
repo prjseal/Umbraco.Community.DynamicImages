@@ -109,6 +109,22 @@ describe("resolveAll", () => {
     expect(resolved.get("c")!.position.y).toBe(20 + 40 + 5);
   });
 
+  it("hangs a tracker off a rotated reference's footprint", () => {
+    // A 100x20 title turned 90 degrees about its top-left covers y 100..200, so "below it"
+    // starts at 210 - not at 130, where its unrotated box ends.
+    const title = { ...layer("title", position(100, 100), { width: 100, height: 20 }), rotation: 90 };
+    const desc = layer("desc", position(100, 400, "topLeft", { relativeY: { layerKey: "title", edge: "below", gap: 10 } }));
+
+    const resolved = run([title, desc]);
+
+    expect(resolved.get("title")!.box).toEqual({ x: 100, y: 100, width: 100, height: 20 });
+    expect(resolved.get("title")!.extent.x).toBeCloseTo(80, 4);
+    expect(resolved.get("title")!.extent.height).toBeCloseTo(100, 4);
+    expect(resolved.get("desc")!.position.y).toBeCloseTo(210, 4);
+    // An unrotated layer's extent is its box, the same object.
+    expect(resolved.get("desc")!.extent).toBe(resolved.get("desc")!.box);
+  });
+
   it("forces the anchor on the tracked axis only", () => {
     const title = layer("title", position(60, 100), { width: 500, height: 60 });
     const tag = layer("tag", position(600, 0, "bottomCentre", { relativeY: { layerKey: "title", edge: "above", gap: 8 } }), { width: 80, height: 20 });

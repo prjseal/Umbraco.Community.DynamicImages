@@ -77,6 +77,8 @@ export interface DiLayerBase {
   opacity: number;
   position: DiPosition;
   size: DiSize;
+  /** Degrees clockwise, turning the layer about its anchor point. Absent in older documents = 0. */
+  rotation: number;
   visibility: DiVisibility;
 }
 
@@ -309,6 +311,10 @@ export interface DiSampleContentItem {
 
 // ---------------------------------------------------------------- preview
 
+/**
+ * Where the server drew a layer: its unrotated box, plus the rotation and the pivot it turned
+ * about, so the overlay can be laid over exactly where the pixels went.
+ */
 export interface DiLayerBounds {
   key: string;
   x: number;
@@ -318,6 +324,9 @@ export interface DiLayerBounds {
   lines: number;
   truncated: boolean;
   resolvedText?: string | null;
+  rotation: number;
+  pivotX: number;
+  pivotY: number;
 }
 
 export interface DiLayout {
