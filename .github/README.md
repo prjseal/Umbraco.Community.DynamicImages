@@ -57,6 +57,7 @@ Release notes are in [the changelog](../src/DynamicImages/CHANGELOG.md).
 | `src/DynamicImages` | The package itself |
 | `src/DynamicImages/Client` | The backoffice client (Lit + Vite). The built bundle is committed under `wwwroot/App_Plugins` |
 | `src/DynamicImages.TestSite` | An Umbraco 17 site for trying the package out - see [its README](../src/DynamicImages.TestSite/README.md) |
+| `src/DynamicImages.TestSite.Clean` | An Umbraco 17 site built on the [Clean Starter Kit](https://github.com/prjseal/Clean) (7.x) - see [its README](../src/DynamicImages.TestSite.Clean/README.md) |
 | `test/DynamicImages.Tests` | Unit tests for the renderer, text fitting and layout |
 
 ## Building
