@@ -5,6 +5,20 @@ namespace Umbraco.Community.DynamicImages.Core.Services;
 public sealed record FontUploadResult(FontDefinition? Font, string? Error);
 
 /// <summary>
+/// What the picker sends: a provider, and either a family with weights (Google, Bunny) or a
+/// file URL (direct).
+/// </summary>
+public sealed record WebFontRegistration(
+    string? Provider,
+    string? Family,
+    IReadOnlyList<int>? Weights,
+    bool IncludeItalic,
+    string? Url);
+
+/// <summary>The rows that were created and, per variant that was not, why.</summary>
+public sealed record WebFontRegistrationResult(IReadOnlyList<FontDefinition> Fonts, IReadOnlyList<string> Errors);
+
+/// <summary>
 /// Manages the font rows and their files. Uploads become media items (blob-backed on Cloud,
 /// carried by Deploy); wwwroot paths stay supported for fonts committed with the site.
 /// </summary>
@@ -22,6 +36,19 @@ public interface IFontService
 
     /// <summary>Registers a font that already lives under wwwroot.</summary>
     Task<FontUploadResult> RegisterPathAsync(string path, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Registers one row per weight (and italic) of a Google or Bunny family, or one row for a
+    /// direct file URL. Each file is fetched once here, which primes this server's cache and
+    /// proves it is a font.
+    /// </summary>
+    Task<WebFontRegistrationResult> RegisterWebFontAsync(WebFontRegistration request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Re-resolves and re-downloads a url font, updating its URL and hash. Returns an error for a
+    /// font that is not a url font; the caller checks existence for its 404.
+    /// </summary>
+    Task<FontUploadResult> RefreshAsync(Guid key, CancellationToken cancellationToken = default);
 
     /// <summary>Updates the editable parts of a font row: its display family name and named styles.</summary>
     FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles);
