@@ -23,6 +23,16 @@ public static class DynamicImagesConstants
     /// <summary>Media type installed by the package to hold uploaded font files.</summary>
     public const string FontMediaTypeAlias = "dynamicImagesFont";
 
+    /// <summary>The named HttpClient web fonts are fetched with; the composer sets its timeout, size cap and User-Agent.</summary>
+    public const string WebFontHttpClientName = "DynamicImages.WebFonts";
+
+    /// <summary>
+    /// Sent to the font providers. Never a browser UA: Google answers a browser with seven
+    /// unicode-range subsets, and a non-browser with one full file.
+    /// </summary>
+    public static readonly string UserAgent =
+        $"Umbraco.Community.DynamicImages/{typeof(DynamicImagesConstants).Assembly.GetName().Version?.ToString(3) ?? "2.0.0"}";
+
     public const string TemplateTableName = "DynamicImages_Template";
     public const string FontTableName = "DynamicImages_Font";
 

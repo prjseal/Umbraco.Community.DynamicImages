@@ -244,6 +244,14 @@ public sealed partial class TemplateValidator(
 
     private bool ValidatePathSource(ImageSource source, Guid? layerKey, List<ValidationIssue> issues)
     {
+        // "url" is a font source kind only; an image source never fetches from the network.
+        if (source.Kind == ImageSourceKind.Url)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Error, "SourceKindInvalid",
+                "An image cannot be loaded from a URL. Use a media item, a wwwroot path or a property.", layerKey));
+            return false;
+        }
+
         if (source.Kind == ImageSourceKind.Path && !WebRootPath.IsSafe(hostEnvironment, source.Path))
         {
             issues.Add(new ValidationIssue(ValidationSeverity.Error, "PathInvalid",

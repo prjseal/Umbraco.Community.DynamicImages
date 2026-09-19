@@ -39,6 +39,9 @@ public sealed record FontResponse(
     string SourceKind,
     Guid? MediaKey,
     string? Path,
+    string? Provider,
+    string? SourceUrl,
+    string? ProviderFamily,
     int Weight,
     bool IsItalic,
     IReadOnlyList<FontStyleDefinition> Styles,
@@ -48,9 +51,17 @@ public sealed record FontResponse(
     public static FontResponse From(FontDefinition font, int usedBy) => new(
         font.Key,
         font.FamilyName,
-        font.SourceKind == ImageSourceKind.Path ? "path" : "media",
+        font.SourceKind switch
+        {
+            ImageSourceKind.Path => "path",
+            ImageSourceKind.Url => "url",
+            _ => "media"
+        },
         font.MediaKey,
         font.Path,
+        font.Provider,
+        font.SourceUrl,
+        font.ProviderFamily,
         font.Weight,
         font.IsItalic,
         font.Styles,
@@ -59,6 +70,20 @@ public sealed record FontResponse(
 }
 
 public sealed record RegisterFontPathRequest(string Path);
+
+/// <summary>
+/// <c>Provider</c> is google, bunny or direct. Google and Bunny take <c>Family</c>, <c>Weights</c>
+/// and <c>IncludeItalic</c>; direct takes <c>Url</c>.
+/// </summary>
+public sealed record RegisterWebFontRequest(
+    string Provider,
+    string? Family,
+    List<int>? Weights,
+    bool IncludeItalic,
+    string? Url);
+
+/// <summary>The rows created, and one message per variant that was not.</summary>
+public sealed record RegisterWebFontResponse(IReadOnlyList<FontResponse> Fonts, IReadOnlyList<string> Errors);
 
 public sealed record UpdateFontRequest(string FamilyName, List<FontStyleDefinition> Styles);
 

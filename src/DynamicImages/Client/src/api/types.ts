@@ -225,17 +225,41 @@ export interface DiFontStyle {
   fontStyle: string;
 }
 
+/** Where a "url" font came from. Not "url" itself - that is the source kind. */
+export type DiWebFontProvider = "google" | "bunny" | "direct";
+
 export interface DiFont {
   key: string;
   familyName: string;
-  sourceKind: "media" | "path";
+  sourceKind: "media" | "path" | "url";
   mediaKey?: string | null;
   path?: string | null;
+  /** "url" fonts only. */
+  provider?: DiWebFontProvider | null;
+  /** "url" fonts only: the file URL fetched at render time. */
+  sourceUrl?: string | null;
+  /** "url" fonts only: the family as typed into the picker. */
+  providerFamily?: string | null;
   weight: number;
   isItalic: boolean;
   styles: DiFontStyle[];
   contentHash?: string | null;
   usedByTemplateCount: number;
+}
+
+/** Google and Bunny take family + weights (+ italic); direct takes url. */
+export interface DiRegisterWebFontRequest {
+  provider: DiWebFontProvider;
+  family?: string | null;
+  weights?: number[] | null;
+  includeItalic: boolean;
+  url?: string | null;
+}
+
+/** The rows that were created and one message per variant that was not. */
+export interface DiRegisterWebFontResponse {
+  fonts: DiFont[];
+  errors: string[];
 }
 
 // ---------------------------------------------------------------- document types

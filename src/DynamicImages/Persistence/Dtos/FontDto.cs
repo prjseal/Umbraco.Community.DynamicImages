@@ -20,7 +20,7 @@ public class FontDto
     [Length(255)]
     public string FamilyName { get; set; } = string.Empty;
 
-    /// <summary>"media" or "path".</summary>
+    /// <summary>"media", "path" or "url".</summary>
     [Column("sourceKind")]
     [Length(20)]
     public string SourceKind { get; set; } = "media";
@@ -34,6 +34,27 @@ public class FontDto
     [Length(500)]
     [NullSetting(NullSetting = NullSettings.Null)]
     public string? Path { get; set; }
+
+    // The three web-font columns are nullable on purpose: AddColumn<T> copies this definition, and
+    // a NOT NULL add fails on a table that already has rows.
+
+    /// <summary>The font file's URL for a "url" font.</summary>
+    [Column("sourceUrl")]
+    [Length(2000)]
+    [NullSetting(NullSetting = NullSettings.Null)]
+    public string? SourceUrl { get; set; }
+
+    /// <summary>"google", "bunny" or "direct" for a "url" font.</summary>
+    [Column("provider")]
+    [Length(20)]
+    [NullSetting(NullSetting = NullSettings.Null)]
+    public string? Provider { get; set; }
+
+    /// <summary>The family as typed into the provider picker, for re-resolving on refresh.</summary>
+    [Column("providerFamily")]
+    [Length(255)]
+    [NullSetting(NullSetting = NullSettings.Null)]
+    public string? ProviderFamily { get; set; }
 
     [Column("weight")]
     public int Weight { get; set; } = 400;

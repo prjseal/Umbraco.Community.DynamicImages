@@ -49,6 +49,45 @@ public class FontsController(IFontService fontService) : DynamicImagesController
             : Created($"fonts/{result.Font.Key}", FontResponse.From(result.Font, 0));
     }
 
+    /// <summary>
+    /// 200 with the rows and any per-variant errors when at least one row was created; 400 when
+    /// none was, listing every reason.
+    /// </summary>
+    [HttpPost("fonts/register-web")]
+    [ProducesResponseType(typeof(RegisterWebFontResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> RegisterWeb([FromBody] RegisterWebFontRequest request, CancellationToken cancellationToken)
+    {
+        var result = await fontService.RegisterWebFontAsync(
+            new WebFontRegistration(request.Provider, request.Family, request.Weights, request.IncludeItalic, request.Url),
+            cancellationToken);
+
+        if (result.Fonts.Count == 0)
+        {
+            return Problem(title: "That web font could not be added", detail: string.Join(" ", result.Errors),
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Ok(new RegisterWebFontResponse(
+            result.Fonts.Select(font => FontResponse.From(font, 0)).ToList(),
+            result.Errors));
+    }
+
+    [HttpPost("fonts/{key:guid}/refresh")]
+    [ProducesResponseType(typeof(FontResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Refresh(Guid key, CancellationToken cancellationToken)
+    {
+        if (fontService.Get(key) is null) return FontNotFound(key);
+
+        var result = await fontService.RefreshAsync(key, cancellationToken);
+
+        return result.Font is null
+            ? Problem(title: "That font could not be refreshed", detail: result.Error, statusCode: StatusCodes.Status400BadRequest)
+            : Ok(FontResponse.From(result.Font, fontService.TemplatesUsing(key).Count));
+    }
+
     [HttpPut("fonts/{key:guid}")]
     [ProducesResponseType(typeof(FontResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

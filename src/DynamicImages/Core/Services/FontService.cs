@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using SixLabors.Fonts;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
@@ -9,6 +9,7 @@ using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Strings;
 using Umbraco.Community.DynamicImages.Core.Cache;
 using Umbraco.Community.DynamicImages.Core.Fonts;
+using Umbraco.Community.DynamicImages.Core.Fonts.Remote;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Core.Models.Layers;
@@ -18,11 +19,13 @@ using Template = Umbraco.Community.DynamicImages.Core.Models.Template;
 
 namespace Umbraco.Community.DynamicImages.Core.Services;
 
-public sealed class FontService(
+public sealed partial class FontService(
     IFontRepository repository,
     ITemplateCache templateCache,
     IFontRegistry registry,
     IFontFileProvider fileProvider,
+    IWebFontResolver webFonts,
+    IRemoteFontFetcher remoteFonts,
     IMediaService mediaService,
     IMediaTypeService mediaTypeService,
     MediaFileManager mediaFileManager,
@@ -35,6 +38,9 @@ public sealed class FontService(
     private const string FontFolderName = "Dynamic Images Fonts";
 
     private static readonly string[] AllowedExtensions = [".ttf", ".otf", ".woff2", ".woff"];
+
+    /// <summary>Weights × italic; 9 weights, both slants. Anything beyond that is a typo, not a request.</summary>
+    private const int MaxWebFontVariants = 18;
 
     public IReadOnlyList<FontDefinition> GetAll() => repository.GetAll();
 
@@ -105,7 +111,8 @@ public sealed class FontService(
             return new FontUploadResult(null, $"'{path}' is outside the site's wwwroot folder.");
         }
 
-        await using var stream = await fileProvider.OpenAsync(ImageSourceKind.Path, null, path, cancellationToken);
+        await using var stream = await fileProvider.OpenAsync(
+            new FontDefinition { SourceKind = ImageSourceKind.Path, Path = path }, cancellationToken);
         if (stream is null)
         {
             return new FontUploadResult(null, $"No font file was found at '{path}'.");
@@ -136,6 +143,199 @@ public sealed class FontService(
         return new FontUploadResult(font, null);
     }
 
+    public async Task<WebFontRegistrationResult> RegisterWebFontAsync(WebFontRegistration request, CancellationToken cancellationToken = default)
+    {
+        var provider = WebFontProviders.Get(request.Provider);
+        if (provider is null)
+        {
+            return new WebFontRegistrationResult([], [$"'{request.Provider}' is not a font provider. Use google, bunny or direct."]);
+        }
+
+        return provider.CssUrl is null
+            ? await RegisterDirectAsync(provider, request.Url, cancellationToken)
+            : await RegisterFromProviderAsync(provider, request, cancellationToken);
+    }
+
+    private async Task<WebFontRegistrationResult> RegisterDirectAsync(WebFontProvider provider, string? url, CancellationToken cancellationToken)
+    {
+        var problem = WebFontProviders.ValidateDirectUrl(url, out var uri);
+        if (problem is not null || uri is null) return new WebFontRegistrationResult([], [problem ?? "Enter the URL of a font file."]);
+
+        if (repository.GetAll().Any(f => f.SourceKind == ImageSourceKind.Url && string.Equals(f.SourceUrl, uri.ToString(), StringComparison.OrdinalIgnoreCase)))
+        {
+            return new WebFontRegistrationResult([], [$"'{uri}' is already registered."]);
+        }
+
+        var fetched = await FetchAsync(uri, cancellationToken);
+        if (fetched.Error is not null || fetched.Bytes is null) return new WebFontRegistrationResult([], [fetched.Error ?? "The font could not be downloaded."]);
+
+        // A direct file is described the way an upload is: family, weight and slant come from
+        // the file, since nothing else knows them.
+        var described = Describe(fetched.Bytes);
+        if (described is null) return new WebFontRegistrationResult([], [$"The file at '{uri}' could not be read as a font. Static .ttf, .otf, .woff2 or .woff files only."]);
+
+        var font = repository.Insert(new FontDefinition
+        {
+            FamilyName = described.Value.Family,
+            SourceKind = ImageSourceKind.Url,
+            SourceUrl = uri.ToString(),
+            Provider = provider.Name,
+            ProviderFamily = described.Value.Family,
+            Weight = described.Value.Weight,
+            IsItalic = described.Value.IsItalic,
+            ContentHash = Hash(fetched.Bytes)
+        });
+
+        Notify(font.Key);
+
+        return new WebFontRegistrationResult([font], []);
+    }
+
+    private async Task<WebFontRegistrationResult> RegisterFromProviderAsync(WebFontProvider provider, WebFontRegistration request, CancellationToken cancellationToken)
+    {
+        var family = request.Family?.Trim() ?? string.Empty;
+        if (!FamilyPattern().IsMatch(family))
+        {
+            return new WebFontRegistrationResult([], ["Enter a family name: letters, numbers, spaces and hyphens, up to 80 characters."]);
+        }
+
+        var weights = (request.Weights ?? []).Distinct().OrderBy(w => w).ToList();
+        if (weights.Count == 0) return new WebFontRegistrationResult([], ["Tick at least one weight."]);
+
+        if (weights.Any(w => w is < 100 or > 900 || w % 100 != 0))
+        {
+            return new WebFontRegistrationResult([], ["Weights are 100 to 900 in steps of 100."]);
+        }
+
+        var variants = weights
+            .SelectMany(w => request.IncludeItalic ? new[] { (Weight: w, Italic: false), (Weight: w, Italic: true) } : [(Weight: w, Italic: false)])
+            .ToList();
+        if (variants.Count > MaxWebFontVariants)
+        {
+            return new WebFontRegistrationResult([], [$"That is {variants.Count} variants; the most one request can add is {MaxWebFontVariants}."]);
+        }
+
+        var existing = repository.GetAll().Where(f => f.SourceKind == ImageSourceKind.Url).ToList();
+        var fonts = new List<FontDefinition>();
+        var errors = new List<string>();
+        var notFound = 0;
+
+        foreach (var (weight, italic) in variants)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var label = $"{family} {weight}{(italic ? " italic" : string.Empty)}";
+
+            if (existing.Any(f => IsSameVariant(f, provider, family, weight, italic)))
+            {
+                errors.Add($"{label} is already registered.");
+                continue;
+            }
+
+            var resolved = await webFonts.ResolveAsync(provider, family, weight, italic, cancellationToken);
+            if (resolved.FileUrl is null)
+            {
+                if (resolved.Error?.Contains("has no weight", StringComparison.Ordinal) == true) notFound++;
+                errors.Add(resolved.Error ?? $"{label} could not be resolved.");
+                continue;
+            }
+
+            // Two variants can resolve to one file (a family that only ships one weight); the
+            // second would be the same font twice.
+            var url = resolved.FileUrl.ToString();
+            if (existing.Concat(fonts).Any(f => string.Equals(f.SourceUrl, url, StringComparison.OrdinalIgnoreCase)))
+            {
+                errors.Add($"{label} is the same file as a font that is already registered.");
+                continue;
+            }
+
+            var fetched = await FetchAsync(resolved.FileUrl, cancellationToken);
+            if (fetched.Bytes is null)
+            {
+                errors.Add($"{label}: {fetched.Error}");
+                continue;
+            }
+
+            // Describe only as "is this really a font": Google's instanced files name their
+            // sub-family inconsistently, so the weight and slant are what was asked for.
+            if (Describe(fetched.Bytes) is null)
+            {
+                errors.Add($"{label}: the file {provider.DisplayName} served could not be read as a font.");
+                continue;
+            }
+
+            var font = repository.Insert(new FontDefinition
+            {
+                FamilyName = family,
+                SourceKind = ImageSourceKind.Url,
+                SourceUrl = url,
+                Provider = provider.Name,
+                ProviderFamily = family,
+                Weight = weight,
+                IsItalic = italic,
+                ContentHash = Hash(fetched.Bytes)
+            });
+
+            Notify(font.Key);
+            fonts.Add(font);
+        }
+
+        // Google's 400 reads the same for an unknown family and an unavailable weight; when
+        // every variant got it, the family is the likelier problem.
+        if (fonts.Count == 0 && notFound == variants.Count)
+        {
+            errors = [$"'{family}' was not found on {provider.DisplayName}, or none of the chosen weights are available."];
+        }
+
+        return new WebFontRegistrationResult(fonts, errors);
+    }
+
+    public async Task<FontUploadResult> RefreshAsync(Guid key, CancellationToken cancellationToken = default)
+    {
+        var font = repository.Get(key);
+        if (font is null) return new FontUploadResult(null, $"No font exists with the key {key}.");
+
+        var provider = font.SourceKind == ImageSourceKind.Url ? WebFontProviders.Get(font.Provider) : null;
+        if (provider is null) return new FontUploadResult(null, "Only web fonts can be refreshed. Re-upload a file to replace it.");
+
+        Uri? url;
+        if (provider.CssUrl is null)
+        {
+            var problem = WebFontProviders.ValidateDirectUrl(font.SourceUrl, out url);
+            if (problem is not null || url is null) return new FontUploadResult(null, problem ?? "The font has no URL.");
+        }
+        else
+        {
+            // Re-resolve rather than re-fetch: Google's file paths carry a version segment, so
+            // the URL itself moves when the provider updates a family.
+            var resolved = await webFonts.ResolveAsync(provider, font.ProviderFamily ?? font.FamilyName, font.Weight, font.IsItalic, cancellationToken);
+            if (resolved.FileUrl is null) return new FontUploadResult(null, resolved.Error);
+            url = resolved.FileUrl;
+        }
+
+        // No expected hash, so this is always a download rather than a cache hit.
+        var fetched = await FetchAsync(url, cancellationToken);
+        if (fetched.Bytes is null) return new FontUploadResult(null, fetched.Error);
+
+        if (Describe(fetched.Bytes) is null)
+        {
+            return new FontUploadResult(null, $"The file at '{url}' could not be read as a font, so the registered one was kept.");
+        }
+
+        var previousHash = font.ContentHash;
+        font.SourceUrl = url.ToString();
+        font.ContentHash = Hash(fetched.Bytes);
+
+        var updated = repository.Update(font);
+        if (updated is null) return new FontUploadResult(null, $"No font exists with the key {key}.");
+
+        if (!string.Equals(previousHash, font.ContentHash, StringComparison.OrdinalIgnoreCase)) remoteFonts.Evict(previousHash);
+
+        // Every server drops the family; their next load misses the new hash and downloads it.
+        Notify(key);
+
+        return new FontUploadResult(updated, null);
+    }
+
     public FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles)
     {
         var font = repository.Get(key);
@@ -155,7 +355,13 @@ public sealed class FontService(
         var inUse = TemplatesUsing(key);
         if (inUse.Count > 0) return inUse;
 
-        if (repository.Delete(key)) Notify(key);
+        var font = repository.Get(key);
+
+        if (repository.Delete(key))
+        {
+            if (font?.SourceKind == ImageSourceKind.Url) remoteFonts.Evict(font.ContentHash);
+            Notify(key);
+        }
 
         return [];
     }
@@ -168,14 +374,57 @@ public sealed class FontService(
         var font = repository.Get(key);
         if (font is null) return null;
 
-        await using var stream = await fileProvider.OpenAsync(font.SourceKind, font.MediaKey, font.Path, cancellationToken);
+        await using var stream = await fileProvider.OpenAsync(font, cancellationToken);
         if (stream is null) return null;
 
         using var buffer = new MemoryStream();
         await stream.CopyToAsync(buffer, cancellationToken);
         var bytes = buffer.ToArray();
 
-        return (bytes, "font/ttf", font.ContentHash);
+        return (bytes, ContentTypeOf(bytes), font.ContentHash);
+    }
+
+    /// <summary>
+    /// From the file's magic bytes rather than a fixed font/ttf: a Bunny row serves woff2 bytes
+    /// to the designer's FontFace loader.
+    /// </summary>
+    private static string ContentTypeOf(byte[] bytes)
+    {
+        if (bytes.Length < 4) return "font/ttf";
+
+        return bytes.AsSpan(0, 4) switch
+        {
+            [(byte)'w', (byte)'O', (byte)'F', (byte)'2'] => "font/woff2",
+            [(byte)'w', (byte)'O', (byte)'F', (byte)'F'] => "font/woff",
+            [(byte)'O', (byte)'T', (byte)'T', (byte)'O'] => "font/otf",
+            _ => "font/ttf"
+        };
+    }
+
+    private static bool IsSameVariant(FontDefinition font, WebFontProvider provider, string family, int weight, bool italic)
+        => string.Equals(font.Provider, provider.Name, StringComparison.OrdinalIgnoreCase)
+           && string.Equals(font.ProviderFamily, family, StringComparison.OrdinalIgnoreCase)
+           && font.Weight == weight
+           && font.IsItalic == italic;
+
+    /// <summary>A download as an outcome rather than an exception, with the reason an editor can act on.</summary>
+    private async Task<(byte[]? Bytes, string? Error)> FetchAsync(Uri url, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return (await remoteFonts.GetBytesAsync(url, expectedHash: null, cancellationToken), null);
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning(ex, "Dynamic Images: the font at {Url} could not be downloaded", url);
+            return (null, ex.StatusCode is { } status
+                ? $"'{url}' answered {(int)status}."
+                : $"'{url}' could not be downloaded. Check the site has outbound HTTPS access and the file is under the size limit.");
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            return (null, $"'{url}' did not answer in time.");
+        }
     }
 
     private static bool UsesFont(LayerBase layer, Guid fontKey) => layer switch
@@ -258,7 +507,10 @@ public sealed class FontService(
         return folder.Id;
     }
 
-    private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes))[..32];
+    private static string Hash(byte[] bytes) => FontHash.Compute(bytes);
+
+    [GeneratedRegex(@"^[A-Za-z0-9 \-]{1,80}$")]
+    private static partial Regex FamilyPattern();
 
     private void Notify(Guid fontKey)
     {
