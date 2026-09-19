@@ -51,6 +51,9 @@ public class DynamicImagesOptions
 
     public SyncOptions Sync { get; set; } = new();
 
+    /// <summary>Fetching and caching of Google, Bunny and direct-URL fonts.</summary>
+    public WebFontOptions WebFonts { get; set; } = new();
+
     /// <summary>
     /// Automatically import the v1 configuration below the first time the package starts against
     /// an empty template table, so an upgrade needs no manual step.
