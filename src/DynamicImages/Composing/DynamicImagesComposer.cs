@@ -9,6 +9,7 @@ using Umbraco.Cms.Core.Notifications;
 using Umbraco.Community.DynamicImages.Configuration;
 using Umbraco.Community.DynamicImages.Core.Cache;
 using Umbraco.Community.DynamicImages.Core.Fonts;
+using Umbraco.Community.DynamicImages.Core.Fonts.Remote;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Rendering;
 using Umbraco.Community.DynamicImages.Core.Rendering.Layers;
@@ -68,6 +69,27 @@ public class DynamicImagesComposer : IComposer
         builder.Services.AddSingleton<IDynamicImageMediaWriter, DynamicImageMediaWriter>();
         builder.Services.AddSingleton<IFontFileProvider, FontFileProvider>();
         builder.Services.AddSingleton<IFontRegistry, FontRegistry>();
+
+        RegisterWebFonts(builder);
+    }
+
+    private static void RegisterWebFonts(IUmbracoBuilder builder)
+    {
+        // One named client for the provider CSS APIs and the file downloads. The buffer cap is
+        // what makes an oversize file throw out of GetByteArrayAsync; the User-Agent is never a
+        // browser's, so Google answers with one full file rather than seven subsets.
+        builder.Services.AddHttpClient(DynamicImagesConstants.WebFontHttpClientName, (services, client) =>
+        {
+            var webFonts = services.GetRequiredService<IOptionsMonitor<DynamicImagesOptions>>().CurrentValue.WebFonts;
+
+            client.Timeout = TimeSpan.FromSeconds(Math.Max(1, webFonts.TimeoutSeconds));
+            client.MaxResponseContentBufferSize = Math.Max(1, webFonts.MaxBytes);
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(DynamicImagesConstants.UserAgent);
+        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { MaxAutomaticRedirections = 5 });
+
+        builder.Services.AddSingleton<IFontCacheRoot, HostingFontCacheRoot>();
+        builder.Services.AddSingleton<IRemoteFontFetcher, RemoteFontFetcher>();
+        builder.Services.AddSingleton<IWebFontResolver, WebFontResolver>();
     }
 
     private static void RegisterServices(IUmbracoBuilder builder)

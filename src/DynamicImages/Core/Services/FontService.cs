@@ -104,7 +104,8 @@ public sealed class FontService(
             return new FontUploadResult(null, $"'{path}' is outside the site's wwwroot folder.");
         }
 
-        await using var stream = await fileProvider.OpenAsync(ImageSourceKind.Path, null, path, cancellationToken);
+        await using var stream = await fileProvider.OpenAsync(
+            new FontDefinition { SourceKind = ImageSourceKind.Path, Path = path }, cancellationToken);
         if (stream is null)
         {
             return new FontUploadResult(null, $"No font file was found at '{path}'.");
@@ -167,7 +168,7 @@ public sealed class FontService(
         var font = repository.Get(key);
         if (font is null) return null;
 
-        await using var stream = await fileProvider.OpenAsync(font.SourceKind, font.MediaKey, font.Path, cancellationToken);
+        await using var stream = await fileProvider.OpenAsync(font, cancellationToken);
         if (stream is null) return null;
 
         using var buffer = new MemoryStream();

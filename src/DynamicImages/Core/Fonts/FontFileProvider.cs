@@ -1,6 +1,7 @@
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.IO;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Community.DynamicImages.Core.Fonts.Remote;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
 
@@ -10,23 +11,29 @@ public sealed class FontFileProvider(
     MediaFileManager mediaFileManager,
     IMediaService mediaService,
     IWebHostEnvironment hostEnvironment,
+    IRemoteFontFetcher remoteFonts,
     ILogger<FontFileProvider> logger) : IFontFileProvider
 {
-    public Task<Stream?> OpenAsync(ImageSourceKind kind, Guid? mediaKey, string? path, CancellationToken cancellationToken = default)
+    public async Task<Stream?> OpenAsync(FontDefinition font, CancellationToken cancellationToken = default)
     {
         try
         {
-            return Task.FromResult(kind switch
+            // The url branch is awaited inside the try on purpose: a failed or timed-out fetch
+            // maps to null like every other unreadable font, and the registry's caller sits
+            // outside its own try.
+            return font.SourceKind switch
             {
-                ImageSourceKind.Media => OpenMedia(mediaKey),
-                ImageSourceKind.Path => OpenPath(path),
+                ImageSourceKind.Media => OpenMedia(font.MediaKey),
+                ImageSourceKind.Path => OpenPath(font.Path),
+                ImageSourceKind.Url => await OpenUrlAsync(font, cancellationToken),
                 _ => null
-            });
+            };
         }
         catch (Exception ex)
         {
-            logger.LogWarning(ex, "Dynamic Images: could not open font ({Kind} {Key}{Path})", kind, mediaKey, path);
-            return Task.FromResult<Stream?>(null);
+            logger.LogWarning(ex, "Dynamic Images: could not open font '{Family}' ({Kind} {Key}{Path}{Url})",
+                font.FamilyName, font.SourceKind, font.MediaKey, font.Path, font.SourceUrl);
+            return null;
         }
     }
 
@@ -49,5 +56,12 @@ public sealed class FontFileProvider(
     {
         var fullPath = WebRootPath.Resolve(hostEnvironment, path);
         return fullPath is not null && File.Exists(fullPath) ? File.OpenRead(fullPath) : null;
+    }
+
+    private async Task<Stream?> OpenUrlAsync(FontDefinition font, CancellationToken cancellationToken)
+    {
+        if (!Uri.TryCreate(font.SourceUrl, UriKind.Absolute, out var url)) return null;
+
+        return new MemoryStream(await remoteFonts.GetBytesAsync(url, font.ContentHash, cancellationToken), writable: false);
     }
 }

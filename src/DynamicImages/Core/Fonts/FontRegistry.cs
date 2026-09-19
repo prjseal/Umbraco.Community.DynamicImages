@@ -84,8 +84,7 @@ public sealed class FontRegistry(
             return null;
         }
 
-        await using var stream = await fileProvider.OpenAsync(
-            definition.SourceKind, definition.MediaKey, definition.Path, CancellationToken.None);
+        await using var stream = await fileProvider.OpenAsync(definition, CancellationToken.None);
 
         if (stream is null)
         {
