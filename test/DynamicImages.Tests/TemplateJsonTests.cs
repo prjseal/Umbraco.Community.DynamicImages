@@ -233,6 +233,65 @@ public class TemplateJsonTests
     }
 
     [Fact]
+    public void Serialize_WritesShapeKindsAsPinnedNamesUnderBothOptionSets()
+    {
+        var template = Sample();
+        ((RectLayer)template.Layers[3]).Shape = ShapeKind.Ellipse;
+
+        var ours = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default);
+        var hostLike = JsonSerializer.Serialize(template, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        foreach (var json in new[] { ours, hostLike })
+        {
+            Assert.Contains("\"shape\":\"ellipse\"", json);
+            // The discriminator does not change with the shape.
+            Assert.Contains("\"type\":\"rect\"", json);
+        }
+    }
+
+    [Fact]
+    public void RoundTrip_PreservesShapeSidesRatioAndBorder()
+    {
+        var template = Sample();
+        var star = (RectLayer)template.Layers[3];
+        star.Shape = ShapeKind.Star;
+        star.Sides = 6;
+        star.InnerRatio = 0.4f;
+        star.Fill = null;
+        star.Border = new ShapeBorder { Width = 3, Colour = "#FF00FF" };
+
+        var json = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default);
+        var back = (RectLayer)Migrator.Deserialize(json)!.Layers[3];
+
+        Assert.Equal(ShapeKind.Star, back.Shape);
+        Assert.Equal(6, back.Sides);
+        Assert.Equal(0.4f, back.InnerRatio);
+        Assert.Null(back.Fill);
+        Assert.NotNull(back.Border);
+        Assert.Equal(3, back.Border!.Width);
+        Assert.Equal("#FF00FF", back.Border.Colour);
+    }
+
+    [Fact]
+    public void Deserialize_ReadsARectWithoutAShapeAsARectangle()
+    {
+        // A document saved before shapes existed draws exactly the rectangle it always did.
+        var back = Migrator.Deserialize("""
+            {"schemaVersion":2,"alias":"x","name":"X","layers":[
+              {"type":"rect","name":"Scrim","fill":"#00000099","cornerRadius":8}
+            ]}
+            """)!;
+
+        var rect = Assert.IsType<RectLayer>(back.Layers[0]);
+        Assert.Equal(ShapeKind.Rectangle, rect.Shape);
+        Assert.Equal(5, rect.Sides);
+        Assert.Equal(0.5f, rect.InnerRatio);
+        Assert.Null(rect.Border);
+        Assert.Equal(8, rect.CornerRadius);
+        Assert.Equal(0f, rect.Rotation);
+    }
+
+    [Fact]
     public void ReadSchemaVersion_DefaultsToOneWhenAbsent()
         => Assert.Equal(1, Migrator.ReadSchemaVersion("""{"alias":"x"}"""));
 

@@ -455,6 +455,163 @@ public class RendererTests
             $"wrapped height {wrapped.Bounds[0].Height} should exceed one row {oneRow.Bounds[0].Height}");
     }
 
+    // ------------------------------------------------------------------ shapes
+
+    [Fact]
+    public async Task RenderAsync_DrawsAnEllipseInsideItsBox()
+    {
+        var ellipse = Rect("Ellipse", 0, 0, 100, 50);
+        ellipse.Shape = ShapeKind.Ellipse;
+
+        using var result = await Renderer().RenderAsync(Template(ellipse), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[5, 25]);
+        // The box's corner lies outside the inscribed ellipse.
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[2, 2]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[97, 47]);
+        Assert.Equal((0f, 0f, 100f, 50f), (result.Bounds[0].X, result.Bounds[0].Y, result.Bounds[0].Width, result.Bounds[0].Height));
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsAFivePointStarWithItsTipAtTheTop()
+    {
+        var star = Rect("Star", 0, 0, 100, 100);
+        star.Shape = ShapeKind.Star;
+        star.Sides = 5;
+        star.InnerRatio = 0.5f;
+
+        using var result = await Renderer().RenderAsync(Template(star), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 50]);
+        // The top point sits on the box's top-centre; the corners and the notch under the
+        // bottom two arms are inside the box but outside the star.
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 8]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[10, 10]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[90, 10]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[50, 90]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsAPolygonStretchedToItsBox()
+    {
+        // A diamond in a 100x50 box: its points touch the middle of each edge.
+        var diamond = Rect("Diamond", 0, 0, 100, 50);
+        diamond.Shape = ShapeKind.Polygon;
+        diamond.Sides = 4;
+
+        using var result = await Renderer().RenderAsync(Template(diamond), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 3]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[95, 25]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[5, 5]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[95, 45]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsABorderOnlyRectangleInsideItsBox()
+    {
+        var frame = Rect("Frame", 0, 0, 100, 50);
+        frame.Fill = null;
+        frame.Border = new ShapeBorder { Width = 4, Colour = "#FFFFFF" };
+
+        using var result = await Renderer().RenderAsync(Template(frame), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        // The stroke lies inside the box: the edge pixel is white, the centre untouched, and
+        // nothing spills past the box.
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[1, 25]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[98, 25]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[50, 1]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[50, 48]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[50, 6]);
+        Assert.Equal(0, CountNonBackgroundOutside(image, (0, 0, 100, 50), margin: 0));
+
+        var bounds = Assert.Single(result.Bounds);
+        Assert.Equal((0f, 0f, 100f, 50f), (bounds.X, bounds.Y, bounds.Width, bounds.Height));
+
+        var measured = await Renderer().MeasureAsync(Template(frame), Values());
+        Assert.Equal(bounds, Assert.Single(measured));
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsABorderAroundAFilledEllipse()
+    {
+        var ring = Rect("Ring", 0, 0, 100, 100);
+        ring.Shape = ShapeKind.Ellipse;
+        ring.Border = new ShapeBorder { Width = 6, Colour = "#00FF00" };
+
+        using var result = await Renderer().RenderAsync(Template(ring), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(0, 255, 0, 255), image[2, 50]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 50]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[2, 2]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_SkipsAShapeWithNothingToPaint()
+    {
+        var empty = Rect("Nothing", 0, 0);
+        empty.Fill = null;
+        empty.Gradient = null;
+        empty.Border = new ShapeBorder { Width = 0, Colour = "#FFFFFF" };
+
+        using var result = await Renderer().RenderAsync(Template(empty), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Empty(result.Bounds);
+        Assert.Empty(await Renderer().MeasureAsync(Template(empty), Values()));
+        Assert.False(HasNonBackgroundPixels(image));
+    }
+
+    [Fact]
+    public async Task RenderAsync_ClampsAPolygonsSides()
+    {
+        // 20 sides is drawn with 12; both are so nearly a circle that the corner is untouched
+        // and the centre and the edge midpoints are painted.
+        var polygon = Rect("Polygon", 0, 0, 100, 100);
+        polygon.Shape = ShapeKind.Polygon;
+        polygon.Sides = 20;
+
+        using var result = await Renderer().RenderAsync(Template(polygon), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 50]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 3]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[3, 3]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_RotatesAnEllipseAboutItsAnchor()
+    {
+        // A 100x20 ellipse centred at (200, 100) turned 90 degrees stands upright: painted above
+        // and below the centre, not left and right of it.
+        var pill = new RectLayer
+        {
+            Name = "Pill",
+            Shape = ShapeKind.Ellipse,
+            Fill = "#FF0000",
+            Rotation = 90,
+            Position = new Position { X = 200, Y = 100, Anchor = Anchor.MiddleCentre },
+            Size = new LayerSize { Width = 100, Height = 20 },
+        };
+
+        using var result = await Renderer().RenderAsync(Template(pill), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[200, 100]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[200, 60]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[200, 140]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[160, 100]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[240, 100]);
+    }
+
     // ------------------------------------------------------------------ rotation
 
     [Fact]

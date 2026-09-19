@@ -1,6 +1,6 @@
 import type {
   DiBadgesLayer, DiImageLayer, DiLayer, DiProperty, DiRectLayer, DiTemplate, DiTextLayer,
-  PropertyClassification,
+  PropertyClassification, ShapeKind,
 } from "../api/types.js";
 
 /** crypto.randomUUID is available in every browser the backoffice supports. */
@@ -112,22 +112,27 @@ export function createBadgesLayer(context: NewLayerContext, name: string, itemsP
   };
 }
 
-export function createRectLayer(context: NewLayerContext, name = "Shape"): DiRectLayer {
+export function createRectLayer(context: NewLayerContext, name = "Shape", shape: ShapeKind = "rectangle"): DiRectLayer {
   const { x, y } = centre(context);
 
   return {
     type: "rect",
     key: newKey(),
-    name,
+    name: shape === "ellipse" && name === "Shape" ? "Ellipse" : name,
     isVisible: true,
     isLocked: false,
     opacity: 1,
     position: { x, y, anchor: "middleCentre" },
-    size: { width: 400, height: 200 },
+    // A circle is the ellipse people reach for; a scrim is wide.
+    size: shape === "ellipse" ? { width: 200, height: 200 } : { width: 400, height: 200 },
     visibility: { rule: "always" },
+    shape,
     fill: "#00000099",
     gradient: null,
     cornerRadius: 0,
+    sides: 5,
+    innerRatio: 0.5,
+    border: null,
   };
 }
 

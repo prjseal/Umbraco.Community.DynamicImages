@@ -8,27 +8,27 @@ using Umbraco.Community.DynamicImages.Core.Models.Layers;
 
 namespace Umbraco.Community.DynamicImages.Core.Rendering.Layers;
 
-/// <summary>Solid or gradient rectangles - scrims that keep text readable over a busy photo.</summary>
+/// <summary>
+/// Shapes - rectangles, ellipses, polygons and stars - with a solid or gradient fill and an
+/// optional border drawn inside the box: scrims that keep text readable, rules, circles behind icons.
+/// </summary>
 public sealed class RectLayerRenderer : ILayerRenderer
 {
     public Type LayerType => typeof(RectLayer);
 
     public Task<LayerBounds?> RenderAsync(Image image, LayerBase layer, LayerRenderContext context)
     {
-        if (layer is not RectLayer rect || !HasFill(rect)) return Task.FromResult<LayerBounds?>(null);
+        if (layer is not RectLayer rect || !HasPaint(rect)) return Task.FromResult<LayerBounds?>(null);
 
         var (x, y, width, height, pivot) = Layout(rect, context);
         if (width <= 0 || height <= 0) return Task.FromResult<LayerBounds?>(null);
 
-        IPath shape = rect.CornerRadius > 0
-            ? RoundedRectangle.Build(x, y, width, height, rect.CornerRadius)
-            : new RectangularPolygon(x, y, width, height);
-
-        // The path is built unrotated and turned about the pivot afterwards; the gradient's
-        // stops go through the same matrix by hand, because filling a transformed region does
-        // not transform the brush.
+        // Paths are built unrotated and turned about the pivot afterwards; the gradient's stops
+        // go through the same matrix by hand, because filling a transformed region does not
+        // transform the brush.
         var matrix = rect.Rotation != 0 ? RotationMath.Matrix(pivot.X, pivot.Y, rect.Rotation) : Matrix3x2.Identity;
-        if (rect.Rotation != 0) shape = shape.Transform(matrix);
+        var fillPath = ShapePath.Build(rect, x, y, width, height, rect.CornerRadius);
+        if (rect.Rotation != 0) fillPath = fillPath.Transform(matrix);
 
         var options = new DrawingOptions
         {
@@ -42,11 +42,26 @@ public sealed class RectLayerRenderer : ILayerRenderer
         if (rect.Gradient is not null)
         {
             var brush = BuildGradientBrush(rect.Gradient, x, y, width, height, matrix);
-            image.Mutate(ctx => ctx.Fill(options, brush, shape));
+            image.Mutate(ctx => ctx.Fill(options, brush, fillPath));
         }
         else if (ColourParser.TryParse(rect.Fill, out var fill))
         {
-            image.Mutate(ctx => ctx.Fill(options, new SolidBrush(fill), shape));
+            image.Mutate(ctx => ctx.Fill(options, new SolidBrush(fill), fillPath));
+        }
+
+        if (TryGetBorder(rect, out var borderWidth, out var borderColour) && width > borderWidth && height > borderWidth)
+        {
+            // The stroke is centred on its path, so a path deflated by half the width on every
+            // side keeps the whole stroke inside the box - the image layer's inset trick,
+            // generalised. A rectangle's corner radius is the box's outer radius, as in CSS, so
+            // the path's own radius is half a stroke smaller.
+            var inset = borderWidth / 2f;
+            var borderPath = ShapePath.Build(
+                rect, x + inset, y + inset, width - borderWidth, height - borderWidth, MathF.Max(0f, rect.CornerRadius - inset));
+            if (rect.Rotation != 0) borderPath = borderPath.Transform(matrix);
+
+            var pen = new SolidPen(new PenOptions(borderColour, borderWidth) { JointStyle = JointStyle.Round });
+            image.Mutate(ctx => ctx.Draw(options, pen, borderPath));
         }
 
         return Task.FromResult<LayerBounds?>(
@@ -55,7 +70,7 @@ public sealed class RectLayerRenderer : ILayerRenderer
 
     public Task<LayerBounds?> MeasureAsync(LayerBase layer, LayerRenderContext context)
     {
-        if (layer is not RectLayer rect || !HasFill(rect)) return Task.FromResult<LayerBounds?>(null);
+        if (layer is not RectLayer rect || !HasPaint(rect)) return Task.FromResult<LayerBounds?>(null);
 
         var (x, y, width, height, pivot) = Layout(rect, context);
         if (width <= 0 || height <= 0) return Task.FromResult<LayerBounds?>(null);
@@ -64,9 +79,23 @@ public sealed class RectLayerRenderer : ILayerRenderer
             new LayerBounds(rect.Key, x, y, width, height, 0, false, null, rect.Rotation, pivot.X, pivot.Y));
     }
 
-    /// <summary>A shape with nothing to paint draws nothing, so it also occupies nothing.</summary>
-    private static bool HasFill(RectLayer rect)
-        => rect.Gradient is not null || ColourParser.TryParse(rect.Fill, out _);
+    /// <summary>
+    /// A shape with nothing to paint - no gradient, no parseable fill and no border - draws
+    /// nothing, so it also occupies nothing. A border alone is enough: an outlined box is a shape.
+    /// </summary>
+    private static bool HasPaint(RectLayer rect)
+        => rect.Gradient is not null || ColourParser.TryParse(rect.Fill, out _) || TryGetBorder(rect, out _, out _);
+
+    private static bool TryGetBorder(RectLayer rect, out float width, out Color colour)
+    {
+        width = 0f;
+        colour = default;
+
+        if (rect.Border is not { Width: > 0 } border || !ColourParser.TryParse(border.Colour, out colour)) return false;
+
+        width = border.Width;
+        return true;
+    }
 
     /// <summary>
     /// A missing dimension means "the whole canvas" - that is what a scrim is. The pivot is the

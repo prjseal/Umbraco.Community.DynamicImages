@@ -4,6 +4,7 @@ using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Core.Models.Layers;
 using Umbraco.Community.DynamicImages.Core.Rendering;
+using Umbraco.Community.DynamicImages.Core.Rendering.Layers;
 using Umbraco.Community.DynamicImages.Persistence;
 
 namespace Umbraco.Community.DynamicImages.Core.Services;
@@ -220,10 +221,10 @@ public sealed partial class TemplateValidator(
                 break;
 
             case RectLayer rect:
-                if (rect.Gradient is null && string.IsNullOrWhiteSpace(rect.Fill))
+                if (rect.Gradient is null && string.IsNullOrWhiteSpace(rect.Fill) && rect.Border is not { Width: > 0 })
                 {
                     issues.Add(new ValidationIssue(ValidationSeverity.Warning, "NoFill",
-                        $"Layer '{Describe(layer)}' has neither a fill nor a gradient.", layer.Key));
+                        $"Layer '{Describe(layer)}' has no fill, gradient or border, so nothing is drawn.", layer.Key));
                 }
 
                 if (rect.Fill is not null) RequireColour(rect.Fill, layer, issues);
@@ -231,6 +232,21 @@ public sealed partial class TemplateValidator(
                 {
                     RequireColour(rect.Gradient.From, layer, issues);
                     RequireColour(rect.Gradient.To, layer, issues);
+                }
+                if (rect.Border is not null) RequireColour(rect.Border.Colour, layer, issues);
+
+                // The renderer clamps either way; the warning says what will actually be drawn.
+                if (rect.Shape is ShapeKind.Polygon or ShapeKind.Star && rect.Sides != ShapeGeometry.ClampSides(rect.Sides))
+                {
+                    var what = rect.Shape == ShapeKind.Star ? "points" : "sides";
+                    issues.Add(new ValidationIssue(ValidationSeverity.Warning, "ShapeSidesInvalid",
+                        $"Layer '{Describe(layer)}' asks for {rect.Sides} {what}; a shape has between {ShapeGeometry.MinSides} and {ShapeGeometry.MaxSides}, so it will be drawn with {ShapeGeometry.ClampSides(rect.Sides)}.", layer.Key));
+                }
+
+                if (rect.Shape == ShapeKind.Star && rect.InnerRatio != ShapeGeometry.ClampInnerRatio(rect.InnerRatio))
+                {
+                    issues.Add(new ValidationIssue(ValidationSeverity.Warning, "ShapeInnerRatioInvalid",
+                        $"Layer '{Describe(layer)}' has an inner ratio of {rect.InnerRatio}; a star's is between {ShapeGeometry.MinInnerRatio} and {ShapeGeometry.MaxInnerRatio}, so it will be drawn with {ShapeGeometry.ClampInnerRatio(rect.InnerRatio)}.", layer.Key));
                 }
                 break;
         }

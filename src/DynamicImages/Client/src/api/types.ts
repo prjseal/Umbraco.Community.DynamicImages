@@ -152,11 +152,26 @@ export interface DiBadgesLayer extends DiLayerBase {
   };
 }
 
+export type ShapeKind = "rectangle" | "ellipse" | "polygon" | "star";
+
+/**
+ * A filled and/or outlined shape. The discriminator stays "rect" whatever the shape, so every
+ * stored template stays valid and an older package draws a rectangle.
+ */
 export interface DiRectLayer extends DiLayerBase {
   type: "rect";
+  shape: ShapeKind;
+  /** null with no gradient means outline-only. */
   fill?: string | null;
   gradient?: { from: string; to: string; angle: number } | null;
+  /** Rectangle only. */
   cornerRadius: number;
+  /** Sides of a polygon or points of a star, 3..12. */
+  sides: number;
+  /** A star's inner radius as a proportion of the outer, 0.1..0.9. */
+  innerRatio: number;
+  /** Drawn inside the box, like an image border. */
+  border?: { width: number; colour: string } | null;
 }
 
 export type DiLayer = DiTextLayer | DiImageLayer | DiBadgesLayer | DiRectLayer;
