@@ -18,6 +18,13 @@ public enum ImageSourceKind
     [JsonStringEnumMemberName("property")]
     Property,
 
+    /// <summary>
+    /// A file fetched from a URL and cached on each server. Fonts only: an image source of this
+    /// kind is rejected by validation and opens as nothing.
+    /// </summary>
+    [JsonStringEnumMemberName("url")]
+    Url,
+
     /// <summary>Nothing - draw no image.</summary>
     [JsonStringEnumMemberName("none")]
     None

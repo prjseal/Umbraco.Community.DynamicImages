@@ -78,9 +78,17 @@ public sealed class FontRepository(IScopeProvider scopeProvider) : IFontReposito
     {
         Key = font.Key,
         FamilyName = font.FamilyName,
-        SourceKind = font.SourceKind == ImageSourceKind.Path ? "path" : "media",
+        SourceKind = font.SourceKind switch
+        {
+            ImageSourceKind.Path => "path",
+            ImageSourceKind.Url => "url",
+            _ => "media"
+        },
         MediaKey = font.MediaKey,
         Path = font.Path,
+        SourceUrl = font.SourceUrl,
+        Provider = font.Provider,
+        ProviderFamily = font.ProviderFamily,
         Weight = font.Weight,
         IsItalic = font.IsItalic,
         StylesJson = JsonSerializer.Serialize(font.Styles, DynamicImagesJsonOptions.Default),
@@ -93,11 +101,17 @@ public sealed class FontRepository(IScopeProvider scopeProvider) : IFontReposito
     {
         Key = dto.Key,
         FamilyName = dto.FamilyName,
-        SourceKind = string.Equals(dto.SourceKind, "path", StringComparison.OrdinalIgnoreCase)
-            ? ImageSourceKind.Path
-            : ImageSourceKind.Media,
+        SourceKind = dto.SourceKind?.ToLowerInvariant() switch
+        {
+            "path" => ImageSourceKind.Path,
+            "url" => ImageSourceKind.Url,
+            _ => ImageSourceKind.Media
+        },
         MediaKey = dto.MediaKey,
         Path = dto.Path,
+        SourceUrl = dto.SourceUrl,
+        Provider = dto.Provider,
+        ProviderFamily = dto.ProviderFamily,
         Weight = dto.Weight,
         IsItalic = dto.IsItalic,
         Styles = Deserialize(dto.StylesJson),
