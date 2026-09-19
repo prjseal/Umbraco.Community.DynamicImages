@@ -488,11 +488,3 @@ umbraco-package-schema.json
 # They are committed once, in the package, and must not be committed a second time here.
 /wwwroot/App_Plugins/DynamicImages/
 /App_Plugins/DynamicImages/
-
-# Views and front-end assets the Clean starter kit package copies into the project on every
-# restore (see Clean's own README: this is what referencing "Clean" rather than "Clean.Core"
-# buys you - a live, self-healing copy instead of a one-time scaffold). Not ours to own or diff.
-/Views/
-/wwwroot/assets/
-/wwwroot/css/
-/wwwroot/favicon.ico

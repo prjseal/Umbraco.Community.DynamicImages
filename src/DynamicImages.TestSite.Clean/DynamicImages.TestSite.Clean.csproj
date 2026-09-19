@@ -10,8 +10,11 @@
     <PackageReference Include="Umbraco.Cms"/>
     <PackageReference Include="Umbraco.Cms.DevelopmentMode.Backoffice"/>
     <!-- Clean Starter Kit for Umbraco, 7.x line - the one that targets Umbraco 17 (LTS).
-         See https://github.com/prjseal/Clean#umbraco-17-lts -->
-    <PackageReference Include="Clean"/>
+         Clean.Core rather than Clean: the Views/wwwroot below are committed and ours to edit, and
+         uSync (not Clean's own embedded install) now seeds content, media and settings, so we
+         don't want Clean's own package re-copying and reinstalling over local changes on every
+         restore. See "Important" at https://github.com/prjseal/Clean#umbraco-17-lts -->
+    <PackageReference Include="Clean.Core"/>
     <!-- Imports the uSync/v17 folder (content, media and settings) on first boot. -->
     <PackageReference Include="uSync"/>
   </ItemGroup>
