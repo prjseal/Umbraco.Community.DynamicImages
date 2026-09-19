@@ -129,6 +129,10 @@ public sealed record PreviewRequest
     public double? Scale { get; init; }
 }
 
+/// <summary>
+/// The unrotated box a layer occupied, plus - when it is rotated - the degrees and the pivot it
+/// turned about, so the designer can lay its overlay over exactly where the server drew.
+/// </summary>
 public sealed record LayerBoundsResponse(
     Guid Key,
     float X,
@@ -137,7 +141,10 @@ public sealed record LayerBoundsResponse(
     float Height,
     int Lines,
     bool Truncated,
-    string? ResolvedText);
+    string? ResolvedText,
+    float Rotation,
+    float PivotX,
+    float PivotY);
 
 public sealed record LayoutResponse(
     int CanvasWidth,

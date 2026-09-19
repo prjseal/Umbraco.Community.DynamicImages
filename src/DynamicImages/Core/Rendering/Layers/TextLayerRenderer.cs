@@ -30,6 +30,14 @@ public sealed class TextLayerRenderer(IFontRegistry fontRegistry, ILogger<TextLa
             }
         };
 
+        // ImageSharp composes this transform into every glyph and decoration outline, and the
+        // origin is the anchor point, so a rotation about that point spins the block in place -
+        // no change to the layout, the wrapping or the reported box.
+        if (text.Rotation != 0)
+        {
+            drawingOptions.Transform = RotationMath.Matrix(layout.Bounds.PivotX, layout.Bounds.PivotY, text.Rotation);
+        }
+
         image.Mutate(ctx => ctx.DrawText(drawingOptions, layout.Options, layout.Fitted.Text, new SolidBrush(colour), pen: null));
 
         return layout.Bounds;
@@ -112,7 +120,10 @@ public sealed class TextLayerRenderer(IFontRegistry fontRegistry, ILogger<TextLa
             height,
             fitted.LineCount,
             fitted.Truncated,
-            fitted.Text);
+            fitted.Text,
+            text.Rotation,
+            position.X,
+            position.Y);
 
         return new TextLayout(fitted, options, bounds);
     }

@@ -49,14 +49,27 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
             overlay.Mutate(ctx => ctx.Draw(new SolidPen(borderColour, border.Width), outline));
         }
 
-        var (x, y) = AnchorMath.ToTopLeft(context.PositionOf(imageLayer), width, height);
+        var position = context.PositionOf(imageLayer);
+        var (x, y) = AnchorMath.ToTopLeft(position, width, height);
+
+        // A rotated overlay is turned as a whole - corners and border included - and its centre
+        // put where the unrotated box's centre lands once turned about the pivot. Rotate grows
+        // the overlay to the rotated bounding box, which is what makes "place the centre" right.
+        var (drawX, drawY) = (x, y);
+        if (imageLayer.Rotation != 0)
+        {
+            overlay.Mutate(ctx => ctx.Rotate(imageLayer.Rotation));
+            var (centreX, centreY) = RotationMath.RotatePoint(x + width / 2f, y + height / 2f, position.X, position.Y, imageLayer.Rotation);
+            drawX = centreX - overlay.Width / 2f;
+            drawY = centreY - overlay.Height / 2f;
+        }
 
         image.Mutate(ctx => ctx.DrawImage(
             overlay,
-            new Point((int)Math.Round(x), (int)Math.Round(y)),
+            new Point((int)Math.Round(drawX), (int)Math.Round(drawY)),
             Math.Clamp(imageLayer.Opacity, 0f, 1f)));
 
-        return new LayerBounds(imageLayer.Key, x, y, width, height, 0, false, null);
+        return new LayerBounds(imageLayer.Key, x, y, width, height, 0, false, null, imageLayer.Rotation, position.X, position.Y);
     }
 
     public async Task<LayerBounds?> MeasureAsync(LayerBase layer, LayerRenderContext context)
@@ -72,8 +85,9 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
         var height = (int)Math.Round(imageLayer.Size.Height ?? natural.Value.Height);
         if (width <= 0 || height <= 0) return null;
 
-        var (x, y) = AnchorMath.ToTopLeft(context.PositionOf(imageLayer), width, height);
+        var position = context.PositionOf(imageLayer);
+        var (x, y) = AnchorMath.ToTopLeft(position, width, height);
 
-        return new LayerBounds(imageLayer.Key, x, y, width, height, 0, false, null);
+        return new LayerBounds(imageLayer.Key, x, y, width, height, 0, false, null, imageLayer.Rotation, position.X, position.Y);
     }
 }
