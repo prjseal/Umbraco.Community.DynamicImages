@@ -4,6 +4,22 @@
 
 ### Added
 
+- **Rotation**: every layer has a rotation in degrees, clockwise, and turns about its anchor point
+  - so a tracked axis still works and a middle-anchored layer spins in place. Text rotates through
+  ImageSharp's drawing transform, so wrapping and the reported line box are untouched; shapes turn
+  their path (and their gradient); images and badge rows are rotated as a whole and placed by
+  their centre. In the designer the box, its handles and the measured overlay tilt with the
+  layer, a round handle above the selection rotates it (Shift for 15° steps, one undo step per
+  drag), a rotated layer moves by its tilted footprint and resizes along its own axes, and a layer
+  tracking a rotated one follows that footprint. The maths is shared with the client through
+  `rotation-fixtures.json`.
+- **Shapes**: the shape layer draws a rectangle, ellipse, polygon (3-12 sides) or star (3-12
+  points, inner ratio 0.1-0.9), with a solid or gradient fill and an optional **border** drawn
+  inside the box. Fill can be turned off for an outline alone. The palette offers a rectangle and
+  an ellipse. The document keeps the `rect` discriminator and every existing template reads as a
+  rectangle, so nothing needs migrating; the polygon and star vertices are shared with the client
+  through `shape-fixtures.json`. The validator warns about sides or an inner ratio outside the
+  range (the renderer clamps them) and about a shape with nothing to paint.
 - **Relative positioning**: each axis of a layer's position is either absolute or tracks another
   layer by an edge and a gap - `below`, `above`, `rightOf`, `leftOf`. A description can start a
   fixed distance under a title whatever the title's height, and a badge row under that. References
@@ -27,6 +43,12 @@
 
 ### Changed
 
+- `LayerBounds` and the layout API's `LayerBoundsResponse` carry three new fields - `rotation`,
+  `pivotX` and `pivotY` - and `LayerBounds.Extent()` gives the rotated footprint. The box itself
+  stays the unrotated layout box, so nothing changes for a layer that is not rotated.
+- A `rect` layer with only a border (no fill and no gradient) now draws and occupies its box;
+  before, it drew nothing. The `NoFill` validation warning now fires only when there is no fill,
+  gradient or border.
 - Text layers now report their **line box** rather than their glyph ink as their bounds, so a gap
   measured below "Hello" and below "Happy" is the same gap, and the designer's measured overlay
   agrees with its DOM box. Nothing about where text is drawn has changed.

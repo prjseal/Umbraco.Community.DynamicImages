@@ -53,7 +53,7 @@ Layers are drawn bottom to top, in the order the layers panel shows them reverse
 | **Text** | A value from the page, formatted and fitted to its box |
 | **Image** | A media item, a `wwwroot` file, or a media picker property on the page |
 | **Badges** | A row or column of circular badges from a multi-node picker - categories, tags, authors. Labels below, beside, or off, with optional wrapping |
-| **Shape** | A solid or gradient rectangle, for scrims behind text |
+| **Shape** | A rectangle, ellipse, polygon or star with a solid or gradient fill and an optional border - scrims, rules, circles behind icons |
 
 ### Positioning
 
@@ -84,6 +84,34 @@ In the designer a tracked axis is not draggable, snappable or nudgeable - it is 
 pointer has nothing to move. Switching an axis back to absolute bakes in the coordinate it had
 resolved to, so the layer stays exactly where it is, and deleting a layer does the same to
 everything that tracked it.
+
+#### Rotation
+
+Every layer has a **Rotation** in degrees, clockwise, and turns around its **anchor point** - the
+one point of the layer whose place is fixed however big its content turns out to be. New layers
+are anchored at their middle, so in practice a rotation spins the layer about its centre; a
+top-left-anchored label swings from its corner instead. Type a value in the inspector, or drag
+the round handle above the selection on the canvas; hold **Shift** to snap to 15° steps. A whole
+drag is one undo step.
+
+The designer's box, its handles and the measured overlay all tilt with the layer, and moving a
+rotated layer snaps by its tilted footprint. A layer that tracks a rotated layer follows that
+footprint too: *below* a title turned 90° means below the bottom of the upright column it now
+occupies, not below its unrotated height.
+
+### Shapes
+
+A shape layer draws a **rectangle**, **ellipse**, **polygon** or **star** inside its box. A
+polygon has 3 to 12 **sides**, the first point at the top; a star has that many **points** and an
+**inner ratio** (0.1 to 0.9) that sets how deep its notches are. Both stretch to fill a non-square
+box, the way CSS `clip-path` does, so a circle is an ellipse in a square box. **Corner radius**
+applies to rectangles only.
+
+The fill is a solid colour, a linear gradient, or nothing: turn **Fill** off and set a **Border**
+for an outline alone - a ring, a frame, a rule. The border is drawn inside the box, the way an
+image layer's border and a CSS border are, so a bordered shape occupies exactly its box. A shape
+with no fill, no gradient and no border draws nothing, and the validator says so. The palette
+offers a rectangle and an ellipse; polygon and star are a select away in the inspector.
 
 ### Badge layout
 
@@ -257,6 +285,13 @@ public class MyLayerRenderer : ILayerRenderer
 another layer is positioned against, before anything is drawn. Its default implementation renders
 into a throwaway image and keeps the bounds, so an existing renderer needs no change; override it
 when the size is cheaper to work out than the drawing.
+
+`LayerBounds` is the **unrotated** box a layer was laid out in, plus `Rotation`, `PivotX` and
+`PivotY` when the layer is turned; `Extent()` gives the axis-aligned footprint on the canvas,
+which is what relative positioning hangs off. A renderer that honours `layer.Rotation` turns its
+drawing about `context.PositionOf(layer)` (`RotationMath.Matrix` gives the matrix for a path or a
+`DrawingOptions.Transform`) and reports the pivot; one that ignores rotation simply draws unrotated
+and leaves the three fields at their defaults.
 
 ```csharp
 public class MyComposer : IComposer
