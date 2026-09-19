@@ -19,10 +19,14 @@ public sealed class FontRegistry(
     {
         if (fontKey == Guid.Empty) return Task.FromResult<FontFamily?>(null);
 
+        // The shared load deliberately ignores the caller's token: it is one load for every
+        // caller, so the first caller aborting (the designer cancels stale previews) must not
+        // leave the others - and every later render - with a cancelled task. The file provider's
+        // own timeouts bound how long it can take.
         var entry = _families.GetOrAdd(fontKey, key =>
-            new Lazy<Task<FontFamily?>>(() => LoadAsync(key, cancellationToken), LazyThreadSafetyMode.ExecutionAndPublication));
+            new Lazy<Task<FontFamily?>>(() => LoadAsync(key), LazyThreadSafetyMode.ExecutionAndPublication));
 
-        return entry.Value;
+        return entry.Value.WaitAsync(cancellationToken);
     }
 
     public async Task<Font?> GetFontAsync(Guid fontKey, float size, string? fontStyle, CancellationToken cancellationToken = default)
@@ -46,7 +50,27 @@ public sealed class FontRegistry(
 
     public void Clear(Guid fontKey) => _families.TryRemove(fontKey, out _);
 
-    private async Task<FontFamily?> LoadAsync(Guid fontKey, CancellationToken cancellationToken)
+    private async Task<FontFamily?> LoadAsync(Guid fontKey)
+    {
+        try
+        {
+            var family = await LoadCoreAsync(fontKey);
+
+            // A failed load is not cached: the next render retries instead of the font staying
+            // dead on this server until a refresh or a restart.
+            if (family is null) _families.TryRemove(fontKey, out _);
+
+            return family;
+        }
+        catch (Exception ex)
+        {
+            _families.TryRemove(fontKey, out _);
+            logger.LogError(ex, "Dynamic Images: font {FontKey} could not be loaded", fontKey);
+            return null;
+        }
+    }
+
+    private async Task<FontFamily?> LoadCoreAsync(Guid fontKey)
     {
         FontDefinition? definition;
         using (var scope = scopeFactory.CreateScope())
@@ -61,7 +85,7 @@ public sealed class FontRegistry(
         }
 
         await using var stream = await fileProvider.OpenAsync(
-            definition.SourceKind, definition.MediaKey, definition.Path, cancellationToken);
+            definition.SourceKind, definition.MediaKey, definition.Path, CancellationToken.None);
 
         if (stream is null)
         {
