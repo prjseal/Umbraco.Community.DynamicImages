@@ -1,0 +1,33 @@
+{
+  "$schema": "../../../Client/node_modules/@umbraco-cms/backoffice/umbraco-package-schema.json",
+  "name": "DynamicImages",
+  "version": "2.0.0",
+  "allowTelemetry": false,
+  "extensions": [
+    {
+      "type": "section",
+      "alias": "DynamicImages.Section",
+      "name": "Dynamic Images Section",
+      "meta": {
+        "label": "#dynamicImages_sectionName",
+        "pathname": "dynamic-images"
+      },
+      "weight": -5
+    },
+    {
+      "type": "backofficeEntryPoint",
+      "alias": "DynamicImages.EntryPoint",
+      "name": "Dynamic Images Entry Point",
+      "js": "/App_Plugins/DynamicImages/dynamic-images.js"
+    },
+    {
+      "type": "localization",
+      "alias": "DynamicImages.Lang.EnUS",
+      "name": "Dynamic Images English",
+      "meta": {
+        "culture": "en-us"
+      },
+      "js": "/App_Plugins/DynamicImages/lang/en-us.js"
+    }
+  ]
+}

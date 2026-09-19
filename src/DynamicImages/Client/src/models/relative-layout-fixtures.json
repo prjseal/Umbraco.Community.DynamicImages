@@ -1,0 +1,168 @@
+{
+  "_comment": "Shared by Client/src/models/relative-layout.test.ts and test/DynamicImages.Tests/RelativeLayoutTests.cs. Edit in one place only. Each case resolves one layer given the bounds its references drew with; a layer absent from `bounds` drew nothing.",
+  "cases": [
+    {
+      "name": "below a one-line title",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "title", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 170, "anchor": "topLeft" }
+    },
+    {
+      "name": "below a wrapped title moves with it",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "title", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 120 } },
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 230, "anchor": "topLeft" }
+    },
+    {
+      "name": "above forces the bottom edge",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "kicker", "x": 60, "y": 20, "anchor": "topLeft", "relativeY": { "layerKey": "title", "edge": "above", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "kicker",
+      "expected": { "x": 60, "y": 90, "anchor": "bottomLeft" }
+    },
+    {
+      "name": "rightOf forces the left edge",
+      "layers": [
+        { "key": "date", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "dot", "x": 900, "y": 100, "anchor": "topRight", "relativeX": { "layerKey": "date", "edge": "rightOf", "gap": 16 } }
+      ],
+      "bounds": { "date": { "x": 60, "y": 100, "width": 200, "height": 30 } },
+      "resolve": "dot",
+      "expected": { "x": 276, "y": 100, "anchor": "topLeft" }
+    },
+    {
+      "name": "leftOf forces the right edge and keeps the vertical anchor",
+      "layers": [
+        { "key": "date", "x": 600, "y": 100, "anchor": "topLeft" },
+        { "key": "icon", "x": 10, "y": 115, "anchor": "middleCentre", "relativeX": { "layerKey": "date", "edge": "leftOf", "gap": 16 } }
+      ],
+      "bounds": { "date": { "x": 600, "y": 100, "width": 200, "height": 30 } },
+      "resolve": "icon",
+      "expected": { "x": 584, "y": 115, "anchor": "middleRight" }
+    },
+    {
+      "name": "both axes tracked independently",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "tag", "x": 0, "y": 0, "anchor": "bottomRight",
+          "relativeX": { "layerKey": "title", "edge": "rightOf", "gap": 16 },
+          "relativeY": { "layerKey": "title", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "tag",
+      "expected": { "x": 576, "y": 170, "anchor": "topLeft" }
+    },
+    {
+      "name": "untracked axis keeps its own coordinate and anchor component",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "desc", "x": 600, "y": 400, "anchor": "bottomCentre", "relativeY": { "layerKey": "title", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "desc",
+      "expected": { "x": 600, "y": 170, "anchor": "topCentre" }
+    },
+    {
+      "name": "empty reference falls back up the chain with the tracker's own gap",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "subtitle", "x": 60, "y": 0, "anchor": "topLeft", "relativeY": { "layerKey": "title", "edge": "below", "gap": 4 } },
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "subtitle", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 170, "anchor": "topLeft" }
+    },
+    {
+      "name": "empty reference tracking on the other axis only leaves nothing to follow",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "subtitle", "x": 60, "y": 0, "anchor": "topLeft", "relativeX": { "layerKey": "title", "edge": "rightOf", "gap": 4 } },
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "subtitle", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 400, "anchor": "topLeft" }
+    },
+    {
+      "name": "nothing left on the chain uses the layer's own coordinate",
+      "layers": [
+        { "key": "subtitle", "x": 60, "y": 0, "anchor": "topLeft" },
+        { "key": "desc", "x": 60, "y": 400, "anchor": "bottomLeft", "relativeY": { "layerKey": "subtitle", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": {},
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 400, "anchor": "bottomLeft" }
+    },
+    {
+      "name": "a reference to a layer that no longer exists is absolute",
+      "layers": [
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "gone", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": {},
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 400, "anchor": "topLeft" }
+    },
+    {
+      "name": "a self reference is absolute",
+      "layers": [
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "desc", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "desc": { "x": 60, "y": 400, "width": 100, "height": 100 } },
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 400, "anchor": "topLeft" }
+    },
+    {
+      "name": "a layer on a cycle is absolute even when the other member drew",
+      "layers": [
+        { "key": "a", "x": 10, "y": 20, "anchor": "topLeft", "relativeY": { "layerKey": "b", "edge": "below", "gap": 10 } },
+        { "key": "b", "x": 30, "y": 40, "anchor": "topLeft", "relativeY": { "layerKey": "a", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "b": { "x": 30, "y": 40, "width": 100, "height": 100 } },
+      "resolve": "a",
+      "expected": { "x": 10, "y": 20, "anchor": "topLeft" }
+    },
+    {
+      "name": "a cross-axis cycle is absolute on both axes",
+      "layers": [
+        { "key": "a", "x": 10, "y": 20, "anchor": "topLeft", "relativeX": { "layerKey": "b", "edge": "rightOf", "gap": 10 } },
+        { "key": "b", "x": 30, "y": 40, "anchor": "topLeft", "relativeY": { "layerKey": "a", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "a": { "x": 10, "y": 20, "width": 100, "height": 100 }, "b": { "x": 30, "y": 40, "width": 100, "height": 100 } },
+      "resolve": "b",
+      "expected": { "x": 30, "y": 40, "anchor": "topLeft" }
+    },
+    {
+      "name": "tracking a member of a cycle still works when it drew",
+      "layers": [
+        { "key": "a", "x": 10, "y": 20, "anchor": "topLeft", "relativeY": { "layerKey": "b", "edge": "below", "gap": 10 } },
+        { "key": "b", "x": 30, "y": 40, "anchor": "topLeft", "relativeY": { "layerKey": "a", "edge": "below", "gap": 10 } },
+        { "key": "c", "x": 0, "y": 0, "anchor": "topLeft", "relativeY": { "layerKey": "a", "edge": "below", "gap": 5 } }
+      ],
+      "bounds": { "a": { "x": 10, "y": 20, "width": 100, "height": 100 }, "b": { "x": 30, "y": 40, "width": 100, "height": 100 } },
+      "resolve": "c",
+      "expected": { "x": 0, "y": 125, "anchor": "topLeft" }
+    },
+    {
+      "name": "a vertical edge on the horizontal axis is ignored",
+      "layers": [
+        { "key": "title", "x": 60, "y": 100, "anchor": "topLeft" },
+        { "key": "desc", "x": 60, "y": 400, "anchor": "topLeft", "relativeX": { "layerKey": "title", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
+      "resolve": "desc",
+      "expected": { "x": 60, "y": 400, "anchor": "topLeft" }
+    }
+  ]
+}

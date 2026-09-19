@@ -1,0 +1,519 @@
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Logging.Abstractions;
+using SixLabors.Fonts;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
+using Umbraco.Community.DynamicImages.Core.Fonts;
+using Umbraco.Community.DynamicImages.Core.Media;
+using Umbraco.Community.DynamicImages.Core.Models;
+using Umbraco.Community.DynamicImages.Core.Models.Layers;
+using Umbraco.Community.DynamicImages.Core.Rendering;
+using Umbraco.Community.DynamicImages.Core.Rendering.Layers;
+using Xunit;
+using Template = Umbraco.Community.DynamicImages.Core.Models.Template;
+
+namespace Umbraco.Community.DynamicImages.Tests;
+
+/// <summary>
+/// End-to-end renderer tests. Everything the renderer needs beyond ImageSharp comes through
+/// interfaces, so these run with a canned value source and a font loaded from disk - no database,
+/// no Umbraco boot.
+/// </summary>
+public class RendererTests
+{
+    private static readonly Guid FontKey = new("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
+
+    private static DynamicImageRenderer Renderer() => new(
+        new LayerRendererCollection(() =>
+        [
+            new RectLayerRenderer(),
+            new ImageLayerRenderer(new NoImages()),
+            new TextLayerRenderer(new FileFontRegistry(), NullLogger<TextLayerRenderer>.Instance),
+            new BadgesLayerRenderer(new FileFontRegistry(), new NoWebRoot(), NullLogger<BadgesLayerRenderer>.Instance),
+        ]),
+        new NoImages(),
+        NullLogger<DynamicImageRenderer>.Instance);
+
+    private static Template Template(params LayerBase[] layers) => new()
+    {
+        Alias = "test",
+        Name = "Test",
+        Canvas = new CanvasSettings { Width = 400, Height = 200, Background = "#000000", BaseImage = ImageSource.None() },
+        Layers = [.. layers],
+    };
+
+    private static TextLayer Text(string binding = "title", float x = 10, float y = 10, Anchor anchor = Anchor.TopLeft) => new()
+    {
+        Name = "Text",
+        Position = new Position { X = x, Y = y, Anchor = anchor },
+        Size = new LayerSize { Width = 380 },
+        Binding = new TextBinding { Kind = TextBindingKind.Property, PropertyAlias = binding },
+        Style = new TextStyle { FontKey = FontKey, FontSize = 24, Colour = "#FFFFFF" },
+    };
+
+    private static IRenderValueSource Values(string title = "Hello", string? subtitle = null) =>
+        new DictionaryRenderValueSource("Node name", new Dictionary<string, string?> { ["title"] = title, ["subtitle"] = subtitle });
+
+    private static RectLayer Rect(string name, float x, float y, float width = 100, float height = 50) => new()
+    {
+        Name = name,
+        Fill = "#FF0000",
+        Position = new Position { X = x, Y = y, Anchor = Anchor.TopLeft },
+        Size = new LayerSize { Width = width, Height = height },
+    };
+
+    private static RelativeReference Ref(LayerBase target, RelativeEdge edge, float gap) => new()
+    {
+        LayerKey = target.Key,
+        Edge = edge,
+        Gap = gap,
+    };
+
+    private static BadgesLayer Badges(BadgeLabelPosition labelPosition, bool wrap = false, float? width = null) => new()
+    {
+        Name = "Badges",
+        ItemsPropertyAlias = "categories",
+        MaxItems = 3,
+        Gap = 40,
+        Wrap = wrap,
+        Size = new LayerSize { Width = width },
+        Position = new Position { X = 10, Y = 10, Anchor = Anchor.TopLeft },
+        Icon = new BadgeIcon { Kind = BadgeIconKind.None },
+        Badge = new BadgeCircle { Size = 40 },
+        Label = new BadgeLabel { FontKey = FontKey, FontSize = 16, Gap = 6, Position = labelPosition, Colour = "#FFFFFF" },
+    };
+
+    private static IRenderValueSource BadgeValues() => new DictionaryRenderValueSource(
+        "Node",
+        new Dictionary<string, string?> { ["title"] = "Hello" },
+        items: new Dictionary<string, IReadOnlyList<BadgeItem>>
+        {
+            ["categories"] =
+            [
+                new BadgeItem("Umbraco", new Dictionary<string, string?>()),
+                new BadgeItem("Development", new Dictionary<string, string?>()),
+                new BadgeItem("C#", new Dictionary<string, string?>()),
+            ],
+        });
+
+    private const string LongTitle = "A title long enough that it certainly wraps onto a second line in the box";
+
+    [Fact]
+    public async Task RenderAsync_PaintsTheCanvasBackground()
+    {
+        var template = Template();
+        template.Canvas.Background = "#112233";
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(400, image.Width);
+        Assert.Equal(200, image.Height);
+        Assert.Equal(new Rgba32(0x11, 0x22, 0x33, 255), image[5, 5]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsTextAndReportsItsBounds()
+    {
+        using var result = await Renderer().RenderAsync(Template(Text()), Values());
+
+        var bounds = Assert.Single(result.Bounds);
+        Assert.Equal("Hello", bounds.ResolvedText);
+        Assert.True(bounds.Width > 0 && bounds.Height > 0);
+
+        using var image = result.Image.CloneAs<Rgba32>();
+        Assert.True(HasNonBackgroundPixels(image), "the text should have marked the canvas");
+    }
+
+    [Fact]
+    public async Task RenderAsync_SkipsALayerWhoseValueIsEmpty()
+    {
+        using var result = await Renderer().RenderAsync(Template(Text()), Values(title: string.Empty));
+
+        // An absent value means an absent layer, not an empty box.
+        Assert.Empty(result.Bounds);
+    }
+
+    [Fact]
+    public async Task RenderAsync_SkipsAHiddenLayer()
+    {
+        var layer = Text();
+        layer.IsVisible = false;
+
+        using var result = await Renderer().RenderAsync(Template(layer), Values());
+
+        Assert.Empty(result.Bounds);
+    }
+
+    [Fact]
+    public async Task RenderAsync_HonoursAWhenPropertyTruthyRule()
+    {
+        var layer = Text();
+        layer.Visibility = new Visibility { Rule = VisibilityRuleKind.WhenPropertyTruthy, PropertyAlias = "flag" };
+
+        using var off = await Renderer().RenderAsync(Template(layer), Values());
+        Assert.Empty(off.Bounds);
+
+        var values = new DictionaryRenderValueSource(
+            "Node", new Dictionary<string, string?> { ["title"] = "Hello", ["flag"] = "1" });
+
+        using var on = await Renderer().RenderAsync(Template(layer), values);
+        Assert.Single(on.Bounds);
+    }
+
+    [Fact]
+    public async Task RenderAsync_AnchorsTextWhereTheAnchorSays()
+    {
+        var left = await Renderer().RenderAsync(Template(Text(x: 200, y: 100, anchor: Anchor.TopLeft)), Values());
+        var right = await Renderer().RenderAsync(Template(Text(x: 200, y: 100, anchor: Anchor.TopRight)), Values());
+
+        using (left)
+        using (right)
+        {
+            // A right-anchored box ends where a left-anchored one begins, so it must sit further left.
+            Assert.True(right.Bounds[0].X < left.Bounds[0].X,
+                $"right-anchored X ({right.Bounds[0].X}) should be less than left-anchored ({left.Bounds[0].X})");
+        }
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsARectangleWhereTheAnchorSays()
+    {
+        var rect = new RectLayer
+        {
+            Name = "Scrim",
+            Fill = "#FF0000",
+            Position = new Position { X = 0, Y = 0, Anchor = Anchor.TopLeft },
+            Size = new LayerSize { Width = 100, Height = 50 },
+        };
+
+        using var result = await Renderer().RenderAsync(Template(rect), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[150, 25]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_KeepsGoingWhenALayerHasNoRenderer()
+    {
+        // A badges layer with no registered renderer must not abandon the rest of the image.
+        var renderer = new DynamicImageRenderer(
+            new LayerRendererCollection(() => [new RectLayerRenderer()]),
+            new NoImages(),
+            NullLogger<DynamicImageRenderer>.Instance);
+
+        var template = Template(
+            new BadgesLayer { Name = "Badges", ItemsPropertyAlias = "categories" },
+            new RectLayer { Name = "Scrim", Fill = "#00FF00", Size = new LayerSize { Width = 10, Height = 10 } });
+
+        using var result = await renderer.RenderAsync(template, Values());
+
+        Assert.Single(result.Bounds);
+    }
+
+    [Fact]
+    public async Task MeasureAsync_AgreesWithRenderAsync()
+    {
+        var template = Template(Text());
+
+        using var rendered = await Renderer().RenderAsync(template, Values());
+        var measured = await Renderer().MeasureAsync(template, Values());
+
+        Assert.Equal(rendered.Bounds.Count, measured.Count);
+        Assert.Equal(rendered.Bounds[0].X, measured[0].X, 3);
+        Assert.Equal(rendered.Bounds[0].Y, measured[0].Y, 3);
+    }
+
+    [Fact]
+    public async Task RenderAsync_ReportsATruncatedLayerAsTruncated()
+    {
+        var layer = Text(binding: "title");
+        layer.Style.MaxLines = 1;
+        layer.Style.Overflow = TextOverflow.Ellipsis;
+
+        var values = new DictionaryRenderValueSource(
+            "Node",
+            new Dictionary<string, string?>
+            {
+                ["title"] = string.Join(' ', Enumerable.Repeat("words", 60)),
+            });
+
+        using var result = await Renderer().RenderAsync(Template(layer), values);
+
+        Assert.True(result.Bounds[0].Truncated);
+        Assert.EndsWith("…", result.Bounds[0].ResolvedText);
+    }
+
+    // ------------------------------------------------------------------ relative positioning
+
+    [Fact]
+    public async Task RenderAsync_PlacesADescriptionBelowTheTitleWhateverItsHeight()
+    {
+        var title = Text(binding: "title", x: 10, y: 10);
+        var description = Text(binding: "subtitle", x: 10, y: 150);
+        description.Position.RelativeY = Ref(title, RelativeEdge.Below, 10);
+
+        using var oneLine = await Renderer().RenderAsync(Template(title, description), Values("Hello", "Body"));
+        using var wrapped = await Renderer().RenderAsync(Template(title, description), Values(LongTitle, "Body"));
+
+        var (shortTitle, shortDesc) = (oneLine.Bounds[0], oneLine.Bounds[1]);
+        var (longTitle, longDesc) = (wrapped.Bounds[0], wrapped.Bounds[1]);
+
+        Assert.Equal(shortTitle.Y + shortTitle.Height + 10, shortDesc.Y, 2);
+        Assert.Equal(longTitle.Y + longTitle.Height + 10, longDesc.Y, 2);
+        Assert.True(longTitle.Lines > 1);
+        Assert.True(longDesc.Y > shortDesc.Y, "the description should move down with a taller title");
+        Assert.Equal(10, shortDesc.X, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_ResolvesAForwardReferenceToALayerHigherInTheStack()
+    {
+        // The scrim is drawn first (index 0) but tracks the text drawn after it.
+        var label = Text(x: 10, y: 20);
+        var scrim = Rect("Scrim", 0, 0);
+        scrim.Position.RelativeY = Ref(label, RelativeEdge.Below, 4);
+
+        using var result = await Renderer().RenderAsync(Template(scrim, label), Values());
+
+        var scrimBounds = result.Bounds.Single(b => b.LayerKey == scrim.Key);
+        var labelBounds = result.Bounds.Single(b => b.LayerKey == label.Key);
+
+        Assert.Equal(labelBounds.Y + labelBounds.Height + 4, scrimBounds.Y, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_FallsBackUpTheChainWhenTheReferenceIsEmpty()
+    {
+        var title = Text(binding: "title", x: 10, y: 10);
+        var subtitle = Text(binding: "subtitle", x: 10, y: 60);
+        subtitle.Position.RelativeY = Ref(title, RelativeEdge.Below, 4);
+        var description = Text(binding: "title", x: 10, y: 150);
+        description.Position.RelativeY = Ref(subtitle, RelativeEdge.Below, 10);
+
+        // No subtitle value, so the description hangs off the title - with its own gap of 10, not 4.
+        using var result = await Renderer().RenderAsync(Template(title, subtitle, description), Values("Hello", subtitle: null));
+
+        Assert.Equal(2, result.Bounds.Count);
+        var titleBounds = result.Bounds.Single(b => b.LayerKey == title.Key);
+        var descBounds = result.Bounds.Single(b => b.LayerKey == description.Key);
+        Assert.Equal(titleBounds.Y + titleBounds.Height + 10, descBounds.Y, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_FallsBackUpTheChainWhenTheReferenceIsHidden()
+    {
+        var title = Text(binding: "title", x: 10, y: 10);
+        var subtitle = Text(binding: "subtitle", x: 10, y: 60);
+        subtitle.IsVisible = false;
+        subtitle.Position.RelativeY = Ref(title, RelativeEdge.Below, 4);
+        var description = Text(binding: "title", x: 10, y: 150);
+        description.Position.RelativeY = Ref(subtitle, RelativeEdge.Below, 10);
+
+        using var result = await Renderer().RenderAsync(Template(title, subtitle, description), Values("Hello", "Sub"));
+
+        var titleBounds = result.Bounds.Single(b => b.LayerKey == title.Key);
+        var descBounds = result.Bounds.Single(b => b.LayerKey == description.Key);
+        Assert.Equal(titleBounds.Y + titleBounds.Height + 10, descBounds.Y, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_UsesTheLayersOwnCoordinateWhenNothingOnTheChainDraws()
+    {
+        var subtitle = Text(binding: "subtitle", x: 10, y: 60);
+        var description = Text(binding: "title", x: 10, y: 150);
+        description.Position.RelativeY = Ref(subtitle, RelativeEdge.Below, 10);
+
+        using var result = await Renderer().RenderAsync(Template(subtitle, description), Values("Hello", subtitle: null));
+
+        var descBounds = Assert.Single(result.Bounds);
+        Assert.Equal(150, descBounds.Y, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_TracksAboveByTheBottomEdge()
+    {
+        var title = Text(x: 10, y: 100);
+        var kicker = Text(binding: "subtitle", x: 10, y: 0);
+        kicker.Position.RelativeY = Ref(title, RelativeEdge.Above, 10);
+
+        using var result = await Renderer().RenderAsync(Template(title, kicker), Values("Hello", "Kicker"));
+
+        var titleBounds = result.Bounds.Single(b => b.LayerKey == title.Key);
+        var kickerBounds = result.Bounds.Single(b => b.LayerKey == kicker.Key);
+        Assert.Equal(titleBounds.Y - 10, kickerBounds.Y + kickerBounds.Height, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_TracksRightOfByTheLeftEdge()
+    {
+        var date = Text(x: 10, y: 10);
+        date.Size.Width = null; // as wide as the text, so "right of" hugs it
+        var dot = Rect("Dot", 300, 10, 8, 8);
+        dot.Position.RelativeX = Ref(date, RelativeEdge.RightOf, 16);
+
+        using var result = await Renderer().RenderAsync(Template(date, dot), Values());
+
+        var dateBounds = result.Bounds.Single(b => b.LayerKey == date.Key);
+        var dotBounds = result.Bounds.Single(b => b.LayerKey == dot.Key);
+        Assert.Equal(dateBounds.X + dateBounds.Width + 16, dotBounds.X, 2);
+        Assert.Equal(10, dotBounds.Y, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_RendersACycleAtTheLayersOwnCoordinates()
+    {
+        var a = Rect("A", 10, 20);
+        var b = Rect("B", 30, 120);
+        a.Position.RelativeY = Ref(b, RelativeEdge.Below, 10);
+        b.Position.RelativeY = Ref(a, RelativeEdge.Below, 10);
+
+        using var result = await Renderer().RenderAsync(Template(a, b), Values());
+
+        Assert.Equal(20, result.Bounds.Single(x => x.LayerKey == a.Key).Y, 2);
+        Assert.Equal(120, result.Bounds.Single(x => x.LayerKey == b.Key).Y, 2);
+    }
+
+    [Fact]
+    public async Task MeasureAsync_AgreesWithRenderAsyncForRelativeLayers()
+    {
+        var title = Text(x: 10, y: 10);
+        var description = Text(binding: "subtitle", x: 10, y: 150);
+        description.Position.RelativeY = Ref(title, RelativeEdge.Below, 10);
+        var badges = Badges(BadgeLabelPosition.Right);
+        badges.Position.RelativeY = Ref(description, RelativeEdge.Below, 12);
+        var template = Template(title, description, badges);
+
+        var values = new DictionaryRenderValueSource(
+            "Node",
+            new Dictionary<string, string?> { ["title"] = LongTitle, ["subtitle"] = "Body" },
+            items: new Dictionary<string, IReadOnlyList<BadgeItem>> { ["categories"] = [new BadgeItem("Umbraco", new Dictionary<string, string?>())] });
+
+        using var rendered = await Renderer().RenderAsync(template, values);
+        var measured = await Renderer().MeasureAsync(template, values);
+
+        Assert.Equal(3, rendered.Bounds.Count);
+        Assert.Equal(rendered.Bounds.Count, measured.Count);
+        for (var i = 0; i < measured.Count; i++)
+        {
+            Assert.Equal(rendered.Bounds[i].X, measured[i].X, 3);
+            Assert.Equal(rendered.Bounds[i].Y, measured[i].Y, 3);
+            Assert.Equal(rendered.Bounds[i].Width, measured[i].Width, 3);
+            Assert.Equal(rendered.Bounds[i].Height, measured[i].Height, 3);
+        }
+
+        var badgeBounds = rendered.Bounds[2];
+        var descBounds = rendered.Bounds[1];
+        Assert.Equal(descBounds.Y + descBounds.Height + 12, badgeBounds.Y, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_ReportsTextBoundsAsTheLineBoxNotTheInk()
+    {
+        // A gap below "Hello" and below "gyp" must be the same gap, so the reported height cannot
+        // depend on which glyphs happen to be in the string.
+        using var caps = await Renderer().RenderAsync(Template(Text()), Values("Hello"));
+        using var descenders = await Renderer().RenderAsync(Template(Text()), Values("gyp"));
+
+        Assert.Equal(caps.Bounds[0].Height, descenders.Bounds[0].Height, 3);
+        Assert.Equal(caps.Bounds[0].Y, descenders.Bounds[0].Y, 3);
+        Assert.Equal(10, caps.Bounds[0].Y, 3);
+    }
+
+    // ------------------------------------------------------------------ badges layout options
+
+    [Fact]
+    public async Task RenderAsync_BadgesWithRightHandLabelsAreWiderThanIconOnly()
+    {
+        using var right = await Renderer().RenderAsync(Template(Badges(BadgeLabelPosition.Right)), BadgeValues());
+        using var none = await Renderer().RenderAsync(Template(Badges(BadgeLabelPosition.None)), BadgeValues());
+        using var below = await Renderer().RenderAsync(Template(Badges(BadgeLabelPosition.Below)), BadgeValues());
+
+        Assert.Equal(3, right.Bounds[0].Lines);
+        Assert.True(right.Bounds[0].Width > none.Bounds[0].Width);
+        Assert.Equal(3 * 40 + 2 * 40, none.Bounds[0].Width, 2);
+        Assert.Equal(40, none.Bounds[0].Height, 2);
+
+        // Labels below keep the fixed-width run and add the label height under the circles.
+        Assert.Equal(3 * 40 + 2 * 40, below.Bounds[0].Width, 2);
+        Assert.Equal(40 + 6 + 16 * 1.2f, below.Bounds[0].Height, 2);
+        Assert.Equal(40, right.Bounds[0].Height, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_WrappedBadgesAreTallerThanOneRow()
+    {
+        using var oneRow = await Renderer().RenderAsync(Template(Badges(BadgeLabelPosition.Right)), BadgeValues());
+
+        var width = oneRow.Bounds[0].Width * 0.6f;
+        using var wrapped = await Renderer().RenderAsync(Template(Badges(BadgeLabelPosition.Right, wrap: true, width: width)), BadgeValues());
+
+        Assert.Equal(width, wrapped.Bounds[0].Width, 2);
+        Assert.True(wrapped.Bounds[0].Height > oneRow.Bounds[0].Height,
+            $"wrapped height {wrapped.Bounds[0].Height} should exceed one row {oneRow.Bounds[0].Height}");
+    }
+
+    private static bool HasNonBackgroundPixels(Image<Rgba32> image)
+    {
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                if (image[x, y] != new Rgba32(0, 0, 0, 255)) return true;
+            }
+        }
+
+        return false;
+    }
+
+    /// <summary>Loads the one test font from disk, whatever key is asked for.</summary>
+    private sealed class FileFontRegistry : IFontRegistry
+    {
+        private readonly FontFamily _family;
+
+        public FileFontRegistry()
+        {
+            var collection = new FontCollection();
+            _family = collection.Add(Path.Combine("Assets", "Inter-Regular.ttf"));
+        }
+
+        public Task<FontFamily?> GetFamilyAsync(Guid fontKey, CancellationToken cancellationToken = default)
+            => Task.FromResult<FontFamily?>(fontKey == Guid.Empty ? null : _family);
+
+        public Task<Font?> GetFontAsync(Guid fontKey, float size, string? fontStyle, CancellationToken cancellationToken = default)
+            => Task.FromResult<Font?>(fontKey == Guid.Empty ? null : _family.CreateFont(size, FontStyle.Regular));
+
+        public void Clear() { }
+
+        public void Clear(Guid fontKey) { }
+    }
+
+    /// <summary>No image sources, so these tests need no media library or web root.</summary>
+    private sealed class NoImages : IImageSourceProvider
+    {
+        public Task<Image?> LoadAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
+            => Task.FromResult<Image?>(null);
+
+        public Task<bool> ExistsAsync(ImageSource? source, CancellationToken cancellationToken = default)
+            => Task.FromResult(false);
+
+        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, CancellationToken cancellationToken = default)
+            => Task.FromResult<(int, int)?>(null);
+
+        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
+            => Task.FromResult<(int, int)?>(null);
+    }
+
+    /// <summary>No web root, so badge icons are never found - the tests turn icons off anyway.</summary>
+    private sealed class NoWebRoot : IWebHostEnvironment
+    {
+        public string WebRootPath { get; set; } = Path.GetTempPath();
+        public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
+        public string ApplicationName { get; set; } = "Tests";
+        public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
+        public string ContentRootPath { get; set; } = Path.GetTempPath();
+        public string EnvironmentName { get; set; } = "Test";
+    }
+}
