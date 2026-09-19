@@ -12,6 +12,8 @@
     <!-- Clean Starter Kit for Umbraco, 7.x line - the one that targets Umbraco 17 (LTS).
          See https://github.com/prjseal/Clean#umbraco-17-lts -->
     <PackageReference Include="Clean"/>
+    <!-- Imports the uSync/v17 folder (content, media and settings) on first boot. -->
+    <PackageReference Include="uSync"/>
   </ItemGroup>
 
   <!-- The package under test. Referenced as a project rather than a package, so a change to the

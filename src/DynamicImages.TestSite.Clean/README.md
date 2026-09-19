@@ -20,16 +20,33 @@ credentials are ever committed. Without it the site shows the normal installer i
 ## What you get on first boot
 
 Clean's own migration installs its document types, views and assets, and imports its sample
-content (a home page and a few blog articles) - see the [Clean docs](https://github.com/prjseal/Clean)
-for the full list. Dynamic Images' own migrations run alongside it, creating the
-`DynamicImages_Template` and `DynamicImages_Font` tables and the font media type.
+content via an embedded package - see the [Clean docs](https://github.com/prjseal/Clean) for the
+full list. Dynamic Images' own migrations run alongside it, creating the `DynamicImages_Template`
+and `DynamicImages_Font` tables and the font media type.
+
+`uSync/v17` (committed in this project) additionally imports on first boot, because
+`uSync:Settings:ImportOnFirstBoot` is set in `appsettings.Development.json`. It's a straight copy
+of the `uSync/v17` folder from Clean's own [Clean.Blog reference
+site](https://github.com/prjseal/Clean/tree/dev/v7/template/Clean.Blog/uSync/v17) - the actual
+content, media and settings (document types, data types, media types, templates, dictionary
+items, the language) Clean's demo site runs, rather than the smaller set the `Clean` NuGet
+package's embedded install seeds on its own. Verified end to end: booting this site with an empty
+database imports all 25 content nodes (published), all 37 media items, all 20 dictionary items,
+the language, and all 11 templates. The two importers don't conflict - they target the same node
+keys, so whichever runs first creates the content and the other is a no-op.
 
 After first boot, per Clean's own setup instructions:
 
 1. Log in to `/umbraco` (`admin@example.com` / `1234567890`, or your own credentials from
    `appsettings.Local.json`).
-2. Publish the home page.
+2. Publish the home page (uSync publishes content on import, so this is usually already done).
 3. Save one of the dictionary items in the Translation section, to initialize translations.
+
+To reset content back to what's committed, delete `umbraco/Data/` and run again - both importers
+are no-ops once their target nodes already exist, but starting from an empty database re-runs
+them from scratch. To pull in a content/settings change made in the backoffice, use uSync's own
+**Export** action from its backoffice dashboard, which writes back into `uSync/v17` for you to
+commit.
 
 ## Seeing the Dynamic Images section
 
