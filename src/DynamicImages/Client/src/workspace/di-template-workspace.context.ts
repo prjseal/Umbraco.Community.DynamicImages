@@ -1,0 +1,431 @@
+import { UmbSubmittableWorkspaceContextBase } from "@umbraco-cms/backoffice/workspace";
+import { UmbContextToken } from "@umbraco-cms/backoffice/context-api";
+import { UmbObjectState, UmbArrayState, UmbBooleanState, UmbStringState, UmbNumberState } from "@umbraco-cms/backoffice/observable-api";
+import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
+import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
+import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
+import {
+  DiApiError, createTemplate as apiCreate, fetchFonts, fetchProperties, fetchTemplate,
+  hrefForTemplate, notifyTemplatesChanged, updateTemplate,
+} from "../api/dynamic-images-api.js";
+import type {
+  DiFont, DiLayer, DiLayerBounds, DiPosition, DiProperty, DiTemplate, DiValidationIssue,
+} from "../api/types.js";
+import { createTemplate } from "../models/layer-factories.js";
+import { detach, referenceOn } from "../models/relative-layout.js";
+import { History } from "../designer/history.js";
+
+export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
+
+/**
+ * One immutable template document, plus everything the designer derives from it. Extending
+ * Umbraco's submittable workspace base is what buys Save, dirty tracking and the
+ * unsaved-changes prompt for free rather than reimplementing them.
+ */
+export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBase<DiTemplate> {
+  #template = new UmbObjectState<DiTemplate | undefined>(undefined);
+  readonly template = this.#template.asObservable();
+
+  #layers = new UmbArrayState<DiLayer>([], (layer) => layer.key);
+  readonly layers = this.#layers.asObservable();
+
+  #selectedLayerKey = new UmbStringState<string | undefined>(undefined);
+  readonly selectedLayerKey = this.#selectedLayerKey.asObservable();
+
+  #properties = new UmbArrayState<DiProperty>([], (property) => property.alias);
+  readonly properties = this.#properties.asObservable();
+
+  #fonts = new UmbArrayState<DiFont>([], (font) => font.key);
+  readonly fonts = this.#fonts.asObservable();
+
+  /** The server's measured bounds from the last preview/layout call - the designer's ground truth. */
+  #serverBounds = new UmbArrayState<DiLayerBounds>([], (bounds) => bounds.key);
+  readonly serverBounds = this.#serverBounds.asObservable();
+
+  #issues = new UmbArrayState<DiValidationIssue>([], (issue) => `${issue.code}:${issue.layerKey ?? ""}:${issue.message}`);
+  readonly issues = this.#issues.asObservable();
+
+  #sampleContentKey = new UmbStringState<string | undefined>(undefined);
+  readonly sampleContentKey = this.#sampleContentKey.asObservable();
+
+  #useSampleData = new UmbBooleanState(true);
+  readonly useSampleData = this.#useSampleData.asObservable();
+
+  #zoom = new UmbNumberState(1);
+  readonly zoom = this.#zoom.asObservable();
+
+  #loading = new UmbBooleanState(true);
+  readonly loading = this.#loading.asObservable();
+
+  /** Required by the base class; the workspace's unique is the template key. */
+  readonly unique = this.#template.asObservablePart((template) => template?.key);
+
+  #canUndo = new UmbBooleanState(false);
+  readonly canUndo = this.#canUndo.asObservable();
+
+  #canRedo = new UmbBooleanState(false);
+  readonly canRedo = this.#canRedo.asObservable();
+
+  #history = new History<DiTemplate>();
+  #authContext?: typeof UMB_AUTH_CONTEXT.TYPE;
+  #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
+  #isNew = false;
+
+  constructor(host: UmbControllerHost) {
+    super(host, DI_TEMPLATE_WORKSPACE_ALIAS);
+
+    // The routable workspace kind renders whichever of these matches the address bar. Both land
+    // on the same editor element; only how the context is seeded differs.
+    this.routes.setRoutes([
+      {
+        path: "create",
+        component: () => import("./di-template-editor.element.js"),
+        setup: () => this.createScaffold(),
+      },
+      {
+        path: "edit/:key",
+        component: () => import("./di-template-editor.element.js"),
+        setup: (_component, info) => this.load(info.match.params.key),
+      },
+      {
+        path: "",
+        redirectTo: "create",
+      },
+    ]);
+
+    this.consumeContext(UMB_AUTH_CONTEXT, (instance) => {
+      this.#authContext = instance;
+    });
+    this.consumeContext(UMB_NOTIFICATION_CONTEXT, (instance) => {
+      this.#notificationContext = instance;
+    });
+  }
+
+  getToken = () => this.#authContext?.getLatestToken();
+
+  getEntityType = () => "di-template";
+
+  getUnique = () => this.#template.getValue()?.key;
+
+  getData = () => this.#template.getValue();
+
+  /** True until the first successful save. `isNew` itself is an observable on the base class. */
+  get isUnsaved(): boolean {
+    return this.#isNew;
+  }
+
+  // ------------------------------------------------------------------ loading
+
+  async load(key: string): Promise<void> {
+    this.#loading.setValue(true);
+    this.#isNew = false;
+
+    try {
+      const template = await fetchTemplate(key, this.getToken);
+      this.#setTemplate(template, { resetHistory: true });
+      this.setIsNew(false);
+      await this.#loadSupportingData(template);
+    } catch (error) {
+      this.#notifyError("This template could not be loaded", error);
+    } finally {
+      this.#loading.setValue(false);
+    }
+  }
+
+  async createScaffold(name = "New template"): Promise<void> {
+    this.#loading.setValue(true);
+    this.#isNew = true;
+
+    this.#setTemplate(createTemplate(name), { resetHistory: true });
+    this.setIsNew(true);
+    await this.#loadSupportingData(this.#template.getValue()!);
+
+    this.#loading.setValue(false);
+  }
+
+  /** Fonts, and the properties of whichever document types the template is attached to. */
+  async #loadSupportingData(template: DiTemplate): Promise<void> {
+    const [fonts, properties] = await Promise.all([
+      fetchFonts(this.getToken).catch(() => [] as DiFont[]),
+      this.#loadProperties(template.docTypeAliases),
+    ]);
+
+    this.#fonts.setValue(fonts);
+    this.#properties.setValue(properties);
+  }
+
+  /**
+   * The union of the selected document types' properties. A property that only some of them have
+   * is still offered - the validator is what warns that it will be empty on the others.
+   */
+  async #loadProperties(docTypeAliases: string[]): Promise<DiProperty[]> {
+    if (docTypeAliases.length === 0) return [];
+
+    const results = await Promise.all(
+      docTypeAliases.map((alias) => fetchProperties(alias, this.getToken).catch(() => [] as DiProperty[])),
+    );
+
+    const seen = new Map<string, DiProperty>();
+    for (const property of results.flat()) {
+      if (!seen.has(property.alias)) seen.set(property.alias, property);
+    }
+
+    return [...seen.values()];
+  }
+
+  async reloadProperties(): Promise<void> {
+    const template = this.#template.getValue();
+    if (!template) return;
+
+    this.#properties.setValue(await this.#loadProperties(template.docTypeAliases));
+  }
+
+  async reloadFonts(): Promise<void> {
+    this.#fonts.setValue(await fetchFonts(this.getToken).catch(() => [] as DiFont[]));
+  }
+
+  // ------------------------------------------------------------------ mutation
+
+  /**
+   * The single write path. Everything the designer changes goes through here, which is what makes
+   * the undo stack, the dirty flag and the derived observables consistent by construction.
+   */
+  #update(mutate: (template: DiTemplate) => DiTemplate, recordHistory = true): void {
+    const current = this.#template.getValue();
+    if (!current) return;
+
+    if (recordHistory) this.#history.push(current);
+
+    const next = mutate(structuredClone(current));
+    this.#setTemplate(next);
+  }
+
+  #setTemplate(template: DiTemplate, options?: { resetHistory?: boolean }): void {
+    if (options?.resetHistory) this.#history.clear();
+
+    this.#template.setValue(template);
+    this.#layers.setValue(template.layers);
+    this.#refreshHistoryFlags();
+  }
+
+  updateTemplateFields(patch: Partial<DiTemplate>): void {
+    this.#update((template) => ({ ...template, ...patch }));
+  }
+
+  updateCanvas(patch: Partial<DiTemplate["canvas"]>): void {
+    this.#update((template) => ({ ...template, canvas: { ...template.canvas, ...patch } }));
+  }
+
+  updateOutput(patch: Partial<DiTemplate["output"]>): void {
+    this.#update((template) => ({ ...template, output: { ...template.output, ...patch } }));
+  }
+
+  updateTrigger(patch: Partial<DiTemplate["trigger"]>): void {
+    this.#update((template) => ({ ...template, trigger: { ...template.trigger, ...patch } }));
+  }
+
+  addLayer(layer: DiLayer, select = true): void {
+    this.#update((template) => ({ ...template, layers: [...template.layers, layer] }));
+    if (select) this.selectLayer(layer.key);
+  }
+
+  /** A shallow merge onto one layer. Nested objects are replaced wholesale by design. */
+  updateLayer(key: string, patch: Partial<DiLayer>): void {
+    this.#update((template) => ({
+      ...template,
+      layers: template.layers.map((layer) => (layer.key === key ? ({ ...layer, ...patch } as DiLayer) : layer)),
+    }));
+  }
+
+  /**
+   * Removes a layer, and detaches anything positioned against it in the same update - so one undo
+   * restores both the layer and the links to it. `resolvedPositions` is where those layers were
+   * actually drawn, which is what lets them stay put; without it they fall back to their own
+   * stored coordinates.
+   */
+  removeLayer(key: string, resolvedPositions?: ReadonlyMap<string, DiPosition>): void {
+    this.#update((template) => ({
+      ...template,
+      layers: template.layers
+        .filter((layer) => layer.key !== key)
+        .map((layer) => {
+          let position = layer.position;
+
+          if (referenceOn(position, "x")?.layerKey === key) {
+            position = detach(position, "x", resolvedPositions?.get(layer.key));
+          }
+          if (referenceOn(position, "y")?.layerKey === key) {
+            position = detach(position, "y", resolvedPositions?.get(layer.key));
+          }
+
+          return position === layer.position ? layer : ({ ...layer, position } as DiLayer);
+        }),
+    }));
+
+    if (this.#selectedLayerKey.getValue() === key) this.selectLayer(undefined);
+  }
+
+  duplicateLayer(key: string): void {
+    const source = this.#template.getValue()?.layers.find((layer) => layer.key === key);
+    if (!source) return;
+
+    const copy: DiLayer = {
+      ...structuredClone(source),
+      key: crypto.randomUUID(),
+      name: `${source.name} copy`,
+      // Offset so the copy is visibly a copy rather than hidden exactly behind the original.
+      position: { ...source.position, x: source.position.x + 20, y: source.position.y + 20 },
+    };
+
+    this.addLayer(copy);
+  }
+
+  /** Moves a layer to an index in the array, which is its z-order. */
+  moveLayer(key: string, toIndex: number): void {
+    this.#update((template) => {
+      const layers = [...template.layers];
+      const from = layers.findIndex((layer) => layer.key === key);
+      if (from < 0) return template;
+
+      const [moved] = layers.splice(from, 1);
+      layers.splice(Math.max(0, Math.min(layers.length, toIndex)), 0, moved);
+
+      return { ...template, layers };
+    });
+  }
+
+  setLayerVisible(key: string, isVisible: boolean): void {
+    this.updateLayer(key, { isVisible } as Partial<DiLayer>);
+  }
+
+  setLayerLocked(key: string, isLocked: boolean): void {
+    this.updateLayer(key, { isLocked } as Partial<DiLayer>);
+  }
+
+  selectLayer(key: string | undefined): void {
+    this.#selectedLayerKey.setValue(key);
+  }
+
+  getSelectedLayer(): DiLayer | undefined {
+    const key = this.#selectedLayerKey.getValue();
+    return key ? this.#template.getValue()?.layers.find((layer) => layer.key === key) : undefined;
+  }
+
+  // ------------------------------------------------------------------ transactions and history
+
+  /** Opens a coalesced change - a whole drag becomes one undo entry rather than hundreds. */
+  beginTransaction(): void {
+    const current = this.#template.getValue();
+    if (current) this.#history.begin(current);
+  }
+
+  endTransaction(changed = true): void {
+    this.#history.end(changed);
+    this.#refreshHistoryFlags();
+  }
+
+  undo(): void {
+    const current = this.#template.getValue();
+    if (!current) return;
+
+    const previous = this.#history.undo(current);
+    if (previous) this.#setTemplate(previous);
+  }
+
+  redo(): void {
+    const current = this.#template.getValue();
+    if (!current) return;
+
+    const next = this.#history.redo(current);
+    if (next) this.#setTemplate(next);
+  }
+
+  #refreshHistoryFlags(): void {
+    this.#canUndo.setValue(this.#history.canUndo);
+    this.#canRedo.setValue(this.#history.canRedo);
+  }
+
+  // ------------------------------------------------------------------ preview state
+
+  setServerBounds(bounds: DiLayerBounds[]): void {
+    this.#serverBounds.setValue(bounds);
+  }
+
+  setIssues(issues: DiValidationIssue[]): void {
+    this.#issues.setValue(issues);
+  }
+
+  setSampleContentKey(key: string | undefined): void {
+    this.#sampleContentKey.setValue(key);
+    this.#useSampleData.setValue(!key);
+  }
+
+  setUseSampleData(value: boolean): void {
+    this.#useSampleData.setValue(value);
+  }
+
+  setZoom(zoom: number): void {
+    this.#zoom.setValue(Math.max(0.1, Math.min(4, zoom)));
+  }
+
+  // ------------------------------------------------------------------ saving
+
+  protected async submit(): Promise<void> {
+    const template = this.#template.getValue();
+    if (!template) throw new Error("There is nothing to save.");
+
+    try {
+      const response = this.#isNew
+        ? await apiCreate(template, this.getToken)
+        : await updateTemplate(template, this.getToken);
+
+      this.#setTemplate(response.template, { resetHistory: true });
+
+      const wasNew = this.#isNew;
+      this.#isNew = false;
+      this.setIsNew(false);
+
+      notifyTemplatesChanged();
+
+      this.#notificationContext?.peek("positive", {
+        data: { message: `'${response.template.name}' saved.` },
+      });
+
+      for (const warning of response.warnings) {
+        this.#notificationContext?.peek("warning", { data: { message: warning.message } });
+      }
+
+      // A created template has to move off the /create route, or saving again would create
+      // a second one.
+      if (wasNew) window.history.replaceState({}, "", hrefForTemplate(response.template.key));
+    } catch (error) {
+      this.#notifyError("The template could not be saved", error);
+      throw error;
+    }
+  }
+
+  #notifyError(fallback: string, error: unknown): void {
+    const message = error instanceof DiApiError
+      ? error.detail ?? error.message
+      : error instanceof Error
+        ? error.message
+        : fallback;
+
+    console.error("[DynamicImages]", fallback, error);
+    this.#notificationContext?.peek("danger", { data: { headline: fallback, message } });
+  }
+
+  override destroy(): void {
+    this.#history.clear();
+    super.destroy();
+  }
+}
+
+export const DI_TEMPLATE_WORKSPACE_CONTEXT = new UmbContextToken<DiTemplateWorkspaceContext>(
+  "UmbWorkspaceContext",
+  undefined,
+  // Discriminated on the workspace alias, so consuming it inside a document workspace (where the
+  // property action lives) cannot accidentally resolve this one.
+  (context): context is DiTemplateWorkspaceContext =>
+    (context as DiTemplateWorkspaceContext).getEntityType?.() === "di-template",
+);

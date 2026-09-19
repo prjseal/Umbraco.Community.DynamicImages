@@ -1,66 +1,90 @@
-using DynamicImages.Config;
-using DynamicImages.Services;
-
-using Microsoft.Extensions.Options;
-
-using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.Notifications;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Cms.Core.Web;
+using Umbraco.Community.DynamicImages.Configuration;
+using Umbraco.Community.DynamicImages.Core.Media;
+using Umbraco.Community.DynamicImages.Core.Models;
+using Umbraco.Community.DynamicImages.Core.Rendering;
+using Umbraco.Community.DynamicImages.Core.Services;
 using Umbraco.Extensions;
 
-namespace DynamicImages.NotificationHandlers;
+namespace Umbraco.Community.DynamicImages.NotificationHandlers;
 
-public class DynamicImagesNotificationHandler : INotificationHandler<ContentPublishingNotification>
+/// <summary>
+/// Generates the image as content is published, writing the media reference onto the in-flight
+/// node so it is persisted by the publish that is already running.
+/// </summary>
+public class DynamicImagesNotificationHandler(
+    ITemplateCache templateCache,
+    IDynamicImageRenderer renderer,
+    IDynamicImageMediaWriter mediaWriter,
+    IMediaService mediaService,
+    IUmbracoContextFactory umbracoContextFactory,
+    IOptionsMonitor<DynamicImagesOptions> options,
+    ILogger<DynamicImagesNotificationHandler> logger)
+    : INotificationAsyncHandler<ContentPublishingNotification>
 {
-
-    private readonly IDynamicImageService _imageService;
-    private readonly IContentService _contentService;
-    private readonly DynamicImagesConfig? _config;
-    private readonly IUmbracoContextFactory _umbracoContextFactory;
-
-    public DynamicImagesNotificationHandler(IDynamicImageService imageService, IContentService contentService, IOptions<DynamicImagesConfig> config, IUmbracoContextFactory umbracoContextFactory)
+    public async Task HandleAsync(ContentPublishingNotification notification, CancellationToken cancellationToken)
     {
-        _imageService = imageService;
-        _contentService = contentService;
-        _config = config.Value;
-        _umbracoContextFactory = umbracoContextFactory;
-    }
+        // Read per-notification rather than once at composition, so toggling the switch takes
+        // effect on the next publish instead of the next restart.
+        if (!options.CurrentValue.Enabled) return;
 
-    public async void Handle(ContentPublishingNotification notification)
-    {
-        if (_config == null || !_config.Enabled)
-        {
-            return;
-        }
-
-        using var context = _umbracoContextFactory.EnsureUmbracoContext();
+        using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
 
         foreach (var node in notification.PublishedEntities)
         {
-            var publishedNode = context.UmbracoContext.Content.GetById(node.Id);
-            var instructionAliases = _config.Instructions.Select(x => x.DocTypeAlias).ToList();
+            Template? template = null;
+            try
+            {
+                template = templateCache
+                    .GetForDocType(node.ContentType.Alias)
+                    .FirstOrDefault(t => t.Trigger.OnPublish);
 
-            if (!instructionAliases.Contains(node.ContentType.Alias)) { return; }
+                if (template is null || string.IsNullOrWhiteSpace(template.TargetPropertyAlias)) continue;
 
-            var instruction = _config.Instructions.Where(x => x.DocTypeAlias == node.ContentType.Alias).FirstOrDefault();
-            if (instruction == null) { return; }
+                var published = contextRef.UmbracoContext.Content?.GetById(node.Key);
 
-            var canBeSet = !string.IsNullOrWhiteSpace(instruction?.TargetPropertyAlias)
-                && publishedNode.Value(instruction.TargetPropertyAlias) == null
-                && (node.GetValue(instruction.TargetPropertyAlias) == null
-                || node.GetValue(instruction.TargetPropertyAlias)?.ToString() == "[]");
+                if (!ShouldGenerate(template, node, published)) continue;
 
-            if (!canBeSet) { return; }
+                var values = new ContentRenderValueSource(node, published);
 
-            var imageName = node.Name;
-            var mediaKey = await _imageService.CreateMediaItemAsync(instruction, node, publishedNode);
+                using var render = await renderer.RenderAsync(template, values, cancellationToken);
 
-            var udi = Udi.Create(Constants.UdiEntityType.Media, mediaKey);
+                var existingMediaKey = ExistingMediaKey(template, node);
+                var mediaKey = await mediaWriter.WriteAsync(
+                    render.Image, template, node.Name ?? template.Name, existingMediaKey, cancellationToken);
 
-            node.SetValue(instruction.TargetPropertyAlias, udi.ToString());
-            _contentService.SaveAndPublish(node);
+                // Set the value on the in-flight content so the publish persists it. Do not call
+                // IContentService.Save here - the publish pipeline rejects a save from inside it
+                // ("use the dedicated SavePublished method"), and the mutation is picked up anyway.
+                node.SetValue(template.TargetPropertyAlias, MediaSource.ToMediaPickerValue(mediaKey));
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A failed image must never block an editor's publish - including when the template
+                // lookup itself fails, e.g. another package's startup migration publishes content
+                // before this package's own migration (which creates its tables) has run.
+                logger.LogError(ex, "Dynamic Images: generation failed for {ContentKey} ({ContentName}) using template '{Template}'",
+                    node.Key, node.Name, template?.Alias);
+            }
         }
     }
+
+    private bool ShouldGenerate(Template template, Umbraco.Cms.Core.Models.IContent node, Umbraco.Cms.Core.Models.PublishedContent.IPublishedContent? published)
+    {
+        if (!template.Trigger.OnlyWhenEmpty) return true;
+
+        // The published value goes through the value converter and comes back null when the media
+        // item was deleted, while the draft value is raw JSON that may still name it. Checking
+        // both is what stops a stale reference blocking regeneration forever.
+        if (published?.Value(template.TargetPropertyAlias) is not null) return false;
+
+        var existingMediaKey = ExistingMediaKey(template, node);
+        return existingMediaKey is null || mediaService.GetById(existingMediaKey.Value) is null;
+    }
+
+    private static Guid? ExistingMediaKey(Template template, Umbraco.Cms.Core.Models.IContent node)
+        => MediaSource.ResolveMediaKey(node.GetValue<string>(template.TargetPropertyAlias));
 }

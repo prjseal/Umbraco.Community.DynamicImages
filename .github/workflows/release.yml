@@ -1,29 +1,34 @@
 name: Release Package
 
-# This action will start when a correctly formatted tag is pushed (e.g. 0.1.0)
+# Starts when a correctly formatted tag is pushed - either a release (e.g. 2.0.0)
+# or a prerelease (e.g. 2.0.0-rc1).
 
 on:
   push:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+-*"
 
 jobs:
   build:
 
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
 
     steps:
 
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v5
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v2
+      uses: actions/setup-dotnet@v5
       with:
-        dotnet-version: 8.0.x
-  
-    - name: Build project
-      run: dotnet build src\Umbraco.Commmunity.DynamicImages\Umbraco.Commmunity.DynamicImages.csproj --configuration Release
+        dotnet-version: 10.0.x
+
+    # Only the package project - the test site must never end up in a release artifact.
+    # The backoffice client bundle is committed under wwwroot/App_Plugins, so there is no npm
+    # step here; rebuilding it is a source-time concern (src/DynamicImages/Client).
+    - name: Pack
+      run: dotnet pack src/DynamicImages/Umbraco.Community.DynamicImages.csproj --configuration Release --output ./artifacts
 
     - name: Push to NuGet
-      run: dotnet nuget push **\*.nupkg --api-key ${{secrets.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json
+      run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{secrets.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json --skip-duplicate

@@ -1,0 +1,410 @@
+{
+  "_comment": "Shared by Client/src/models/anchor.test.ts and test/DynamicImages.Tests/AnchorMathTests.cs. Edit in one place only.",
+  "cases": [
+    {
+      "anchor": "topLeft",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": 0.0,
+      "expectedTop": 0.0
+    },
+    {
+      "anchor": "topLeft",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": 60.0,
+      "expectedTop": 160.0
+    },
+    {
+      "anchor": "topLeft",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 1140.0,
+      "expectedTop": 68.0
+    },
+    {
+      "anchor": "topLeft",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": 600.0,
+      "expectedTop": 315.0
+    },
+    {
+      "anchor": "topLeft",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": 12.5,
+      "expectedTop": 34.25
+    },
+    {
+      "anchor": "topCentre",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": -50.0,
+      "expectedTop": 0.0
+    },
+    {
+      "anchor": "topCentre",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": -450.0,
+      "expectedTop": 160.0
+    },
+    {
+      "anchor": "topCentre",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 990.0,
+      "expectedTop": 68.0
+    },
+    {
+      "anchor": "topCentre",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": 0.0,
+      "expectedTop": 315.0
+    },
+    {
+      "anchor": "topCentre",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": -88.0,
+      "expectedTop": 34.25
+    },
+    {
+      "anchor": "topRight",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": -100.0,
+      "expectedTop": 0.0
+    },
+    {
+      "anchor": "topRight",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": -960.0,
+      "expectedTop": 160.0
+    },
+    {
+      "anchor": "topRight",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 840.0,
+      "expectedTop": 68.0
+    },
+    {
+      "anchor": "topRight",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": -600.0,
+      "expectedTop": 315.0
+    },
+    {
+      "anchor": "topRight",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": -188.5,
+      "expectedTop": 34.25
+    },
+    {
+      "anchor": "middleLeft",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": 0.0,
+      "expectedTop": -25.0
+    },
+    {
+      "anchor": "middleLeft",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": 60.0,
+      "expectedTop": 100.0
+    },
+    {
+      "anchor": "middleLeft",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 1140.0,
+      "expectedTop": 48.0
+    },
+    {
+      "anchor": "middleLeft",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": 600.0,
+      "expectedTop": 0.0
+    },
+    {
+      "anchor": "middleLeft",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": 12.5,
+      "expectedTop": -6.25
+    },
+    {
+      "anchor": "middleCentre",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": -50.0,
+      "expectedTop": -25.0
+    },
+    {
+      "anchor": "middleCentre",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": -450.0,
+      "expectedTop": 100.0
+    },
+    {
+      "anchor": "middleCentre",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 990.0,
+      "expectedTop": 48.0
+    },
+    {
+      "anchor": "middleCentre",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": 0.0,
+      "expectedTop": 0.0
+    },
+    {
+      "anchor": "middleCentre",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": -88.0,
+      "expectedTop": -6.25
+    },
+    {
+      "anchor": "middleRight",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": -100.0,
+      "expectedTop": -25.0
+    },
+    {
+      "anchor": "middleRight",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": -960.0,
+      "expectedTop": 100.0
+    },
+    {
+      "anchor": "middleRight",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 840.0,
+      "expectedTop": 48.0
+    },
+    {
+      "anchor": "middleRight",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": -600.0,
+      "expectedTop": 0.0
+    },
+    {
+      "anchor": "middleRight",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": -188.5,
+      "expectedTop": -6.25
+    },
+    {
+      "anchor": "bottomLeft",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": 0.0,
+      "expectedTop": -50.0
+    },
+    {
+      "anchor": "bottomLeft",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": 60.0,
+      "expectedTop": 40.0
+    },
+    {
+      "anchor": "bottomLeft",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 1140.0,
+      "expectedTop": 28.0
+    },
+    {
+      "anchor": "bottomLeft",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": 600.0,
+      "expectedTop": -315.0
+    },
+    {
+      "anchor": "bottomLeft",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": 12.5,
+      "expectedTop": -46.75
+    },
+    {
+      "anchor": "bottomCentre",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": -50.0,
+      "expectedTop": -50.0
+    },
+    {
+      "anchor": "bottomCentre",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": -450.0,
+      "expectedTop": 40.0
+    },
+    {
+      "anchor": "bottomCentre",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 990.0,
+      "expectedTop": 28.0
+    },
+    {
+      "anchor": "bottomCentre",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": 0.0,
+      "expectedTop": -315.0
+    },
+    {
+      "anchor": "bottomCentre",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": -88.0,
+      "expectedTop": -46.75
+    },
+    {
+      "anchor": "bottomRight",
+      "x": 0,
+      "y": 0,
+      "width": 100,
+      "height": 50,
+      "expectedLeft": -100.0,
+      "expectedTop": -50.0
+    },
+    {
+      "anchor": "bottomRight",
+      "x": 60,
+      "y": 160,
+      "width": 1020,
+      "height": 120,
+      "expectedLeft": -960.0,
+      "expectedTop": 40.0
+    },
+    {
+      "anchor": "bottomRight",
+      "x": 1140,
+      "y": 68,
+      "width": 300,
+      "height": 40,
+      "expectedLeft": 840.0,
+      "expectedTop": 28.0
+    },
+    {
+      "anchor": "bottomRight",
+      "x": 600,
+      "y": 315,
+      "width": 1200,
+      "height": 630,
+      "expectedLeft": -600.0,
+      "expectedTop": -315.0
+    },
+    {
+      "anchor": "bottomRight",
+      "x": 12.5,
+      "y": 34.25,
+      "width": 201,
+      "height": 81,
+      "expectedLeft": -188.5,
+      "expectedTop": -46.75
+    }
+  ]
+}

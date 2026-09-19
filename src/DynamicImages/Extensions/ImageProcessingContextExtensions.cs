@@ -1,4 +1,5 @@
-// Copyright (c) Six Labors and contributors.
+// Rounded-corner masking adapted from the Six Labors sample:
+// https://github.com/SixLabors/Samples/blob/main/ImageSharp/AvatarWithRoundedCorner/Program.cs
 // Licensed under the Apache License, Version 2.0.
 
 using SixLabors.ImageSharp;
@@ -7,73 +8,50 @@ using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
-namespace DynamicImages.Extensions;
+namespace Umbraco.Community.DynamicImages.Extensions;
 
-/// <summary>
-/// Taken and altered from - https://github.com/SixLabors/Samples/blob/main/ImageSharp/AvatarWithRoundedCorner/Program.cs
-/// </summary>
 public static class ImageProcessingContextExtensions
 {
-    public static IImageProcessingContext ConvertToAvatar(this IImageProcessingContext processingContext, Size size, float cornerRadius, Color color)
+    /// <summary>
+    /// Cuts rounded corners out of the current image by erasing the four corner wedges.
+    /// Unlike v1's ConvertToAvatar this does not also resize or fill with a colour - the image
+    /// layer renderer has already sized the overlay, and filling meant the corners came back
+    /// opaque black over anything but a black background.
+    /// </summary>
+    public static IImageProcessingContext ApplyRoundedCorners(this IImageProcessingContext ctx, float cornerRadius)
     {
-        return processingContext.Resize(new ResizeOptions
-        {
-            Size = size,
-            Mode = ResizeMode.Crop,
-        }).ApplyRoundedCorners(cornerRadius, color);
-    }
+        var size = ctx.GetCurrentSize();
+        var corners = BuildCorners(size.Width, size.Height, cornerRadius);
 
-
-    // This method can be seen as an inline implementation of an `IImageProcessor`:
-    // (The combination of `IImageOperations.Apply()` + this could be replaced with an `IImageProcessor`)
-    private static IImageProcessingContext ApplyRoundedCorners(this IImageProcessingContext ctx, float cornerRadius, Color color)
-    {
-        Size size = ctx.GetCurrentSize();
-        IPathCollection corners = BuildCorners(size.Width, size.Height, cornerRadius);
-
-        ctx.SetGraphicsOptions(new GraphicsOptions()
-        {
-            Antialias = true,
-            AlphaCompositionMode = PixelAlphaCompositionMode.DestOut // enforces that any part of this shape that has color is punched out of the background
-        });
-
-        // mutating in here as we already have a cloned original
-        // use any color (not Transparent), so the corners will be clipped
-        foreach (var c in corners)
-        {
-            ctx = ctx.Fill(
-                new DrawingOptions()
+        return ctx.Fill(
+            new DrawingOptions
+            {
+                GraphicsOptions = new GraphicsOptions
                 {
-                    GraphicsOptions = new GraphicsOptions()
-                    {
-                        AlphaCompositionMode = PixelAlphaCompositionMode.SrcOver,
-                        Antialias = true
-                    }
+                    Antialias = true,
+                    // Erase rather than paint: the corners become transparent, so whatever the
+                    // layer is drawn over shows through.
+                    AlphaCompositionMode = PixelAlphaCompositionMode.DestOut
                 }
-                , color, c);
-        }
-        return ctx;
+            },
+            Color.Black,
+            corners);
     }
 
     private static IPathCollection BuildCorners(int imageWidth, int imageHeight, float cornerRadius)
     {
-        // first create a square
+        cornerRadius = MathF.Min(cornerRadius, MathF.Min(imageWidth, imageHeight) / 2f);
+
         var rect = new RectangularPolygon(-0.5f, -0.5f, cornerRadius, cornerRadius);
+        var cornerTopLeft = rect.Clip(new EllipsePolygon(cornerRadius - 0.5f, cornerRadius - 0.5f, cornerRadius));
 
-        // then cut out of the square a circle so we are left with a corner
-        IPath cornerTopLeft = rect.Clip(new EllipsePolygon(cornerRadius - 0.5f, cornerRadius - 0.5f, cornerRadius));
+        var rightPos = imageWidth - cornerTopLeft.Bounds.Width + 1;
+        var bottomPos = imageHeight - cornerTopLeft.Bounds.Height + 1;
 
-        // corner is now a corner shape positions top left
-        //lets make 3 more positioned correctly, we can do that by translating the original around the center of the image
-
-        float rightPos = imageWidth - cornerTopLeft.Bounds.Width + 1;
-        float bottomPos = imageHeight - cornerTopLeft.Bounds.Height + 1;
-
-        // move it across the width of the image - the width of the shape
-        IPath cornerTopRight = cornerTopLeft.RotateDegree(90).Translate(rightPos, 0);
-        IPath cornerBottomLeft = cornerTopLeft.RotateDegree(-90).Translate(0, bottomPos);
-        IPath cornerBottomRight = cornerTopLeft.RotateDegree(180).Translate(rightPos, bottomPos);
-
-        return new PathCollection(cornerTopLeft, cornerBottomLeft, cornerTopRight, cornerBottomRight);
+        return new PathCollection(
+            cornerTopLeft,
+            cornerTopLeft.RotateDegree(-90).Translate(0, bottomPos),
+            cornerTopLeft.RotateDegree(90).Translate(rightPos, 0),
+            cornerTopLeft.RotateDegree(180).Translate(rightPos, bottomPos));
     }
 }
