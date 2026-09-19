@@ -57,6 +57,30 @@ Nobody sees the **Dynamic Images** section until it is granted, including admini
 build a template against Clean's `Article` (or any other) document type - see the
 [package README](../DynamicImages/README.md) for how templates work.
 
+## The Clean Bean Cafe OG image template
+
+`appsettings.Development.json` carries a v1 `DynamicImages` block that is imported into a v2
+template - **Clean Bean OG Image** - the first time this site boots against an empty template
+table. It targets the `article` doc type, writes to a new `socialImage` media picker property
+(added to the shared `sEOControls` composition, alongside `metaName`/`metaDescription`), and is
+branded for [cleanbeancafe.co.uk](https://cleanbeancafe.co.uk):
+
+- A background image (`wwwroot/assets/img/og/clean-bean-background.png`) with the brand's ink
+  gradient, cup mark, wordmark and tagline baked in - these don't change per page, so they are
+  drawn once rather than as layers.
+- Three layers drawn per article on top of that background: the page title, the `subtitle`
+  property, and `articleDate`, in the brand's own typefaces (Bricolage Grotesque for the title,
+  Hanken Grotesk for the rest - both under `wwwroot/assets/fonts/`) and colour palette.
+- A fourth layer places the article's `mainImage` as a rounded photo card on the right.
+
+`Views/Partials/metaData.cshtml` reads `socialImage` for `og:image`/`twitter:image`, falling back
+to the static `/socialimage.png` for pages without one (anything that isn't an `article`, or an
+`article` published before the template existed - use **Regenerate OG image** from the document's
+Actions menu to backfill one).
+
+Once imported, the template is edited in the backoffice designer, not in configuration - see
+[Migrating from v1](../DynamicImages/README.md#migrating-from-v1).
+
 ## Known issue: the front end 500s
 
 As of `Clean.Core` 7.0.7 and 7.0.8, the seeded `home.cshtml` view calls `Html.GetBlockListHtml(...)`,
