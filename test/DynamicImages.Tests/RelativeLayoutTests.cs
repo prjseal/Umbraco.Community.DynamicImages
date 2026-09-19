@@ -61,6 +61,22 @@ public class RelativeLayoutTests
     }
 
     [Fact]
+    public void Resolve_HangsOffTheRotatedFootprintNotTheUnrotatedBox()
+    {
+        // A 100x20 title at (100, 100) turned 90 degrees about its top-left covers y 100..200, so
+        // "below it" starts at 200 + gap - not at 120 + gap.
+        var title = Rect("title", 100, 100);
+        var desc = Rect("desc", 100, 400, relativeY: Below("title", 10));
+        var layersByKey = new Dictionary<Guid, LayerBase> { [title.Key] = title, [desc.Key] = desc };
+        var titleBounds = new LayerBounds(title.Key, 100, 100, 100, 20, 0, false, null, Rotation: 90, PivotX: 100, PivotY: 100);
+
+        var resolved = RelativeLayout.Resolve(desc, layersByKey, key => key == title.Key ? titleBounds : null);
+
+        Assert.Equal(210, resolved.Y, 3);
+        Assert.Equal(Anchor.TopLeft, resolved.Anchor);
+    }
+
+    [Fact]
     public void Resolve_ReturnsTheLayersOwnPositionWhenNothingIsTracked()
     {
         var layer = Rect("a", 10, 20);

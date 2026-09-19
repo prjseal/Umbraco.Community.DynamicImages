@@ -203,6 +203,36 @@ public class TemplateJsonTests
     }
 
     [Fact]
+    public void RoundTrip_PreservesRotation()
+    {
+        var template = Sample();
+        template.Layers[0].Rotation = -12.5f;
+        template.Layers[3].Rotation = 90;
+
+        var json = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default);
+        var back = Migrator.Deserialize(json)!;
+
+        Assert.Contains("\"rotation\":-12.5", json);
+        Assert.Equal(-12.5f, back.Layers[0].Rotation);
+        Assert.Equal(90f, back.Layers[3].Rotation);
+        Assert.Equal(0f, back.Layers[1].Rotation);
+    }
+
+    [Fact]
+    public void Deserialize_ReadsALayerWithoutRotationAsUnrotated()
+    {
+        // A document saved before rotation existed must draw exactly as it did.
+        var back = Migrator.Deserialize("""
+            {"schemaVersion":2,"alias":"x","name":"X","layers":[
+              {"type":"text","name":"T","position":{"x":1,"y":2,"anchor":"topLeft"}},
+              {"type":"rect","name":"R","fill":"#FFFFFF"}
+            ]}
+            """)!;
+
+        Assert.All(back.Layers, layer => Assert.Equal(0f, layer.Rotation));
+    }
+
+    [Fact]
     public void ReadSchemaVersion_DefaultsToOneWhenAbsent()
         => Assert.Equal(1, Migrator.ReadSchemaVersion("""{"alias":"x"}"""));
 

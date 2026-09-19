@@ -163,6 +163,17 @@
       "bounds": { "title": { "x": 60, "y": 100, "width": 500, "height": 60 } },
       "resolve": "desc",
       "expected": { "x": 60, "y": 400, "anchor": "topLeft" }
+    },
+    {
+      "name": "below a rotated title uses the title's footprint",
+      "_comment": "The title is 100x20 at (100, 100) turned 90 degrees about its top-left, so the bounds supplied are its extent: x 80..100, y 100..200.",
+      "layers": [
+        { "key": "title", "x": 100, "y": 100, "anchor": "topLeft" },
+        { "key": "desc", "x": 100, "y": 400, "anchor": "topLeft", "relativeY": { "layerKey": "title", "edge": "below", "gap": 10 } }
+      ],
+      "bounds": { "title": { "x": 80, "y": 100, "width": 20, "height": 100 } },
+      "resolve": "desc",
+      "expected": { "x": 100, "y": 210, "anchor": "topLeft" }
     }
   ]
 }

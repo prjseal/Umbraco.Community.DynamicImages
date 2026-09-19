@@ -29,6 +29,13 @@ public abstract class LayerBase
 
     public LayerSize Size { get; set; } = new();
 
+    /// <summary>
+    /// Degrees clockwise, turning the layer about its anchor point - the resolved position, so a
+    /// tracked axis still works. 0 (the default, and what a document written before rotation
+    /// existed reads as) draws exactly as before.
+    /// </summary>
+    public float Rotation { get; set; }
+
     public Visibility Visibility { get; set; } = new();
 
     /// <summary>The discriminator value, for code that needs it without pattern matching.</summary>

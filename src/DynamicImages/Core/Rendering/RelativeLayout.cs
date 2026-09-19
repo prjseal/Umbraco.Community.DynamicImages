@@ -140,13 +140,17 @@ public static class RelativeLayout
             var bounds = boundsOf(current);
             if (bounds is not null)
             {
-                // The gap is always this layer's own, however far up the chain the answer came from.
+                // What the reference covered on the canvas: its rotated footprint, or the box
+                // itself when it is not rotated. The gap is always this layer's own, however far
+                // up the chain the answer came from.
+                var extent = bounds.Extent();
+
                 return reference.Edge switch
                 {
-                    RelativeEdge.Below => (bounds.Y + bounds.Height + reference.Gap, 0f),
-                    RelativeEdge.Above => (bounds.Y - reference.Gap, 1f),
-                    RelativeEdge.RightOf => (bounds.X + bounds.Width + reference.Gap, 0f),
-                    _ => (bounds.X - reference.Gap, 1f)
+                    RelativeEdge.Below => (extent.Y + extent.Height + reference.Gap, 0f),
+                    RelativeEdge.Above => (extent.Y - reference.Gap, 1f),
+                    RelativeEdge.RightOf => (extent.X + extent.Width + reference.Gap, 0f),
+                    _ => (extent.X - reference.Gap, 1f)
                 };
             }
 
