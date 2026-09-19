@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using SixLabors.Fonts;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
@@ -258,7 +257,7 @@ public sealed class FontService(
         return folder.Id;
     }
 
-    private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes))[..32];
+    private static string Hash(byte[] bytes) => FontHash.Compute(bytes);
 
     private void Notify(Guid fontKey)
     {
