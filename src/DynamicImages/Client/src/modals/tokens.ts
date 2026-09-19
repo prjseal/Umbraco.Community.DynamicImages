@@ -19,6 +19,8 @@ export const DI_SAMPLE_NODE_PICKER_MODAL = new UmbModalToken<SampleNodePickerDat
 
 export interface FontUploadValue {
   uploaded: boolean;
+  /** Variants of a web font that were not added, when at least one was. */
+  warnings?: string[];
 }
 
 export const DI_FONT_UPLOAD_MODAL = new UmbModalToken<object, FontUploadValue>(

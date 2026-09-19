@@ -1,7 +1,7 @@
 import type {
   DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiImportReport, DiJob, DiLayout,
-  DiProperty, DiSampleContentItem, DiSyncStatus, DiTemplate, DiTemplateSaveResponse,
-  DiTemplateSummary, DiUsage,
+  DiProperty, DiRegisterWebFontRequest, DiRegisterWebFontResponse, DiSampleContentItem,
+  DiSyncStatus, DiTemplate, DiTemplateSaveResponse, DiTemplateSummary, DiUsage,
 } from "./types.js";
 
 export type TokenGetter = () => Promise<string | undefined> | undefined;
@@ -118,6 +118,16 @@ export async function uploadFont(file: File, getToken: TokenGetter): Promise<DiF
 
 export const registerFontPath = async (path: string, getToken: TokenGetter): Promise<DiFont> =>
   json(await request("/fonts/register-path", getToken, { method: "POST", json: { path } }));
+
+/** 200 with rows plus per-variant errors when at least one row was created; a 400 (thrown) when none was. */
+export const registerWebFont = async (
+  request_: DiRegisterWebFontRequest, getToken: TokenGetter,
+): Promise<DiRegisterWebFontResponse> =>
+  json(await request("/fonts/register-web", getToken, { method: "POST", json: request_ }));
+
+/** Re-resolves and re-downloads a web font; the returned row carries its new hash. */
+export const refreshFont = async (key: string, getToken: TokenGetter): Promise<DiFont> =>
+  json(await request(`/fonts/${key}/refresh`, getToken, { method: "POST" }));
 
 export const updateFont = async (
   key: string, familyName: string, styles: DiFontStyle[], getToken: TokenGetter,

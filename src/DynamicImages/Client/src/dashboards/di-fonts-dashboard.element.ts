@@ -5,10 +5,32 @@ import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { umbConfirmModal } from "@umbraco-cms/backoffice/modal";
-import { DiApiError, deleteFont, fetchFonts, updateFont, type TokenGetter } from "../api/dynamic-images-api.js";
+import { DiApiError, deleteFont, fetchFonts, refreshFont, updateFont, type TokenGetter } from "../api/dynamic-images-api.js";
 import { fontFamilyFor, forgetFont, loadFonts } from "../designer/fonts/font-face-loader.js";
 import { DI_FONT_UPLOAD_MODAL } from "../modals/tokens.js";
 import type { DiFont, DiFontStyle } from "../api/types.js";
+
+/** Where a font's file lives, as the row's meta line shows it. */
+function sourceLabel(font: DiFont): string {
+  switch (font.sourceKind) {
+    case "path":
+      return font.path ?? "wwwroot";
+    case "url":
+      if (font.provider === "google") return `Google Fonts · ${font.providerFamily ?? font.familyName}`;
+      if (font.provider === "bunny") return `Bunny Fonts · ${font.providerFamily ?? font.familyName}`;
+      return hostOf(font.sourceUrl);
+    default:
+      return "Media library";
+  }
+}
+
+function hostOf(url?: string | null): string {
+  try {
+    return url ? new URL(url).host : "Web";
+  } catch {
+    return url ?? "Web";
+  }
+}
 
 /** Manages the fonts templates can use, with a live specimen of each so they can be told apart. */
 @customElement("di-fonts-dashboard")
@@ -75,7 +97,30 @@ export class DiFontsDashboardElement extends UmbLitElement {
     const modal = this.#modalContext.open(this, DI_FONT_UPLOAD_MODAL, {});
     const result = await modal?.onSubmit().catch(() => undefined);
 
-    if (result?.uploaded) await this.#load();
+    if (!result?.uploaded) return;
+
+    // The modal closes as soon as one row exists; the variants that were not added are told here.
+    if (result.warnings?.length) {
+      this.#notificationContext?.peek("warning", {
+        data: { headline: "Some variants were not added", message: result.warnings.join(" ") },
+      });
+    }
+
+    await this.#load();
+  }
+
+  async #refreshFont(font: DiFont) {
+    try {
+      await refreshFont(font.key, this.#getToken);
+
+      // The loader is keyed by font key, not hash, so it has to forget the old bytes.
+      forgetFont(font.key);
+
+      this.#notify("positive", `'${font.familyName}' refreshed`);
+      await this.#load();
+    } catch (error) {
+      this.#notify("danger", "That font could not be refreshed", error);
+    }
   }
 
   async #deleteFont(font: DiFont) {
@@ -125,7 +170,10 @@ export class DiFontsDashboardElement extends UmbLitElement {
             ? html`<div class="empty">
                 <uui-icon name="icon-font"></uui-icon>
                 <h4>No fonts yet</h4>
-                <p>Text layers need a font. Upload a .ttf, .otf or .woff2, or point at one already in wwwroot.</p>
+                <p>
+                  Text layers need a font. Upload a .ttf, .otf or .woff2, point at one already in wwwroot, or use a
+                  Google or Bunny web font.
+                </p>
                 <uui-button look="primary" color="positive" label="Add your first font" @click=${this.#addFont}>
                   Add your first font
                 </uui-button>
@@ -145,7 +193,7 @@ export class DiFontsDashboardElement extends UmbLitElement {
           <div>
             <strong>${font.familyName}</strong>
             <span class="meta">
-              ${font.sourceKind === "path" ? font.path : "Media library"} · weight ${font.weight}
+              ${sourceLabel(font)} · weight ${font.weight}
               ${font.isItalic ? "· italic" : ""}
               ${font.usedByTemplateCount > 0 ? html`· used by ${font.usedByTemplateCount} template(s)` : ""}
             </span>
@@ -159,6 +207,14 @@ export class DiFontsDashboardElement extends UmbLitElement {
               }}>
               ${editing ? "Close" : "Named styles"}
             </uui-button>
+            ${font.sourceKind === "url"
+              ? html`<uui-button
+                  look="secondary"
+                  label="Re-download ${font.familyName} from its provider"
+                  @click=${() => this.#refreshFont(font)}>
+                  Refresh
+                </uui-button>`
+              : nothing}
             <uui-button look="secondary" color="danger" label="Delete ${font.familyName}" @click=${() => this.#deleteFont(font)}>
               Delete
             </uui-button>
