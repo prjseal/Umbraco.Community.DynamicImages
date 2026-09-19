@@ -24,8 +24,9 @@ sees the section until you do, including administrators.
 
 ## Getting started
 
-1. **Add a font.** Dynamic Images → Fonts → *Add a font*. Upload a `.ttf`, `.otf` or `.woff2`, or
-   register a path to one already in `wwwroot`. Text layers cannot render without one.
+1. **Add a font.** Dynamic Images → Fonts → *Add a font*. Upload a `.ttf`, `.otf` or `.woff2`,
+   register a path to one already in `wwwroot`, or name a [web font](#web-fonts) from Google Fonts
+   or Bunny Fonts. Text layers cannot render without one.
 2. **Create a template.** Dynamic Images → Templates → *Create template*.
 3. **In Settings**, choose the document types it applies to and the media picker property the
    generated image should be written to.
@@ -117,6 +118,32 @@ Set **max lines**, then choose what happens when it overflows: **shrink** steps 
 (to 60% of the configured size), **trim with …** drops whole words and appends an ellipsis, and
 **cut off** simply clips. The Preview & test view marks any layer that was truncated.
 
+### Web fonts
+
+A text layer can use a font that was never uploaded: type a family name, tick the weights you
+want, and the file is fetched from the provider. Three providers are supported.
+
+| Provider | What you enter | What is fetched |
+|---|---|---|
+| **Google Fonts** | The family name as Google shows it (`Inter`, `Open Sans`) plus weights and italic | One full TrueType file per weight from `fonts.gstatic.com` |
+| **Bunny Fonts** | The same, resolved against Bunny's GDPR-friendly mirror | One `woff2` per weight from `fonts.bunny.net` - the **Latin subset only**, so accented Latin renders but Cyrillic, Greek and other scripts do not |
+| **Direct URL** | An `https` URL to a font file | That file. **Static files only**: a variable font renders at its default instance, because the bundled SixLabors.Fonts does not read `fvar` |
+
+Each weight (and each italic, when ticked) becomes its own font row, the same "one family, one
+file, one weight" model as an upload, so the rows list and delete individually and a template
+references one weight exactly. The family is validated against the provider's CSS API when you add
+it - an unknown family or a weight the family does not ship is reported per variant - and needs no
+API key.
+
+**Where the file lives.** It is *not* copied into the media library. Each server downloads it the
+first time it needs it and keeps a copy under `umbraco/Data/TEMP/DynamicImages/Fonts/` named by
+the file's content hash, so a second render, a restart, or another server that already has it
+costs no network. Deleting that folder is safe; it is re-fetched transparently. **Refresh** on a
+font row re-resolves the provider (Google's file URLs move when a family is updated), re-downloads,
+updates the stored hash and drops the old cached copy on every server.
+
+The **Health** dashboard reports a web font that cannot be fetched as `FontUnreachable`.
+
 ## Permissions
 
 | Policy | Grants | Applies to |
@@ -172,7 +199,8 @@ Behaviour that changed on purpose:
     "Enabled": true,
     "AutoImportLegacyConfig": true,
     "Preview": { "Scale": 0.5 },
-    "Sync": { "Mode": "Off", "Folder": "umbraco/DynamicImages" }
+    "Sync": { "Mode": "Off", "Folder": "umbraco/DynamicImages" },
+    "WebFonts": { "TimeoutSeconds": 15, "MaxBytes": 10485760, "CacheFolder": null }
   }
 }
 ```
@@ -184,6 +212,9 @@ Behaviour that changed on purpose:
 | `Preview.Scale` | `0.5` | Scale of the designer's debounced preview renders |
 | `Sync.Mode` | `Off` | `Export` writes templates to disk on demand; `Import` reads them on start-up |
 | `Sync.Folder` | `umbraco/DynamicImages` | Where those JSON files live, relative to the content root |
+| `WebFonts.TimeoutSeconds` | `15` | Timeout for one request to a font provider or a font file |
+| `WebFonts.MaxBytes` | `10485760` | Largest web font file accepted (10 MB, the same cap as an upload) |
+| `WebFonts.CacheFolder` | `null` | Where fetched files are cached. Null is `umbraco/Data/TEMP/DynamicImages/Fonts` under Umbraco's local temp path; a relative value is resolved against the content root |
 
 ## Umbraco Cloud
 
@@ -198,6 +229,12 @@ Behaviour that changed on purpose:
   themselves are data, not schema: move them between environments with **Export**/**Import** on the
   Health dashboard, or with file sync. A Deploy connector is not included in this version.
 - Only the scheduling publisher runs the start-up import, so instances do not race.
+- **Web fonts are cached per instance, not shared.** The cache sits in the local temp folder,
+  which is ephemeral on Cloud, so every instance downloads each font once after a deploy or a
+  restart. That download happens inside the first publish (or preview) that needs the font, so
+  the site needs **outbound HTTPS** to `fonts.googleapis.com` and `fonts.gstatic.com` (Google),
+  `fonts.bunny.net` (Bunny) or your own host (direct URL). If outbound access is restricted, upload
+  the file instead.
 
 ## Extending it
 

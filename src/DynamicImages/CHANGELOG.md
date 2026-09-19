@@ -14,12 +14,32 @@
 - **Badge layout options**: labels below the icon (as before), beside it - which makes each item as
   wide as its own label - or off entirely, plus wrapping onto new rows against the layer's width
   with a configurable row gap.
+- **Web fonts**: a font can now be a **Google Fonts** or **Bunny Fonts** family - type the name,
+  tick the weights and italic - or a **direct URL** to a font file. Each weight becomes its own
+  font row, validated against the provider's CSS API with no API key. The file is fetched the
+  first time a server needs it and cached on that server's disk under
+  `umbraco/Data/TEMP/DynamicImages/Fonts`, content-addressed by hash, rather than stored as a media
+  item; a **Refresh** action re-resolves and re-downloads it. Bunny fonts render the Latin subset
+  only; direct URLs must point at static (non-variable) files. New `WebFonts` options
+  (`TimeoutSeconds`, `MaxBytes`, `CacheFolder`), a `FontUnreachable` health warning, and
+  `POST fonts/register-web` / `POST fonts/{key}/refresh` endpoints. The font table gains three
+  nullable columns (`sourceUrl`, `provider`, `providerFamily`) through a migration.
 
 ### Changed
 
 - Text layers now report their **line box** rather than their glyph ink as their bounds, so a gap
   measured below "Hello" and below "Happy" is the same gap, and the designer's measured overlay
   agrees with its DOM box. Nothing about where text is drawn has changed.
+- `IFontFileProvider.OpenAsync` takes the `FontDefinition` rather than a positional
+  `(kind, mediaKey, path)`, and `FontResponse` carries `provider`, `sourceUrl` and
+  `providerFamily`, with `sourceKind` now also `"url"`.
+
+### Fixed
+
+- The font registry cached a **cancelled or failed load** for the lifetime of the process: the
+  shared load ran on the first caller's cancellation token, so a designer preview aborted mid-load
+  (or one transient read error) left that font dead on the server until a refresh or restart. A
+  failed load is now dropped from the cache and the next render retries.
 
 ## 2.0.0
 
