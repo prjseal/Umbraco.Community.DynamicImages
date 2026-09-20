@@ -2,6 +2,7 @@ import { css, customElement, html, nothing, property, repeat, state, styleMap } 
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { DiLayer, DiLayerBounds, DiPosition, DiTemplate } from "../api/types.js";
 import { anchorToTopLeft, positionForTopLeft, topLeftToAnchor, type Box } from "../models/anchor.js";
+import { gradientCss } from "../models/gradient-css.js";
 import { isRelative, isTracked, resolveAll, type ResolvedLayer, type Size } from "../models/relative-layout.js";
 import { extent, normalise, rotatePoint, toLocal } from "../models/rotation.js";
 import { snap, type Guide } from "./snap.js";
@@ -624,7 +625,9 @@ export class DiDesignerCanvasElement extends UmbLitElement {
 
           <div
             class="stage"
-            style=${styleMap({ background: canvas.background })}
+            style=${styleMap({
+              background: canvas.backgroundGradient ? gradientCss(canvas.backgroundGradient) : canvas.background,
+            })}
             @pointerdown=${this.#onStagePointerDown}
             @pointerleave=${() => {
               this._pointer = undefined;

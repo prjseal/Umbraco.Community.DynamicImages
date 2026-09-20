@@ -28,9 +28,14 @@ export const INSPECTOR_BOUNDS = {
   /** Position. Negative is legitimate - a layer can be deliberately bled off the canvas edge. */
   x: { min: -5000, max: 5000 },
   y: { min: -5000, max: 5000 },
-  /** Any box dimension. Zero is not a size; "auto" is expressed by clearing the field, not by 0. */
-  width: { min: 1, max: 5000 },
-  height: { min: 1, max: 5000 },
+  /**
+   * Any box dimension. Zero is not a size; "auto" is expressed by clearing the field, not by 0.
+   * The maximum is the server's: TemplateValidator accepts up to 8000, and it is the authority on
+   * what a canvas may be - 5000 here quietly clamped an imported 6000px template the moment its
+   * Width field was touched.
+   */
+  width: { min: 1, max: 8000 },
+  height: { min: 1, max: 8000 },
   /** A multiple of the font size. Below 0.5 the lines overlap. */
   lineSpacing: { min: 0.5, max: 4 },
   /** Tracking, in the same units the renderer uses. Negative tightens. */
@@ -55,6 +60,8 @@ export const INSPECTOR_BOUNDS = {
   maxItems: { min: 1, max: 50 },
   /** A gradient's direction. A full turn, and unlike rotation there is nothing to wrap onto. */
   gradientAngle: { min: 0, max: 360 },
+  /** A radial gradient's centre, as a fraction of the box. Edited as a percentage, as zoom is. */
+  gradientCentre: { min: 0, max: 1 },
   /** Opacity is a fraction, and always was bounded - it just was not enforced. */
   opacity: { min: 0, max: 1 },
   /**

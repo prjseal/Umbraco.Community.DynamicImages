@@ -3,6 +3,7 @@ import { classMap, styleMap } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { DiLayer, DiLayerBounds, DiPosition } from "../api/types.js";
 import { anchorToTopLeft, type Box } from "../models/anchor.js";
+import { gradientCss } from "../models/gradient-css.js";
 import { isTracked } from "../models/relative-layout.js";
 import { clipPathFor } from "../models/shape-geometry.js";
 import { fontFamilyFor } from "./fonts/font-face-loader.js";
@@ -406,9 +407,7 @@ export class DiLayerBoxElement extends UmbLitElement {
     const layer = this.layer;
     const shape = layer.shape ?? "rectangle";
     const gradient = layer.gradient;
-    const paint = gradient
-      ? `linear-gradient(${gradient.angle}deg, ${gradient.from}, ${gradient.to})`
-      : layer.fill ?? "transparent";
+    const paint = gradient ? gradientCss(gradient) : layer.fill ?? "transparent";
     const border = layer.border;
     const borderWidth = border ? border.width * this.scale : 0;
 
