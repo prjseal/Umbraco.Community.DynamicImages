@@ -9,6 +9,8 @@ on:
     branches:
       - "**"
   pull_request:
+  # release.yml runs this same suite against the tagged commit before it pushes to NuGet.
+  workflow_call:
 
 jobs:
 

@@ -22,6 +22,15 @@
     <PackageProjectUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</PackageProjectUrl>
     <RepositoryUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+
+    <!-- A .snupkg alongside the package, so a consumer can step into this code from their own
+         debugger. SourceLink ships in the SDK, so these need no PackageReference. None of it
+         can be added to a version after the fact - only to the next one. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.0.0" />
