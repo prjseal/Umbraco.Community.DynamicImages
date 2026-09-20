@@ -872,6 +872,26 @@ public class RendererTests
         Assert.Equal(new Rgba32(0x11, 0x22, 0x33, 255), image[395, 195]);
     }
 
+    [Theory]
+    [InlineData("#0B0F1900")]
+    [InlineData("")]
+    public async Task RenderAsync_LeavesTheCanvasTransparent(string background)
+    {
+        // Zero alpha is the chosen way to say it; an empty string is the unwarned way, because
+        // ParseOrDefault's fallback here is Color.Transparent and the validator skips empty
+        // values. Both render the same thing, and both are pinned so neither quietly changes.
+        var template = Template();
+        template.Canvas.Background = background;
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        foreach (var (x, y) in new[] { (0, 0), (200, 100), (399, 199) })
+        {
+            Assert.Equal(0, image[x, y].A);
+        }
+    }
+
     [Fact]
     public async Task RenderAsync_DrawsAShapeGradient()
     {
