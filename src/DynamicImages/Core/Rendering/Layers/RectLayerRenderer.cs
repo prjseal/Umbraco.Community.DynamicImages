@@ -51,7 +51,7 @@ public sealed class RectLayerRenderer : ILayerRenderer
 
         if (rect.Gradient is not null)
         {
-            var brush = BuildGradientBrush(rect.Gradient, x, y, width, height, matrix);
+            var brush = GradientBrushes.Build(rect.Gradient, x, y, width, height, matrix);
             image.Mutate(ctx => ctx.Fill(options, brush, fillPath));
         }
         else if (ColourParser.TryParse(rect.Fill, out var fill))
@@ -119,33 +119,5 @@ public sealed class RectLayerRenderer : ILayerRenderer
         var (x, y) = AnchorMath.ToTopLeft(position, width, height);
 
         return (x, y, width, height, new PointF(position.X, position.Y));
-    }
-
-    private static LinearGradientBrush BuildGradientBrush(
-        Gradient gradient, float x, float y, float width, float height, Matrix3x2 transform)
-    {
-        var from = ColourParser.ParseOrDefault(gradient.From, Color.Black);
-        var to = ColourParser.ParseOrDefault(gradient.To, Color.Transparent);
-
-        // CSS convention: 180 degrees runs top to bottom. Project the angle across the box so the
-        // gradient spans it whatever its aspect ratio.
-        var radians = (gradient.Angle - 90f) * MathF.PI / 180f;
-        var centreX = x + width / 2f;
-        var centreY = y + height / 2f;
-        var reach = (MathF.Abs(MathF.Cos(radians)) * width + MathF.Abs(MathF.Sin(radians)) * height) / 2f;
-
-        var start = new Vector2(centreX - MathF.Cos(radians) * reach, centreY - MathF.Sin(radians) * reach);
-        var end = new Vector2(centreX + MathF.Cos(radians) * reach, centreY + MathF.Sin(radians) * reach);
-
-        // The gradient turns with the shape: its axis is fixed to the box, not to the canvas.
-        start = Vector2.Transform(start, transform);
-        end = Vector2.Transform(end, transform);
-
-        return new LinearGradientBrush(
-            new PointF(start.X, start.Y),
-            new PointF(end.X, end.Y),
-            GradientRepetitionMode.None,
-            new ColorStop(0f, from),
-            new ColorStop(1f, to));
     }
 }

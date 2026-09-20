@@ -810,6 +810,57 @@ public class RendererTests
         Assert.Equal(210, descBounds.Y, 2);
     }
 
+    [Fact]
+    public async Task RenderAsync_DrawsAShapeGradient()
+    {
+        // The first coverage the gradient brush has ever had: it was a private method on this
+        // renderer and no test reached it.
+        var shape = GradientRect(new Gradient { From = "#FF0000", To = "#0000FF", Angle = 180f });
+
+        using var result = await Renderer().RenderAsync(Template(shape), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 2]);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 197]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsARadialShapeGradient()
+    {
+        var shape = GradientRect(new Gradient { Kind = GradientKind.Radial, From = "#FF0000", To = "#0000FF" });
+
+        using var result = await Renderer().RenderAsync(Template(shape), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 100]);
+        foreach (var (x, y) in new[] { (2, 2), (397, 2), (2, 197), (397, 197) })
+        {
+            AssertNear(new Rgba32(0, 0, 255, 255), image[x, y], tolerance: 24);
+        }
+    }
+
+    /// <summary>A shape filling the whole canvas, so a gradient can be probed at known pixels.</summary>
+    private static RectLayer GradientRect(Gradient gradient) => new()
+    {
+        Name = "Gradient",
+        Gradient = gradient,
+        Position = new Position { X = 0, Y = 0, Anchor = Anchor.TopLeft },
+        Size = new LayerSize(),
+    };
+
+    /// <summary>
+    /// A gradient interpolates, so exact equality is the wrong assertion near either stop; and
+    /// CountNonBackgroundOutside and HasNonBackgroundPixels both hard-code opaque black as "the
+    /// background", which on a gradient would silently mean something else.
+    /// </summary>
+    private static void AssertNear(Rgba32 expected, Rgba32 actual, int tolerance = 12)
+    {
+        var off = Math.Abs(expected.R - actual.R) + Math.Abs(expected.G - actual.G)
+            + Math.Abs(expected.B - actual.B) + Math.Abs(expected.A - actual.A);
+
+        Assert.True(off <= tolerance, $"{actual} should be within {tolerance} of {expected}");
+    }
+
     private static int CountPixels(Image<Rgba32> image, Rgba32 colour)
     {
         var count = 0;
