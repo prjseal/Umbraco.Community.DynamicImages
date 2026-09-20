@@ -286,53 +286,129 @@ be listed in the findings so the next person is not confused by it.
 
 ---
 
-## 6. Turning these into regression tests
+## 6. How these are tested now
 
-Today the repo has 17 xUnit files under `test/DynamicImages.Tests` and 6 vitest specs under
-`src/DynamicImages/Client/src` — all pure logic, nothing that renders a component or drives a
-browser. `rotation.test.ts` and `RotationMathTests` already share a JSON fixture so that both sides
-fail if either drifts; that shared-fixture pattern is worth keeping.
+*This section proposed three layers. They were built — see
+[`plans/ui-review-fixes-plan.md`](./ui-review-fixes-plan.md) — so it now describes what exists
+rather than what should.*
 
-Every finding below can be pinned by a test. Three layers, cheapest first.
+Before the fixes there was no CI at all: `.github/workflows/release.yml` is tag-triggered and only
+packs. The .NET tests and the vitest specs had never run automatically.
 
-### Layer 1 — vitest, no browser (fast, run in CI today)
+Now `.github/workflows/ci.yml` runs on every push and pull request — the .NET tests, then the
+client's typecheck, unit and component suites, then a build and
+`git diff --exit-code src/DynamicImages/wwwroot`. That last step is the one that matters: the
+bundle is committed and the release workflow has no npm step, so a stale bundle used to ship
+silently. `.github/workflows/e2e.yml` runs the E2E suite behind `workflow_dispatch`, because the
+test site's first boot imports ~192 uSync items.
 
-| Finding | Test |
+`rotation.test.ts` and `RotationMathTests` still share a JSON fixture so both sides fail if either
+drifts; that pattern was kept and reused.
+
+### Layer 1 — vitest, node environment (`npm test`)
+
+| What | Where |
 |---|---|
-| A5 clamping | `di-number-field` change handler clamps to `min`/`max`; add fixtures for opacity `5 → 1`, `-3 → 0`, and rotation `999 → -81` alongside the existing `rotation.test.ts` |
-| A5 bounds | Assert every numeric inspector field declares sensible `min`/`max` — a table-driven test over the field descriptors |
-| A1 dead event | A guard test asserting every `di-*` event name emitted anywhere in `src/` has at least one `@di-…` listener. Cheap, and catches the whole class rather than this one instance |
-| A2 preset argument | Once `#render` honours its argument, assert the sample title is threaded into the request payload |
+| A5 clamping | `Client/src/inputs/number-clamp.test.ts` over the exported `clampNumber` |
+| A5 bounds | The same file: a table-driven pass over `INSPECTOR_BOUNDS`, plus a **source scan** of `di-layer-inspector.element.ts` asserting Rotation is the only `<di-number-field>` without bounds — so the next field added without any is caught |
+| A1 as a class of bug | `Client/src/event-contract.test.ts` — collects every `di-*` name emitted anywhere in `src/` and every `@di-…=` binding, and asserts the first set is a subset of the second |
+| C3 palette drops | `Client/src/models/palette-drop.test.ts` |
 
-### Layer 2 — component tests (new: vitest browser mode or `@open-wc/testing`)
+Two notes for anyone extending these:
 
-| Finding | Test |
+- The event-contract scan deliberately takes **every `di-*` string literal** minus the custom
+  element tag names, rather than matching `new CustomEvent("…")`. `di-canvas-toolbar` passes its
+  four toggle event names into a shared helper, so a pattern matching only the dispatch site would
+  miss them and quietly stop guarding them.
+- `"abc" → keep the last value` is reachable only against `clampNumber` itself. A native
+  `<input type="number">` sanitises an unparseable value to `""` before the element ever sees it.
+
+### Layer 2 — vitest browser mode, real Chromium (`npm run test:browser`)
+
+jsdom does no layout, so B1, B2 and B3 cannot be expressed there at all. `vite.config.ts` has two
+projects so the node specs stay fast.
+
+| What | Where |
 |---|---|
-| B2 layers panel | Mount `di-layers-panel` with 5 layers in a fixed-height container; assert its height fills the container and no row is clipped |
-| B1 canvas collapse | Mount `di-design-view` at 1150×666 and assert `di-designer-canvas` height is above a floor (say 120px). Parameterise over 1150×666, 1280×800, 1536×900 |
-| B3 zoom readout | Assert the toolbar percentage equals the stage's actual scale after **Fit** |
-| C5 resolved values | Given a layout response where one layer produced nothing, assert a row still renders with an explanation |
-| C4 workspace title | Assert the workspace context exposes a name observable and the document title contains the template name |
+| B1 canvas collapse | `Client/src/workspace/views/design-view-layout.browser.test.ts` |
+| B2 layers panel | `Client/src/designer/layers-panel-layout.browser.test.ts` |
+| B3 zoom readout | `Client/src/designer/canvas-scale.browser.test.ts` |
+| A5 in the input | `Client/src/inputs/number-field-clamp.browser.test.ts` |
+| A4 guard | `Client/src/workspace/navigation-guard.browser.test.ts` |
+| A1/A3 strip payloads | `Client/src/workspace/views/preview-strip.browser.test.ts` |
+| C5 skipped rows | `Client/src/workspace/views/preview-skips.browser.test.ts` |
+| C4 view title | `Client/src/workspace/workspace-title.browser.test.ts` |
 
-### Layer 3 — Playwright E2E (new)
+**Two traps worth more than the tests themselves:**
 
-Use `@umbraco/playwright-testhelpers`; the `umbraco-e2e-testing` skill in this workspace covers the
-setup. These need a booted site, so they belong in a separate, slower CI job.
+- **Drive the viewport, not a container.** B1 runs through `@media (max-width: 1280px)`, and a
+  fixed-size container does not answer a media query. Use `page.viewport()` from
+  `@vitest/browser/context`.
+- **Give the view the height a workspace actually leaves it.** Handed `100vh`, the canvas clears
+  the floor on the *pre-fix* CSS too, and the spec proves nothing. Every one of these specs was run
+  against the pre-fix code and seen to fail before being kept.
 
-| Finding | Test |
+### Layer 3 — Playwright E2E (`npm run test:e2e`)
+
+`Client/playwright.config.ts` and `Client/e2e/`. **Not at `test/e2e/`:** `@playwright/test` is in
+the client's `node_modules` and Node resolves upward from the spec file, so specs at the repo root
+cannot import it.
+
+| What | Where |
 |---|---|
-| A4 unsaved changes | Type in the template name, navigate away, assert the confirm dialog appears and that cancelling keeps the edit |
-| A3 preview strip | Choose a node in **Preview & test**, switch to **Design**, assert the strip's request carries that `contentKey` — intercept the `POST preview` call rather than diffing pixels |
-| A1 server preview | Click **Server preview**, assert a `POST preview` request fires |
-| A2 title presets | Click **Short** then **Very long**, assert the two `POST preview` payloads differ |
-| C1 named styles | Click **Add a style**, assert the editor stays open and focus lands in the new row's name field |
-| Happy path | Regenerate an OG image from a document's Actions menu and assert the target media picker is populated |
+| A4, all four cases | `e2e/unsaved-changes.spec.ts` |
+| A3 in-app switch and cold load, A1, C5 | `e2e/preview-surfaces.spec.ts` |
+| C4, C1 | `e2e/fonts-and-title.spec.ts` |
 
-**Assert on network payloads, not screenshots.** Every preview surface goes through `POST
-preview` / `POST preview/layout`, so intercepting those requests is far more stable than image
-diffing and tells you exactly what was wrong. Reserve visual snapshots for the rendered OG image
-itself, where a pixel diff is the point.
+**Assert on network payloads, not screenshots.** Every preview surface goes through
+`POST preview` / `POST preview/layout`, so intercepting those requests is far more stable than
+image diffing and tells you exactly what was wrong. Reserve visual snapshots for the rendered OG
+image itself, where a pixel diff is the point.
 
-Two prerequisites for any browser-level work: the committed media files (section 1) and the fact
-that views take seconds to mount — use Playwright's auto-waiting assertions rather than fixed
-timeouts.
+#### Boot facts, all learned the hard way
+
+- **Probe `/umbraco`, never `/`.** The Clean.Core 7.x front end 500s by design, so a readiness
+  check against the root waits forever for a page that is never going to be healthy.
+- **It has to be HTTPS.** The backoffice's OpenIddict authorize endpoint rejects plain HTTP
+  outright — `error_description: This server only accepts HTTPS requests` — *before* rendering a
+  login form. The symptom is a blank page with no inputs on it, which reads as a mounting problem
+  and is not one. `dotnet dev-certs https` plus `ignoreHTTPSErrors: true` is the whole answer; the
+  certificate does not need to be trusted.
+- **`appsettings.Local.json` is loaded only under `#if DEBUG`** (the test site's `Program.cs`), so
+  a Release build has to be configured through environment variables:
+  `Umbraco__CMS__Unattended__InstallUnattended` and friends.
+- **The section has to be granted to a user group.** Declaring a section in `umbraco-package.json`
+  registers it but does not grant it, and a freshly installed site's Administrators group lists
+  only the core sections — so the package installed into an invisible section. That was a real
+  first-install defect, now fixed by a migration in the package rather than worked around in test
+  setup.
+- **First boot imports ~192 uSync items**, so `webServer.timeout` needs minutes.
+- **Views take 5–10 seconds to mount.** Use auto-waiting assertions, never fixed timeouts.
+- **One worker.** The specs share one site and several of them write to it.
+
+#### What the E2E suite found that nothing else did
+
+Worth recording, because it is the argument for the layer existing at all. A4's guard passed its
+component test and did nothing in the real app: `event.detail.url` is a `URL` **object** on a real
+in-app navigation and a string only when the event is dispatched by hand, so `.includes` threw and —
+the handler being async — the rejection was swallowed. Only a real navigation could show it.
+
+The lesson generalises: **a synthetic event is not the same shape as the real one.** Where a
+component test dispatches an event by hand, check the real payload's type before trusting it.
+
+#### Local run
+
+```bash
+# One terminal: the site (Release, HTTPS, unattended).
+ASPNETCORE_URLS=https://localhost:44344 \
+Umbraco__CMS__Unattended__InstallUnattended=true \
+Umbraco__CMS__Unattended__UnattendedUserEmail=test@example.com \
+Umbraco__CMS__Unattended__UnattendedUserPassword='CHANGE-ME-local-only-1234' \
+dotnet run --project src/DynamicImages.TestSite.Clean -c Release --no-launch-profile
+
+# Another: the specs against it.
+cd src/DynamicImages/Client
+E2E_BASE_URL=https://localhost:44344 npm run test:e2e
+```
+
+Leaving `E2E_BASE_URL` unset makes the config boot the site itself, which is what CI does.

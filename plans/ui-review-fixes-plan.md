@@ -688,50 +688,51 @@ Each step builds and tests green on its own, so it can ship alone.
 
 ## Verification
 
-**Automated**
+*Filled in as the work was done. Every number below was measured against a freshly booted
+`src/DynamicImages.TestSite.Clean`.*
 
-- `dotnet test test/DynamicImages.Tests` — existing 17 files plus the C5 and C2 additions.
-- `cd src/DynamicImages/Client && npm ci && npm run typecheck && npm test && npm run test:browser
-  && npm run build`, then `git diff --exit-code src/DynamicImages/wwwroot` — the committed bundle
-  must match its source.
-- `npx playwright test` against a booted test site.
-- The `di-*` event-contract guard must pass; deliberately delete the new `@di-request-preview`
-  handler once and confirm it fails. A guard that has never been seen to fail is not a guard.
+**Automated — all green**
 
-**Manual, against `src/DynamicImages.TestSite.Clean`** (`dotnet run`, `https://localhost:44344/umbraco`)
+| | |
+|---|---|
+| `dotnet test test/DynamicImages.Tests` | **490 passed** (was 441 before C5, C2 and D added theirs) |
+| `npm run typecheck` | clean |
+| `npm test` (node) | **153 passed**, 9 files |
+| `npm run test:browser` (Chromium) | **29 passed**, 8 files |
+| `npm run build` then `git diff --exit-code src/DynamicImages/wwwroot` | clean |
+| `npm run test:e2e` against a booted site | **10 passed** |
 
-1. **A4** — open *Article OG image*, type into the name with real keyboard input, click **Health**.
-   The discard-changes modal appears. Cancel → still on the template, edit intact. Repeat and
-   confirm → navigation proceeds. Switch Design ↔ Preview & test while dirty → **no** modal. Save,
-   then navigate away → no modal.
-2. **B1** — a viewport under 1280px wide and ~700px tall (do **not** use `resize_window`; close the
-   tab and let `navigate` open a fresh window). Measure with `getBoundingClientRect()`, never from a
-   screenshot. `di-designer-canvas` height ≥ 120px, and the centre column scrolls rather than
-   crushing.
-3. **B2** — at ≥1280px with a 4-layer template, the panel fills its grid row with no grey band
-   beneath and no clipped row. On **Create template**, the empty-state sentence is whole.
-4. **B3** — a 1200×630 template: the readout matches `stage.width / 1200`. Click **Fit** from a
-   manual zoom and watch the number move.
-5. **A1/A3** — pick *Community* in Preview & test, switch to Design in-app (`__goto(0)`, never by
-   URL — a full page load legitimately resets the context and the test proves nothing). The strip
-   shows the real article with its photo. Reload and reopen Design: still the real article. Click
-   **Server preview**: it re-renders and the button disables while in flight.
-6. **A2** — the preset buttons are gone; the hint points at the picker.
-7. **A5** — Opacity `5` → clamps to `1` in both the field and the model. Rotation `999` → `-81`.
-   Every numeric field reports a min and max in the `__all(…DI-NUMBER-FIELD…)` survey.
-8. **C3** — drag **Is Followable** onto a layer: its visibility rule becomes "when property truthy",
-   no text layer appears. Drop on bare stage with nothing selected: the warning explains what to do.
-9. **C1** — **Add a style** keeps the editor open with focus in the new name field; delete likewise.
-   Restore the dashboard to its original state afterwards — this one writes to the database.
-10. **C2** — BricolageDisplay (ExtraBold) reports 800, HankenMeta (SemiBold) 600, HankenBody 400.
-    Override a weight in the editor and confirm it persists.
-11. **C5** — preview against sample data: the Image row is present, marked not drawn, with a reason.
-    Pick *Community*: it draws.
-12. **C6/C7** — the modal lists `.woff` and shows a styled dropzone. Upload a `.woff` end to end.
-13. **C4** — `document.title` reads `Article OG image | Design | Umbraco`, and `New template | …`
-    on the create route.
-14. **C8** — cold-load the section on a **Release** build; record how long until the sidebar paints,
-    and put the number in the findings doc.
-15. **D** — stop the site, delete `src/DynamicImages.TestSite.Clean/umbraco/Data/`, run again
-    (never resume a part-way first run). The startup log no longer warns that `article` does not
-    exist, and the Design view's palette resolves Node / Content / SEO / Visibility.
+Every browser spec was run against the pre-fix code and **seen to fail** before being kept — B1 at
+40px and 31px, B2 overflowing its row, B3 reading "100%" against an expected "27%", A5 dispatching
+5 where 1 was expected, and the navigation guard ignoring a `URL` object.
+
+The `di-*` event-contract guard has been seen to fail too: deleting the new `@di-request-preview`
+handler makes it report `di-request-preview (emitted in designer/di-canvas-toolbar.element.ts)`. A
+guard that has never been seen to fail is not a guard.
+
+**Manual, against `src/DynamicImages.TestSite.Clean`**
+
+| # | Finding | Result |
+|---|---|---|
+| 1 | A4 | Typing into the name and clicking **Health** raises the discard prompt; Cancel keeps the edit and stays put, Discard navigates. Switching Design ↔ Preview & test while dirty does **not** prompt. An unedited template does not prompt. All four are E2E specs. |
+| 2 | B1 | At **1150×666**, `di-designer-canvas` measures **650×240** — against **650×0** at review. |
+| 3 | B2 | At 1536×900 the side column's rows are `487px 229px` and the panel is **229px**, with **0px** of grey beneath and nothing clipped — against 92px of a 228.8px row and a 137px gap. |
+| 4 | B3 | A 1200×630 template in a **328×172** stage reads **27%**, which is exactly `328 / 1200` — against 100%. |
+| 5 | A1/A3 | Picking *Community* and switching to Design in-app sends that `contentKey` with `useSampleData: false`; so does a cold load after a reload. **Server preview** fires a render and the button reports busy. E2E specs, asserting on the request body. |
+| 6 | A2 | The preset buttons are gone and the hint points at the picker. |
+| 7 | A5 | With a text layer selected: Size 1–800, Line spacing 0.5–4, Letter spacing −20–100, Max lines 1–20, X/Y ±5000, Width/Height 1–5000, Opacity 0–1. **Rotation is the only unbounded field**, deliberately. |
+| 8 | C3 | The boolean chip's `+` set the selected layer's visibility to `whenPropertyTruthy` / `isFollowable` with the template still at **4 layers** — no text layer created. Chips carry a dashed border and read *"Use Is Followable as a show/hide condition"*. |
+| 9 | C1 | Adding a style takes the rows 5 → 6 with the editor still open and focus in the new name. E2E spec, which restores the row; the dashboard was left exactly as found. |
+| 10 | C2 | BricolageDisplay (ExtraBold) **800**, HankenMeta (SemiBold) **600**, HankenBody **400** — all three read 400 before. |
+| 11 | C5 | Against sample data the Image row is present, reading *"not drawn — the image could not be loaded"*. Four rows for four layers, against three at review. |
+| 12 | C6/C7 | All three places read ".ttf, .otf, .woff2 or .woff"; the modal renders `uui-file-dropzone`. **Not done:** no font file was pushed through it end to end. |
+| 13 | C4 | `document.title` reads `Article OG image | Preview & test | Umbraco`. |
+| 14 | C8 | **Measured on Release**, cold-loading the section three times: sidebar painted at **1340 / 1868 / 906 ms** — roughly **0.9–1.9 s against the 5–10 s** seen on the dev build, confirming most of it was dev-mode cost. An in-app switch paints in 118 ms. |
+| 15 | D | `umbraco/Data` deleted and cold-booted twice. Before: the import ran at 12:24:13 with the `'article'` warning, uSync finished at 12:24:25. After: uSync finishes at 12:27:50, the import runs at 12:27:51 with **0 warnings**. |
+
+**Not done, and worth saying plainly**
+
+- The plan's Layer 3 table listed two specs that were not written: a **drag-and-drop** test for C3
+  (the `+` button takes the same code path once the target is resolved, and was verified; the HTML5
+  drag itself is unexercised) and the **happy-path Regenerate OG image** test.
+- C7's dropzone was verified present but no font file was uploaded through it.

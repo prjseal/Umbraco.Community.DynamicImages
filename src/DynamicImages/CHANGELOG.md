@@ -41,6 +41,25 @@
   `POST fonts/register-web` / `POST fonts/{key}/refresh` endpoints. The font table gains three
   nullable columns (`sourceUrl`, `provider`, `providerFamily`) through a migration.
 
+- **A test harness and CI.** vitest gains a **browser-mode project** running real Chromium through
+  Playwright, because jsdom does no layout and the layout defects below cannot be expressed
+  without it; a **Playwright E2E suite** under `Client/e2e/` drives a booted test site; and
+  `.github/workflows/ci.yml` runs the .NET tests, the client typecheck, both vitest projects and a
+  build on every push and pull request. Its last step asserts
+  `git diff --exit-code src/DynamicImages/wwwroot` — the bundle is committed and the release
+  workflow has no npm step, so a stale bundle used to ship silently. E2E runs from
+  `.github/workflows/e2e.yml` behind `workflow_dispatch`. Before this the repository had no CI at
+  all.
+- **A `di-*` event-contract guard.** A test collects every `di-*` event the client emits and every
+  listener binding, and fails if anything is dispatched that nothing listens for — which is how
+  the dead **Server preview** button below had gone unnoticed.
+- **Editable font weight and slant.** A detected weight is a guess read out of the font file's
+  names, so the Fonts dashboard now lets an editor correct it; `UpdateFontRequest` carries
+  `Weight` and `IsItalic`.
+- **A reason when a layer draws nothing.** `LayoutResponse` carries a `skipped` list of
+  `(key, reason)`, and **Resolved values** renders a row per template layer rather than per
+  bounds — a layer that resolved to nothing now says so, and why.
+
 ### Changed
 
 - `LayerBounds` and the layout API's `LayerBoundsResponse` carry three new fields - `rotation`,
@@ -56,12 +75,75 @@
   `(kind, mediaKey, path)`, and `FontResponse` carries `provider`, `sourceUrl` and
   `providerFamily`, with `sourceKind` now also `"url"`.
 
+- **Dropping a Yes/No property sets a layer's visibility condition** instead of creating a text
+  layer that drew the literal word `True` or `False` onto the image. Booleans stay in the palette
+  — they are wanted for conditional display — with a distinct chip and an action label saying what
+  a drop will do. `createLayerForProperty` returns a discriminated `PaletteDrop`.
+- **The three title-length presets are gone** from **Preview & test**. They re-rendered without
+  ever changing the title, so all three produced an identical image from the server's own sample
+  data. Previewing against a real content item is the supported path, and a hint under the picker
+  now says so.
+- **The section chrome is registered in `umbraco-package.json`** rather than the bundle — the
+  sidebar app, the menu and the Fonts/Health link items, none of which needs an element. Umbraco
+  reads that file before the bundle loads, so the sidebar paints immediately instead of after a
+  ~250 KB download. Element-bearing extensions stay in `manifests.ts` for the compile-time safety.
+- **The v1 configuration import runs after every component has initialised**, as an
+  `UmbracoApplicationStarted` handler rather than an `IAsyncComponent`. On a first boot it used to
+  run before uSync created the document types, so the first thing the log said about this package
+  was that its target document type did not exist. A warning that will resolve itself is now
+  logged at Information and re-checked when a content type is saved.
+- **`LayerRenderContext` gains `Skip(key, reason)`**, and `RenderResult` a `Skips` list.
+  `Task<LayerBounds?>` is unchanged — relative layout depends on "no bounds means did not draw" —
+  so the reason travels beside it. `IDynamicImageRenderer` gains `MeasureLayoutAsync`.
+
 ### Fixed
 
 - The font registry cached a **cancelled or failed load** for the lifetime of the process: the
   shared load ran on the first caller's cancellation token, so a designer preview aborted mid-load
   (or one transient read error) left that font dead on the server until a refresh or restart. A
   failed load is now dropped from the cache and the next render retries.
+
+- **Unsaved template changes were discarded silently on navigation.** Typing into the template
+  name and clicking a sidebar item lost the edit with no prompt and no notification. The
+  workspace context's own comment claimed extending `UmbSubmittableWorkspaceContextBase` bought
+  dirty tracking; it does not — that base class has none, and the guard lives one level up in a
+  class requiring a detail repository this package does not have. State moved onto core's
+  `UmbEntityWorkspaceDataManager` and the `willchangestate` guard is assembled from core's own
+  pieces. Switching between the four workspace views still does not prompt.
+- **The designer canvas collapsed to zero height** on windows under 1280px wide and about 700px
+  tall — measured 650×0 at 1150×666, with no scrollbar to reveal a stage. The canvas row has a
+  240px floor and the centre column scrolls rather than crushing it; the same viewport now
+  measures 650×240.
+- **The Layers panel used 40% of its own grid row**, leaving empty space beneath it while clipping
+  its list — 92px of a 228.8px row. It now fills the row it is given.
+- **The zoom readout said 100% whenever the canvas was scaled to fit.** The stage is sized rather
+  than transformed, so an unset zoom means "fit", not 100%; a 1200×630 template in a 328px stage
+  read 100% and now reads 27%. Zoom in/out step the effective scale too.
+- **The "Server preview" button did nothing.** It emitted an event nothing listened for, and its
+  busy state was never driven.
+- **The designer's preview strip ignored the node picked in Preview & test**, computing its content
+  key from a conditional whose branches were both `undefined` and hard-coding `useSampleData:
+  true`. A remembered node also never reached the workspace context, so it was lost on a page
+  reload.
+- **Typed numbers were not clamped.** `min`/`max` reached the native input, which only constrains
+  its steppers, so an Opacity of `5` was accepted verbatim. Values are clamped and written back
+  into the field, and every numeric inspector field now declares bounds — only Opacity did before.
+  Rotation still normalises rather than clamping, because `999 → -81` is correct for an angle.
+- **Every registered font reported weight 400**, whatever the file. Weight detection read only
+  OpenType name ID 2, which the spec restricts to Regular/Bold/Italic/BoldItalic, so a SemiBold
+  face reporting subfamily "Regular" came back as 400. It now reads the typographic subfamily, the
+  full font name, the PostScript name and the family name as well: an ExtraBold family reports
+  800, a SemiBold one 600.
+- **"Add a style" closed the editor**, so a new style had to be reopened to be named. Adding and
+  deleting now keep it open, and focus lands in the new row's name.
+- **The workspace browser-tab title had an empty leading segment** — `| Design | Umbraco` rather
+  than `Article OG image | Design | Umbraco`.
+- **`.woff` was accepted but never mentioned** in the upload modal, the dashboard empty state or
+  the server's own rejection message.
+- **The font upload control was a raw browser file input**; it is now `uui-file-dropzone`.
+- **Installing the package left its section invisible.** Declaring a section registers it but does
+  not grant it, and a freshly installed site's Administrators group lists only the core sections.
+  A migration now adds it to Administrators.
 
 ## 2.0.0
 
