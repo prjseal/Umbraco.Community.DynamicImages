@@ -2,13 +2,39 @@
   "$schema": "https://marketplace.umbraco.com/umbraco-marketplace-schema.json",
   "AuthorDetails": {
     "Name": "Paul Seal",
-    "ImageUrl": "https://github.com/prjseal.png"
+    "ImageUrl": "https://github.com/prjseal.png",
+    "Url": "https://github.com/prjseal"
   },
-  "Category": "Backoffice",
+  "Category": "Editor Tools",
+  "AlternateCategory": "Developer Tools",
   "Description": "Generates Open Graph / social share images from your content on publish, designed in a drag-and-drop backoffice section instead of hand-written configuration.",
   "LicenseTypes": ["Free"],
+  "DocumentationUrl": "https://github.com/prjseal/Umbraco.Community.DynamicImages#readme",
   "IssueTrackerUrl": "https://github.com/prjseal/Umbraco.Community.DynamicImages/issues",
   "PackageType": "Package",
+  "VersionDependencyMode": "SemVer",
+  "Screenshots": [
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/main/docs/screenshots/01-overview.png",
+      "Caption": "Every template in one place, with the document types each one covers."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/main/docs/screenshots/02-designer.png",
+      "Caption": "The designer: drag content properties onto the artboard and arrange them as layers."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/main/docs/screenshots/03-preview.png",
+      "Caption": "Preview a template against real content before you publish anything."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/main/docs/screenshots/04-fonts.png",
+      "Caption": "Manage the fonts available to your templates, including web fonts."
+    },
+    {
+      "ImageUrl": "https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/main/docs/screenshots/05-content-property.png",
+      "Caption": "Editors see the generated image on the page they are publishing."
+    }
+  ],
   "Tags": ["opengraph", "og-image", "social", "images", "backoffice", "media"],
   "Title": "Dynamic Images"
 }
