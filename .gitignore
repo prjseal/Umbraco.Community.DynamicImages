@@ -367,3 +367,6 @@ src/.idea
 # Ignore rules do not affect already-tracked files, so the 37 committed Clean configs keep
 # diffing normally; only new ones are ignored, which is exactly the generated case.
 /src/DynamicImages.TestSite.Clean/uSync/v17/Media/
+
+# Umbraco MCP config (holds a generated client secret)
+.mcp.json
