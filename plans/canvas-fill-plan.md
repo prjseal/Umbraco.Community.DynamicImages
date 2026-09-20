@@ -785,6 +785,11 @@ change, the hand-written v2 JSON test should not compile (the properties do not 
 must pass *without* touching the JSON string. If the string has to change, the change is not
 backwards compatible and the plan is wrong.
 
+**These checks are now automated** as `Client/e2e/canvas-fill.spec.ts` (`npm run test:e2e`), which
+covers 1, 2, 3, 5, 6, 7, 10, 11 and 12 below, plus the 6000px half of 9. What is left for a human
+is the part that needs a publish: 4 (the gradient in a `contain` base image's padding), 8, and the
+publish half of 9.
+
 Manual check against the test site (`plans/ui-review-method.md` §6 — it must be HTTPS, probe
 `/umbraco` and never `/`):
 
