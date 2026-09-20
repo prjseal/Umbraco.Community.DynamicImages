@@ -90,7 +90,8 @@ public class PreviewController(
                 request.Template.Canvas.Width,
                 request.Template.Canvas.Height,
                 bounds.Select(b => new LayerBoundsResponse(
-                    b.LayerKey, b.X, b.Y, b.Width, b.Height, b.Lines, b.Truncated, b.ResolvedText)).ToList(),
+                    b.LayerKey, b.X, b.Y, b.Width, b.Height, b.Lines, b.Truncated, b.ResolvedText,
+                    b.Rotation, b.PivotX, b.PivotY)).ToList(),
                 validation.Issues));
         }
         catch (OperationCanceledException)

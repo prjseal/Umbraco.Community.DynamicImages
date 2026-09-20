@@ -1,0 +1,37 @@
+{
+  "_comment": "Shared by Client/src/models/rotation.test.ts and test/DynamicImages.Tests/RotationMathTests.cs. Edit in one place only. Degrees are clockwise-positive on a y-down canvas: a positive angle takes a point right of the pivot to below it.",
+  "rotatePoint": [
+    { "name": "0 degrees leaves the point alone", "px": 10, "py": 0, "pivotX": 0, "pivotY": 0, "degrees": 0, "expectedX": 10, "expectedY": 0 },
+    { "name": "90 degrees about the origin takes right to below", "px": 10, "py": 0, "pivotX": 0, "pivotY": 0, "degrees": 90, "expectedX": 0, "expectedY": 10 },
+    { "name": "180 degrees about the origin takes right to left", "px": 10, "py": 0, "pivotX": 0, "pivotY": 0, "degrees": 180, "expectedX": -10, "expectedY": 0 },
+    { "name": "-90 degrees about the origin takes right to above", "px": 10, "py": 0, "pivotX": 0, "pivotY": 0, "degrees": -90, "expectedX": 0, "expectedY": -10 },
+    { "name": "45 degrees about the origin", "px": 10, "py": 0, "pivotX": 0, "pivotY": 0, "degrees": 45, "expectedX": 7.0711, "expectedY": 7.0711 },
+    { "name": "90 degrees about a corner moves the far corner", "px": 100, "py": 20, "pivotX": 0, "pivotY": 0, "degrees": 90, "expectedX": -20, "expectedY": 100 },
+    { "name": "30 degrees about the centre of a box", "px": 100, "py": 25, "pivotX": 50, "pivotY": 25, "degrees": 30, "expectedX": 93.3013, "expectedY": 50 },
+    { "name": "180 degrees about the centre of a box", "px": 0, "py": 0, "pivotX": 50, "pivotY": 25, "degrees": 180, "expectedX": 100, "expectedY": 50 },
+    { "name": "90 degrees about an external pivot", "px": 10, "py": 10, "pivotX": 0, "pivotY": 20, "degrees": 90, "expectedX": 10, "expectedY": 30 },
+    { "name": "45 degrees about an external pivot", "px": 10, "py": 10, "pivotX": 10, "pivotY": 0, "degrees": 45, "expectedX": 2.9289, "expectedY": 7.0711 },
+    { "name": "the pivot itself never moves", "px": 33, "py": 44, "pivotX": 33, "pivotY": 44, "degrees": 137, "expectedX": 33, "expectedY": 44 }
+  ],
+  "extent": [
+    { "name": "0 degrees is the box itself", "left": 10, "top": 20, "width": 30, "height": 40, "pivotX": 10, "pivotY": 20, "degrees": 0, "expected": { "x": 10, "y": 20, "width": 30, "height": 40 } },
+    { "name": "100x20 rotated 90 about its top-left hangs down to the left", "left": 100, "top": 100, "width": 100, "height": 20, "pivotX": 100, "pivotY": 100, "degrees": 90, "expected": { "x": 80, "y": 100, "width": 20, "height": 100 } },
+    { "name": "100x50 rotated 90 about its centre swaps its sides", "left": 0, "top": 0, "width": 100, "height": 50, "pivotX": 50, "pivotY": 25, "degrees": 90, "expected": { "x": 25, "y": -25, "width": 50, "height": 100 } },
+    { "name": "100x50 rotated 180 about its centre stays put", "left": 0, "top": 0, "width": 100, "height": 50, "pivotX": 50, "pivotY": 25, "degrees": 180, "expected": { "x": 0, "y": 0, "width": 100, "height": 50 } },
+    { "name": "100x100 rotated 45 about its centre grows to its diagonal", "left": 0, "top": 0, "width": 100, "height": 100, "pivotX": 50, "pivotY": 50, "degrees": 45, "expected": { "x": -20.7107, "y": -20.7107, "width": 141.4214, "height": 141.4214 } },
+    { "name": "100x20 rotated -90 about its top-left rises to the right", "left": 100, "top": 100, "width": 100, "height": 20, "pivotX": 100, "pivotY": 100, "degrees": -90, "expected": { "x": 100, "y": 0, "width": 20, "height": 100 } },
+    { "name": "100x20 rotated 90 about an external pivot", "left": 0, "top": 0, "width": 100, "height": 20, "pivotX": 0, "pivotY": 50, "degrees": 90, "expected": { "x": 30, "y": 50, "width": 20, "height": 100 } }
+  ],
+  "normalise": [
+    { "degrees": 0, "expected": 0 },
+    { "degrees": 45, "expected": 45 },
+    { "degrees": 180, "expected": 180 },
+    { "degrees": -180, "expected": 180 },
+    { "degrees": 270, "expected": -90 },
+    { "degrees": -270, "expected": 90 },
+    { "degrees": 360, "expected": 0 },
+    { "degrees": 540, "expected": 180 },
+    { "degrees": -450, "expected": -90 },
+    { "degrees": 725.5, "expected": 5.5 }
+  ]
+}

@@ -455,6 +455,392 @@ public class RendererTests
             $"wrapped height {wrapped.Bounds[0].Height} should exceed one row {oneRow.Bounds[0].Height}");
     }
 
+    // ------------------------------------------------------------------ shapes
+
+    [Fact]
+    public async Task RenderAsync_DrawsAnEllipseInsideItsBox()
+    {
+        var ellipse = Rect("Ellipse", 0, 0, 100, 50);
+        ellipse.Shape = ShapeKind.Ellipse;
+
+        using var result = await Renderer().RenderAsync(Template(ellipse), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[5, 25]);
+        // The box's corner lies outside the inscribed ellipse.
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[2, 2]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[97, 47]);
+        Assert.Equal((0f, 0f, 100f, 50f), (result.Bounds[0].X, result.Bounds[0].Y, result.Bounds[0].Width, result.Bounds[0].Height));
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsAFivePointStarWithItsTipAtTheTop()
+    {
+        var star = Rect("Star", 0, 0, 100, 100);
+        star.Shape = ShapeKind.Star;
+        star.Sides = 5;
+        star.InnerRatio = 0.5f;
+
+        using var result = await Renderer().RenderAsync(Template(star), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 50]);
+        // The top point sits on the box's top-centre; the corners and the notch under the
+        // bottom two arms are inside the box but outside the star.
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 8]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[10, 10]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[90, 10]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[50, 90]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsAPolygonStretchedToItsBox()
+    {
+        // A diamond in a 100x50 box: its points touch the middle of each edge.
+        var diamond = Rect("Diamond", 0, 0, 100, 50);
+        diamond.Shape = ShapeKind.Polygon;
+        diamond.Sides = 4;
+
+        using var result = await Renderer().RenderAsync(Template(diamond), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 3]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[95, 25]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[5, 5]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[95, 45]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsABorderOnlyRectangleInsideItsBox()
+    {
+        var frame = Rect("Frame", 0, 0, 100, 50);
+        frame.Fill = null;
+        frame.Border = new ShapeBorder { Width = 4, Colour = "#FFFFFF" };
+
+        using var result = await Renderer().RenderAsync(Template(frame), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        // The stroke lies inside the box: the edge pixel is white, the centre untouched, and
+        // nothing spills past the box.
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[1, 25]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[98, 25]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[50, 1]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[50, 48]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[50, 6]);
+        Assert.Equal(0, CountNonBackgroundOutside(image, (0, 0, 100, 50), margin: 0));
+
+        var bounds = Assert.Single(result.Bounds);
+        Assert.Equal((0f, 0f, 100f, 50f), (bounds.X, bounds.Y, bounds.Width, bounds.Height));
+
+        var measured = await Renderer().MeasureAsync(Template(frame), Values());
+        Assert.Equal(bounds, Assert.Single(measured));
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsABorderAroundAFilledEllipse()
+    {
+        var ring = Rect("Ring", 0, 0, 100, 100);
+        ring.Shape = ShapeKind.Ellipse;
+        ring.Border = new ShapeBorder { Width = 6, Colour = "#00FF00" };
+
+        using var result = await Renderer().RenderAsync(Template(ring), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(0, 255, 0, 255), image[2, 50]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 50]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[2, 2]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_SkipsAShapeWithNothingToPaint()
+    {
+        var empty = Rect("Nothing", 0, 0);
+        empty.Fill = null;
+        empty.Gradient = null;
+        empty.Border = new ShapeBorder { Width = 0, Colour = "#FFFFFF" };
+
+        using var result = await Renderer().RenderAsync(Template(empty), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Empty(result.Bounds);
+        Assert.Empty(await Renderer().MeasureAsync(Template(empty), Values()));
+        Assert.False(HasNonBackgroundPixels(image));
+    }
+
+    [Fact]
+    public async Task RenderAsync_ClampsAPolygonsSides()
+    {
+        // 20 sides is drawn with 12; both are so nearly a circle that the corner is untouched
+        // and the centre and the edge midpoints are painted.
+        var polygon = Rect("Polygon", 0, 0, 100, 100);
+        polygon.Shape = ShapeKind.Polygon;
+        polygon.Sides = 20;
+
+        using var result = await Renderer().RenderAsync(Template(polygon), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 50]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 3]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[3, 3]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_RotatesAnEllipseAboutItsAnchor()
+    {
+        // A 100x20 ellipse centred at (200, 100) turned 90 degrees stands upright: painted above
+        // and below the centre, not left and right of it.
+        var pill = new RectLayer
+        {
+            Name = "Pill",
+            Shape = ShapeKind.Ellipse,
+            Fill = "#FF0000",
+            Rotation = 90,
+            Position = new Position { X = 200, Y = 100, Anchor = Anchor.MiddleCentre },
+            Size = new LayerSize { Width = 100, Height = 20 },
+        };
+
+        using var result = await Renderer().RenderAsync(Template(pill), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[200, 100]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[200, 60]);
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[200, 140]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[160, 100]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[240, 100]);
+    }
+
+    // ------------------------------------------------------------------ rotation
+
+    [Fact]
+    public async Task RenderAsync_RotatesARectangleAboutItsAnchor()
+    {
+        // 100x20 at (100, 100), top-left anchor, turned 90 degrees clockwise about that corner:
+        // the bar now hangs down and to the left, covering x 80..100 and y 100..200.
+        var rect = Rect("Bar", 100, 100, 100, 20);
+        rect.Rotation = 90;
+
+        using var result = await Renderer().RenderAsync(Template(rect), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[90, 150]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[150, 110]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[90, 90]);
+
+        var bounds = Assert.Single(result.Bounds);
+        Assert.Equal(90, bounds.Rotation);
+        Assert.Equal(100, bounds.PivotX, 3);
+        Assert.Equal(100, bounds.PivotY, 3);
+        Assert.Equal((100, 100, 100, 20), (bounds.X, bounds.Y, bounds.Width, bounds.Height));
+
+        var (x, y, width, height) = bounds.Extent();
+        Assert.Equal(80, x, 2);
+        Assert.Equal(100, y, 2);
+        Assert.Equal(20, width, 2);
+        Assert.Equal(100, height, 2);
+    }
+
+    [Fact]
+    public async Task RenderAsync_AnUnrotatedRectangleDrawsExactlyAsBefore()
+    {
+        // Rotation 0 must not go anywhere near a transform: every one of the 100x50 pixels is
+        // solid red and nothing outside the box is touched, as the pre-rotation test asserts.
+        var rect = new RectLayer
+        {
+            Name = "Scrim",
+            Fill = "#FF0000",
+            Rotation = 0,
+            Position = new Position { X = 0, Y = 0, Anchor = Anchor.TopLeft },
+            Size = new LayerSize { Width = 100, Height = 50 },
+        };
+
+        using var result = await Renderer().RenderAsync(Template(rect), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[50, 25]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[150, 25]);
+        Assert.Equal(100 * 50, CountPixels(image, new Rgba32(255, 0, 0, 255)));
+        Assert.Equal(400 * 200 - 100 * 50, CountPixels(image, new Rgba32(0, 0, 0, 255)));
+        Assert.Equal(0, result.Bounds[0].Rotation);
+        Assert.Equal((0f, 0f, 100f, 50f), result.Bounds[0].Extent());
+    }
+
+    [Fact]
+    public async Task RenderAsync_RotatedTextReportsTheUnrotatedBoxAndATallerExtent()
+    {
+        var text = Text(x: 200, y: 100, anchor: Anchor.MiddleCentre);
+        text.Size.Width = null;
+        text.Rotation = 90;
+
+        using var result = await Renderer().RenderAsync(Template(text), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        var bounds = Assert.Single(result.Bounds);
+        Assert.Equal(90, bounds.Rotation);
+        Assert.Equal(200, bounds.PivotX, 3);
+        Assert.Equal(100, bounds.PivotY, 3);
+        Assert.True(bounds.Width > bounds.Height, "a one-line 'Hello' is wider than it is tall");
+
+        var extent = bounds.Extent();
+        Assert.True(extent.Height > bounds.Height, $"extent height {extent.Height} should exceed the line box {bounds.Height}");
+        Assert.Equal(bounds.Width, extent.Height, 2);
+        Assert.Equal(bounds.Height, extent.Width, 2);
+
+        // Ink lands inside the rotated footprint, and only there.
+        Assert.True(HasNonBackgroundPixels(image), "the text should have marked the canvas");
+        Assert.Equal(0, CountNonBackgroundOutside(image, extent, margin: 2));
+    }
+
+    [Fact]
+    public async Task MeasureAsync_AgreesWithRenderAsyncForRotatedLayers()
+    {
+        var title = Text(x: 200, y: 40, anchor: Anchor.TopCentre);
+        title.Rotation = -15;
+        var badges = Badges(BadgeLabelPosition.Below);
+        badges.Position = new Position { X = 200, Y = 120, Anchor = Anchor.MiddleCentre };
+        badges.Rotation = 30;
+        var photo = new ImageLayer { Name = "Photo", Source = ImageSource.None(), Rotation = 45, Size = new LayerSize { Width = 50, Height = 50 } };
+        var template = Template(title, badges, photo);
+
+        var values = new DictionaryRenderValueSource(
+            "Node",
+            new Dictionary<string, string?> { ["title"] = "Hello" },
+            items: new Dictionary<string, IReadOnlyList<BadgeItem>> { ["categories"] = [new BadgeItem("Umbraco", new Dictionary<string, string?>())] });
+
+        using var rendered = await Renderer().RenderAsync(template, values);
+        var measured = await Renderer().MeasureAsync(template, values);
+
+        // The image draws nothing (no source), so it is absent from both.
+        Assert.Equal(2, rendered.Bounds.Count);
+        Assert.Equal(rendered.Bounds.Count, measured.Count);
+
+        for (var i = 0; i < measured.Count; i++)
+        {
+            Assert.Equal(rendered.Bounds[i].X, measured[i].X, 3);
+            Assert.Equal(rendered.Bounds[i].Y, measured[i].Y, 3);
+            Assert.Equal(rendered.Bounds[i].Width, measured[i].Width, 3);
+            Assert.Equal(rendered.Bounds[i].Height, measured[i].Height, 3);
+            Assert.Equal(rendered.Bounds[i].Rotation, measured[i].Rotation);
+            Assert.Equal(rendered.Bounds[i].PivotX, measured[i].PivotX, 3);
+            Assert.Equal(rendered.Bounds[i].PivotY, measured[i].PivotY, 3);
+        }
+
+        Assert.Equal(-15, rendered.Bounds[0].Rotation);
+        Assert.Equal(30, rendered.Bounds[1].Rotation);
+        Assert.Equal(200, rendered.Bounds[1].PivotX, 3);
+        Assert.Equal(120, rendered.Bounds[1].PivotY, 3);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsARotatedBadgeRowInsideItsExtent()
+    {
+        var badges = Badges(BadgeLabelPosition.None);
+        badges.Position = new Position { X = 200, Y = 100, Anchor = Anchor.MiddleCentre };
+        badges.Badge.FillColour = "#FFFFFF";
+        badges.Badge.BorderWidth = 0;
+        badges.Rotation = 90;
+
+        using var result = await Renderer().RenderAsync(Template(badges), BadgeValues());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        var bounds = Assert.Single(result.Bounds);
+        var extent = bounds.Extent();
+
+        // Three 40px circles 40px apart, turned upright: a column 40 wide and 200 tall centred on
+        // the pivot. The middle circle's centre is the pivot itself.
+        Assert.Equal(40, extent.Width, 2);
+        Assert.Equal(200, extent.Height, 2);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[200, 100]);
+        Assert.Equal(new Rgba32(255, 255, 255, 255), image[200, 20]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[120, 100]);
+        Assert.Equal(0, CountNonBackgroundOutside(image, extent, margin: 2));
+    }
+
+    [Fact]
+    public async Task RenderAsync_RotatesAnImageTheSameWayAsARectangle()
+    {
+        // A 100x20 strip, red on the left and blue on the right, turned 90 degrees clockwise about
+        // its top-left corner at (100, 100): it now hangs down the x 80..100 column with red at
+        // the top - exactly where the rectangle test puts its bar.
+        var renderer = new DynamicImageRenderer(
+            new LayerRendererCollection(() => [new ImageLayerRenderer(new StripeImages())]),
+            new NoImages(),
+            NullLogger<DynamicImageRenderer>.Instance);
+
+        var photo = new ImageLayer
+        {
+            Name = "Strip",
+            Source = new ImageSource { Kind = ImageSourceKind.Path, Path = "/strip.png" },
+            Position = new Position { X = 100, Y = 100, Anchor = Anchor.TopLeft },
+            Size = new LayerSize { Width = 100, Height = 20 },
+            Rotation = 90,
+        };
+
+        using var result = await renderer.RenderAsync(Template(photo), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(255, 0, 0, 255), image[90, 125]);
+        Assert.Equal(new Rgba32(0, 0, 255, 255), image[90, 175]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[150, 110]);
+        Assert.Equal(new Rgba32(0, 0, 0, 255), image[90, 90]);
+
+        var bounds = Assert.Single(result.Bounds);
+        Assert.Equal((100f, 100f, 100f, 20f), (bounds.X, bounds.Y, bounds.Width, bounds.Height));
+        Assert.Equal(90, bounds.Rotation);
+
+        var measured = await renderer.MeasureAsync(Template(photo), Values());
+        Assert.Equal(bounds, Assert.Single(measured));
+    }
+
+    [Fact]
+    public async Task RenderAsync_TracksBelowARotatedRectanglesFootprint()
+    {
+        var bar = Rect("Bar", 100, 100, 100, 20);
+        bar.Rotation = 90;
+        var description = Text(binding: "subtitle", x: 100, y: 0);
+        description.Position.RelativeY = Ref(bar, RelativeEdge.Below, 10);
+
+        using var result = await Renderer().RenderAsync(Template(bar, description), Values("Hello", "Body"));
+
+        var descBounds = result.Bounds.Single(b => b.LayerKey == description.Key);
+
+        // The bar's footprint reaches y = 200 once turned; its unrotated box would end at 120.
+        Assert.Equal(210, descBounds.Y, 2);
+    }
+
+    private static int CountPixels(Image<Rgba32> image, Rgba32 colour)
+    {
+        var count = 0;
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                if (image[x, y] == colour) count++;
+            }
+        }
+
+        return count;
+    }
+
+    /// <summary>Pixels that are not the black background and lie outside the box (grown by the margin).</summary>
+    private static int CountNonBackgroundOutside(Image<Rgba32> image, (float X, float Y, float Width, float Height) box, float margin)
+    {
+        var count = 0;
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                var inside = x >= box.X - margin && x <= box.X + box.Width + margin
+                    && y >= box.Y - margin && y <= box.Y + box.Height + margin;
+                if (!inside && image[x, y] != new Rgba32(0, 0, 0, 255)) count++;
+            }
+        }
+
+        return count;
+    }
+
     private static bool HasNonBackgroundPixels(Image<Rgba32> image)
     {
         for (var y = 0; y < image.Height; y++)
@@ -504,6 +890,33 @@ public class RendererTests
 
         public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
             => Task.FromResult<(int, int)?>(null);
+    }
+
+    /// <summary>One 100x20 image, red on the left half and blue on the right, for every source asked for.</summary>
+    private sealed class StripeImages : IImageSourceProvider
+    {
+        private static Image Strip()
+        {
+            var image = new Image<Rgba32>(100, 20);
+            for (var y = 0; y < 20; y++)
+            {
+                for (var x = 0; x < 100; x++) image[x, y] = x < 50 ? new Rgba32(255, 0, 0, 255) : new Rgba32(0, 0, 255, 255);
+            }
+
+            return image;
+        }
+
+        public Task<Image?> LoadAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
+            => Task.FromResult<Image?>(Strip());
+
+        public Task<bool> ExistsAsync(ImageSource? source, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+
+        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, CancellationToken cancellationToken = default)
+            => Task.FromResult<(int, int)?>((100, 20));
+
+        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
+            => Task.FromResult<(int, int)?>((100, 20));
     }
 
     /// <summary>No web root, so badge icons are never found - the tests turn icons off anyway.</summary>

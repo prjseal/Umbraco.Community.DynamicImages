@@ -3,6 +3,7 @@ using SixLabors.Fonts;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Drawing;
 using SixLabors.ImageSharp.Drawing.Processing;
+using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using Umbraco.Community.DynamicImages.Core.Fonts;
 using Umbraco.Community.DynamicImages.Core.Media;
@@ -29,20 +30,54 @@ public sealed partial class BadgesLayerRenderer(
         var plan = await LayoutAsync(badges, context);
         if (plan is null) return null;
 
+        if (badges.Rotation == 0)
+        {
+            // Straight onto the canvas, exactly as before rotation existed: this path is
+            // deliberately pixel-identical to what v1 imports produced.
+            DrawRun(image, badges, plan, plan.OriginX, plan.OriginY, context.CancellationToken);
+            return plan.Bounds;
+        }
+
+        // A rotated run is drawn into its own transparent image, turned as a whole and put down
+        // with its centre where the unrotated box's centre lands - the image layer's composite.
+        // The padding keeps a circle's border stroke, centred on the circle's edge, inside it.
+        var padding = (int)MathF.Ceiling(Math.Max(0f, badges.Badge.BorderWidth));
+        using var scratch = new Image<Rgba32>(
+            Math.Max(1, (int)MathF.Ceiling(plan.Layout.TotalWidth) + padding * 2),
+            Math.Max(1, (int)MathF.Ceiling(plan.Layout.TotalHeight) + padding * 2));
+
+        DrawRun(scratch, badges, plan, padding, padding, context.CancellationToken);
+        scratch.Mutate(ctx => ctx.Rotate(badges.Rotation));
+
+        var bounds = plan.Bounds;
+        var (centreX, centreY) = RotationMath.RotatePoint(
+            bounds.X + bounds.Width / 2f, bounds.Y + bounds.Height / 2f, bounds.PivotX, bounds.PivotY, badges.Rotation);
+
+        image.Mutate(ctx => ctx.DrawImage(
+            scratch,
+            new Point((int)Math.Round(centreX - scratch.Width / 2f), (int)Math.Round(centreY - scratch.Height / 2f)),
+            1f));
+
+        return bounds;
+    }
+
+    /// <summary>Every slot of the run - circle, icon, label - with the run's top-left at the origin given.</summary>
+    private void DrawRun(Image target, BadgesLayer badges, BadgesPlan plan, float originX, float originY, CancellationToken cancellationToken)
+    {
         var (fillColour, fillBlend) = ColourParser.SplitAlpha(badges.Badge.FillColour, Color.FromRgba(255, 255, 255, 20));
         var (borderColour, borderBlend) = ColourParser.SplitAlpha(badges.Badge.BorderColour, Color.FromRgba(255, 255, 255, 38));
         var labelColour = ColourParser.ParseOrDefault(badges.Label.Colour, Color.Gray);
 
         foreach (var slot in plan.Layout.Slots)
         {
-            context.CancellationToken.ThrowIfCancellationRequested();
+            cancellationToken.ThrowIfCancellationRequested();
 
-            var circleX = plan.OriginX + slot.Circle.X;
-            var circleY = plan.OriginY + slot.Circle.Y;
+            var circleX = originX + slot.Circle.X;
+            var circleY = originY + slot.Circle.Y;
             var circleSize = slot.Circle.Width;
 
-            DrawCircle(image, circleX, circleY, circleSize, fillColour, fillBlend, borderColour, borderBlend, badges.Badge.BorderWidth, badges.Opacity);
-            DrawIcon(image, badges, plan.Items[slot.Index], circleX, circleY, circleSize, badges.Opacity);
+            DrawCircle(target, circleX, circleY, circleSize, fillColour, fillBlend, borderColour, borderBlend, badges.Badge.BorderWidth, badges.Opacity);
+            DrawIcon(target, badges, plan.Items[slot.Index], circleX, circleY, circleSize, badges.Opacity);
 
             var label = plan.Labels[slot.Index];
             if (plan.LabelFont is null || slot.Label is not { } labelRect || string.IsNullOrWhiteSpace(label)) continue;
@@ -51,13 +86,13 @@ public sealed partial class BadgesLayerRenderer(
             var options = badges.Label.Position == BadgeLabelPosition.Right
                 ? new RichTextOptions(plan.LabelFont)
                 {
-                    Origin = new PointF(plan.OriginX + labelRect.X, plan.OriginY + labelRect.Y + labelRect.Height / 2f),
+                    Origin = new PointF(originX + labelRect.X, originY + labelRect.Y + labelRect.Height / 2f),
                     HorizontalAlignment = HorizontalAlignment.Left,
                     VerticalAlignment = VerticalAlignment.Center
                 }
                 : new RichTextOptions(plan.LabelFont)
                 {
-                    Origin = new PointF(circleX + circleSize / 2f, plan.OriginY + labelRect.Y),
+                    Origin = new PointF(circleX + circleSize / 2f, originY + labelRect.Y),
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Top
                 };
@@ -67,10 +102,8 @@ public sealed partial class BadgesLayerRenderer(
                 GraphicsOptions = new GraphicsOptions { Antialias = true, BlendPercentage = Math.Clamp(badges.Opacity, 0f, 1f) }
             };
 
-            image.Mutate(ctx => ctx.DrawText(drawingOptions, options, label, new SolidBrush(labelColour), pen: null));
+            target.Mutate(ctx => ctx.DrawText(drawingOptions, options, label, new SolidBrush(labelColour), pen: null));
         }
-
-        return plan.Bounds;
     }
 
     public async Task<LayerBounds?> MeasureAsync(LayerBase layer, LayerRenderContext context)
@@ -112,9 +145,12 @@ public sealed partial class BadgesLayerRenderer(
                 : TextMeasurer.MeasureAdvance(labels[index]!, new TextOptions(labelFont)).Width);
 
         // The layer's box is the whole run of badges, so the anchor behaves like every other layer.
-        var (originX, originY) = AnchorMath.ToTopLeft(context.PositionOf(badges), layout.TotalWidth, layout.TotalHeight);
+        var position = context.PositionOf(badges);
+        var (originX, originY) = AnchorMath.ToTopLeft(position, layout.TotalWidth, layout.TotalHeight);
 
-        var bounds = new LayerBounds(badges.Key, originX, originY, layout.TotalWidth, layout.TotalHeight, items.Count, false, null);
+        var bounds = new LayerBounds(
+            badges.Key, originX, originY, layout.TotalWidth, layout.TotalHeight, items.Count, false, null,
+            badges.Rotation, position.X, position.Y);
 
         return new BadgesPlan(items, labels, labelFont, layout, originX, originY, bounds);
     }

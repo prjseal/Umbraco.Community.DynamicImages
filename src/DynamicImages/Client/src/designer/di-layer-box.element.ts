@@ -4,15 +4,22 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { DiLayer, DiLayerBounds, DiPosition } from "../api/types.js";
 import { anchorToTopLeft, type Box } from "../models/anchor.js";
 import { isTracked } from "../models/relative-layout.js";
+import { clipPathFor } from "../models/shape-geometry.js";
 import { fontFamilyFor } from "./fonts/font-face-loader.js";
 
 /** The eight resize handles, named by which corner or edge they move. */
 const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
 export type ResizeHandle = (typeof HANDLES)[number];
 
+/** What a drag starts from: a resize handle, the rotation handle above the box, or the box itself. */
+export type DragHandle = ResizeHandle | "rotate";
+
+/** Screen pixels between the top edge's handle and the rotation handle, whatever the zoom. */
+const ROTATE_HANDLE_OFFSET_PX = 18;
+
 export interface LayerDragEventDetail {
   key: string;
-  handle?: ResizeHandle;
+  handle?: DragHandle;
   /** Pointer position in image pixels at the moment the gesture started. */
   startX: number;
   startY: number;
@@ -22,7 +29,7 @@ export interface LayerDragEventDetail {
 
 /**
  * One layer on the artboard: an approximate, DOM-rendered preview plus the pointer handling that
- * moves and resizes it.
+ * moves, resizes and rotates it.
  *
  * The DOM rendering is deliberately approximate. It uses the real font files, so wrapping and
  * weight look right, but the server render is the ground truth - which is why the measured
@@ -96,6 +103,11 @@ export class DiLayerBoxElement extends UmbLitElement {
     return this.resolvedPosition ?? this.layer.position;
   }
 
+  /** Degrees clockwise about the position; a layer made before rotation existed has none. */
+  get #rotation(): number {
+    return this.layer.rotation ?? 0;
+  }
+
   /**
    * The box this layer occupies. Width and height fall back to something sensible per type when
    * the layer leaves them open, because an absolutely positioned element needs a size.
@@ -156,9 +168,26 @@ export class DiLayerBoxElement extends UmbLitElement {
     }
   }
 
+  /**
+   * The CSS that turns an element laid out as the unrotated box about the layer's pivot - the
+   * resolved position, the same point the anchor marker sits on. Applied to the box and to its
+   * chrome alike, so ring, handles and anchor dot turn with the layer.
+   */
+  #turn(box: Box): Record<string, string> {
+    const rotation = this.#rotation;
+    if (rotation === 0) return {};
+
+    const position = this.#position;
+
+    return {
+      transform: `rotate(${rotation}deg)`,
+      transformOrigin: `${(position.x - box.x) * this.scale}px ${(position.y - box.y) * this.scale}px`,
+    };
+  }
+
   // ------------------------------------------------------------------ pointer handling
 
-  #onPointerDown(event: PointerEvent, handle?: ResizeHandle) {
+  #onPointerDown(event: PointerEvent, handle?: DragHandle) {
     if (this.layer.isLocked) return;
 
     event.preventDefault();
@@ -212,6 +241,7 @@ export class DiLayerBoxElement extends UmbLitElement {
             ? { minHeight: `${box.height * this.scale}px`, overflow: "visible" }
             : { height: `${box.height * this.scale}px` }),
           opacity: String(this.layer.opacity),
+          ...this.#turn(box),
         })}
         role="button"
         tabindex=${this.layer.isLocked ? -1 : 0}
@@ -238,7 +268,7 @@ export class DiLayerBoxElement extends UmbLitElement {
       case "badges":
         return this.#renderBadges();
       default:
-        return this.#renderRect();
+        return this.#renderShape();
     }
   }
 
@@ -363,25 +393,48 @@ export class DiLayerBoxElement extends UmbLitElement {
     `;
   }
 
-  #renderRect() {
+  /**
+   * A rectangle or ellipse is one div with a border-radius and a CSS border (the box is
+   * border-box, so the border lies inside it, as on the server). A polygon or star is an outer
+   * div clipped to the shape and painted in the border colour, with an inner div inset by the
+   * border width, clipped to the same shape and painted with the fill - the standard CSS
+   * approximation of an inside stroke on a clipped shape.
+   */
+  #renderShape() {
     if (this.layer.type !== "rect") return nothing;
 
-    const gradient = this.layer.gradient;
+    const layer = this.layer;
+    const shape = layer.shape ?? "rectangle";
+    const gradient = layer.gradient;
+    const paint = gradient
+      ? `linear-gradient(${gradient.angle}deg, ${gradient.from}, ${gradient.to})`
+      : layer.fill ?? "transparent";
+    const border = layer.border;
+    const borderWidth = border ? border.width * this.scale : 0;
+
+    if (shape === "rectangle" || shape === "ellipse") {
+      return html`
+        <div
+          class="shape"
+          style=${styleMap({
+            background: paint,
+            borderRadius: shape === "ellipse" ? "50%" : `${layer.cornerRadius * this.scale}px`,
+            border: border ? `${borderWidth}px solid ${border.colour}` : "none",
+          })}>
+        </div>
+      `;
+    }
+
+    const clipPath = clipPathFor(shape, layer.sides ?? 5, layer.innerRatio ?? 0.5) ?? "none";
 
     return html`
-      <div
-        class="rect"
-        style=${styleMap({
-          background: gradient
-            ? `linear-gradient(${gradient.angle}deg, ${gradient.from}, ${gradient.to})`
-            : this.layer.fill ?? "transparent",
-          borderRadius: `${this.layer.cornerRadius * this.scale}px`,
-        })}>
+      <div class="shape" style=${styleMap({ clipPath, background: border ? border.colour : "transparent" })}>
+        <div class="shape-inner" style=${styleMap({ inset: `${borderWidth}px`, clipPath, background: paint })}></div>
       </div>
     `;
   }
 
-  /** Selection ring, resize handles and the anchor marker. */
+  /** Selection ring, resize handles, the rotation handle and the anchor marker - turned with the layer. */
   #renderChrome(box: Box) {
     const left = box.x * this.scale;
     const top = box.y * this.scale;
@@ -389,34 +442,51 @@ export class DiLayerBoxElement extends UmbLitElement {
     const height = box.height * this.scale;
 
     const position = this.#position;
+    const rotation = this.#rotation;
     const tracked = isTracked(this.layer.position, "x") || isTracked(this.layer.position, "y");
 
     return html`
-      <div class="chrome" style=${styleMap({ left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` })}>
-        <span class="tag">
+      <div
+        class="chrome"
+        style=${styleMap({ left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px`, ...this.#turn(box) })}>
+        <span
+          class="tag"
+          style=${styleMap(rotation !== 0 ? { transform: `rotate(${-rotation}deg)` } : {})}>
           ${tracked ? html`<uui-icon name="icon-link" title="Positioned relative to another layer"></uui-icon>` : nothing}
           ${this.layer.name || this.layer.type}
         </span>
 
         ${this.layer.isLocked
           ? nothing
-          : repeat(
-              HANDLES,
-              (handle) => handle,
-              (handle) => html`
-                <span
-                  class="handle ${handle}"
-                  role="button"
-                  tabindex="-1"
-                  aria-label="Resize ${handle}"
-                  @pointerdown=${(event: PointerEvent) => this.#onPointerDown(event, handle)}>
-                </span>
-              `,
-            )}
+          : html`
+              ${repeat(
+                HANDLES,
+                (handle) => handle,
+                (handle) => html`
+                  <span
+                    class="handle ${handle}"
+                    role="button"
+                    tabindex="-1"
+                    aria-label="Resize ${handle}"
+                    @pointerdown=${(event: PointerEvent) => this.#onPointerDown(event, handle)}>
+                  </span>
+                `,
+              )}
+              <span class="stalk" style=${styleMap({ height: `${ROTATE_HANDLE_OFFSET_PX}px`, top: `${-ROTATE_HANDLE_OFFSET_PX}px` })}></span>
+              <span
+                class="handle rotate"
+                role="button"
+                tabindex="-1"
+                aria-label="Rotate"
+                title="Drag to rotate - hold Shift for 15° steps"
+                style=${styleMap({ top: `${-ROTATE_HANDLE_OFFSET_PX}px` })}
+                @pointerdown=${(event: PointerEvent) => this.#onPointerDown(event, "rotate")}>
+              </span>
+            `}
 
         <span
           class="anchor"
-          title="Anchor: ${position.anchor}"
+          title="Anchor: ${position.anchor}${rotation !== 0 ? ` - turns ${rotation}° here` : ""}"
           style=${styleMap({
             left: `${(position.x - box.x) * this.scale}px`,
             top: `${(position.y - box.y) * this.scale}px`,
@@ -426,9 +496,14 @@ export class DiLayerBoxElement extends UmbLitElement {
     `;
   }
 
-  /** Where the server actually drew this layer - dashed, so it reads as a reference not a control. */
+  /**
+   * Where the server actually drew this layer - dashed, so it reads as a reference not a control.
+   * The server reports the unrotated box plus the pivot; turning the dashed box about that pivot
+   * puts it exactly over the pixels.
+   */
   #renderMeasured() {
     const measured = this.measured!;
+    const rotation = measured.rotation ?? 0;
 
     return html`
       <div
@@ -438,6 +513,12 @@ export class DiLayerBoxElement extends UmbLitElement {
           top: `${measured.y * this.scale}px`,
           width: `${measured.width * this.scale}px`,
           height: `${measured.height * this.scale}px`,
+          ...(rotation !== 0
+            ? {
+                transform: `rotate(${rotation}deg)`,
+                transformOrigin: `${(measured.pivotX - measured.x) * this.scale}px ${(measured.pivotY - measured.y) * this.scale}px`,
+              }
+            : {}),
         })}>
       </div>
     `;
@@ -484,9 +565,15 @@ export class DiLayerBoxElement extends UmbLitElement {
       overflow: hidden;
     }
 
-    .rect {
+    .shape {
+      position: relative;
       width: 100%;
       height: 100%;
+      box-sizing: border-box;
+    }
+
+    .shape-inner {
+      position: absolute;
     }
 
     .badges {
@@ -551,6 +638,8 @@ export class DiLayerBoxElement extends UmbLitElement {
       border-radius: 2px;
       white-space: nowrap;
       pointer-events: none;
+      /* Counter-rotated about its own bottom-left, so it stays readable on a tilted layer. */
+      transform-origin: 0 100%;
     }
 
     .tag uui-icon {
@@ -576,6 +665,27 @@ export class DiLayerBoxElement extends UmbLitElement {
     .s { left: 50%; top: 100%; cursor: ns-resize; }
     .sw { left: 0; top: 100%; cursor: nesw-resize; }
     .w { left: 0; top: 50%; cursor: ew-resize; }
+
+    /* A fixed screen distance above the top edge's handle, whatever the zoom. */
+    .stalk {
+      position: absolute;
+      left: 50%;
+      width: 1px;
+      background: var(--uui-color-focus);
+    }
+
+    .rotate {
+      left: 50%;
+      width: 11px;
+      height: 11px;
+      margin: -6px 0 0 -6px;
+      border-radius: 50%;
+      cursor: grab;
+    }
+
+    .rotate:active {
+      cursor: grabbing;
+    }
 
     .anchor {
       position: absolute;

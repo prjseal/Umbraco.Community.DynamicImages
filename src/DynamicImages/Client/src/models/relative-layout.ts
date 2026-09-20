@@ -1,5 +1,6 @@
 import type { DiPosition, DiRelativeReference, RelativeEdge } from "../api/types.js";
 import { anchorToTopLeft, axisX, axisY, composeAnchor, type Box } from "./anchor.js";
+import { extent } from "./rotation.js";
 
 /**
  * The client half of relative positioning. `resolvePosition` mirrors
@@ -22,6 +23,8 @@ export type Axis = "x" | "y";
 export interface Positioned {
   key: string;
   position: DiPosition;
+  /** Degrees clockwise about the position; a layer made before rotation existed has none. */
+  rotation?: number;
 }
 
 export interface Size {
@@ -29,10 +32,14 @@ export interface Size {
   height: number;
 }
 
-/** A layer's position once its references are resolved, plus the box it occupies. */
+/**
+ * A layer's position once its references are resolved, the unrotated box it is laid out in, and
+ * the axis-aligned footprint that box covers once rotated - the box itself when it is not.
+ */
 export interface ResolvedLayer {
   position: DiPosition;
   box: Box;
+  extent: Box;
 }
 
 export const DEFAULT_RELATIVE_GAP = 10;
@@ -170,10 +177,11 @@ function resolveAxis(
 }
 
 /**
- * Resolves every layer at once, for the designer. A reference's box is its own resolved position
- * plus its size; `isAbsent` says which layers draw nothing (hidden, or the server measured the
- * layout and reported no bounds for them), which is what sends a tracker up the chain before
- * the server has had its say.
+ * Resolves every layer at once, for the designer. What a reference covered is its rotated
+ * footprint - its own resolved position plus its size, turned about that position - exactly as
+ * the server's LayerBounds.Extent() reports it; `isAbsent` says which layers draw nothing
+ * (hidden, or the server measured the layout and reported no bounds for them), which is what
+ * sends a tracker up the chain before the server has had its say.
  */
 export function resolveAll<T extends Positioned>(
   layers: readonly T[],
@@ -197,14 +205,15 @@ export function resolveAll<T extends Positioned>(
       inProgress.add(layer.key);
       position = resolvePosition(layer, layersByKey, (key) => {
         const reference = layersByKey.get(key);
-        return reference && !isAbsent(reference) ? resolve(reference).box : undefined;
+        return reference && !isAbsent(reference) ? resolve(reference).extent : undefined;
       });
       inProgress.delete(layer.key);
     }
 
     const size = sizeOf(layer);
     const topLeft = anchorToTopLeft(position, size.width, size.height);
-    const entry = { position, box: { x: topLeft.x, y: topLeft.y, width: size.width, height: size.height } };
+    const box = { x: topLeft.x, y: topLeft.y, width: size.width, height: size.height };
+    const entry = { position, box, extent: extent(box, position.x, position.y, layer.rotation ?? 0) };
 
     resolved.set(layer.key, entry);
     return entry;

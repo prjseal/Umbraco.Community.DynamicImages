@@ -5,7 +5,18 @@ using Umbraco.Community.DynamicImages.Core.Models.Layers;
 
 namespace Umbraco.Community.DynamicImages.Core.Rendering;
 
-/// <summary>What a layer occupied once it was drawn, for the designer's ground-truth overlay.</summary>
+/// <summary>
+/// What a layer occupied once it was drawn, for the designer's ground-truth overlay and for the
+/// layers that track it.
+/// <para>
+/// <c>X</c>, <c>Y</c>, <c>Width</c> and <c>Height</c> are the <b>unrotated</b> layout box - an
+/// auto-height text layer's height stays its line-box height however it is tilted. A rotated
+/// layer also reports <c>Rotation</c> (degrees clockwise) and the pivot it turned about, and
+/// <see cref="Extent"/> derives the axis-aligned footprint on the canvas from them, which is what
+/// relative positioning hangs off. A renderer that ignores rotation draws unrotated and leaves
+/// the three at their defaults, and everything still works.
+/// </para>
+/// </summary>
 public sealed record LayerBounds(
     Guid LayerKey,
     float X,
@@ -14,7 +25,15 @@ public sealed record LayerBounds(
     float Height,
     int Lines,
     bool Truncated,
-    string? ResolvedText);
+    string? ResolvedText,
+    float Rotation = 0f,
+    float PivotX = 0f,
+    float PivotY = 0f)
+{
+    /// <summary>The axis-aligned box the layer covers on the canvas once rotated; the box itself when it is not.</summary>
+    public (float X, float Y, float Width, float Height) Extent()
+        => RotationMath.Extent(X, Y, Width, Height, PivotX, PivotY, Rotation);
+}
 
 /// <summary>Everything a layer renderer needs that is not the layer itself.</summary>
 public sealed class LayerRenderContext
@@ -66,6 +85,9 @@ public interface ILayerRenderer
     /// <summary>
     /// Draws the layer onto the image and reports what it covered. Returning null means nothing
     /// was drawn (an empty value, a visibility rule, a missing asset) - never an exception.
+    /// A renderer honouring <see cref="LayerBase.Rotation"/> turns its drawing about the
+    /// resolved position and reports the unrotated box plus the rotation and pivot; one that
+    /// does not simply draws unrotated and reports <c>Rotation = 0</c>.
     /// </summary>
     Task<LayerBounds?> RenderAsync(Image image, LayerBase layer, LayerRenderContext context);
 

@@ -2,10 +2,12 @@ import { css, customElement, html, nothing, property, repeat } from "@umbraco-cm
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type {
   Anchor, DiBadgesLayer, DiFont, DiImageLayer, DiLayer, DiPosition, DiProperty, DiRectLayer, DiTemplate,
-  DiTextLayer, RelativeEdge,
+  DiTextLayer, RelativeEdge, ShapeKind,
 } from "../api/types.js";
 import { reanchor } from "../models/anchor.js";
 import { DEFAULT_RELATIVE_GAP, isTracked, referenceOn, type Axis } from "../models/relative-layout.js";
+import { normalise } from "../models/rotation.js";
+import { MAX_INNER_RATIO, MAX_SIDES, MIN_INNER_RATIO, MIN_SIDES } from "../models/shape-geometry.js";
 import "../inputs/di-colour-input.element.js";
 import "../inputs/di-anchor-picker.element.js";
 import "../inputs/di-number-field.element.js";
@@ -161,7 +163,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
       ${layer.type === "text" ? this.#renderTypography(layer) : nothing}
       ${layer.type === "image" ? this.#renderImage(layer) : nothing}
       ${layer.type === "badges" ? this.#renderBadges(layer) : nothing}
-      ${layer.type === "rect" ? this.#renderRect(layer) : nothing}
+      ${layer.type === "rect" ? this.#renderShape(layer) : nothing}
       ${this.#renderLayout(layer)} ${this.#renderBehaviour(layer)}
     `;
   }
@@ -631,19 +633,71 @@ export class DiLayerInspectorElement extends UmbLitElement {
     `;
   }
 
-  #renderRect(layer: DiRectLayer) {
+  #renderShape(layer: DiRectLayer) {
+    const shape = layer.shape ?? "rectangle";
+    const hasFill = layer.fill !== null && layer.fill !== undefined;
+
     return html`
       <uui-box headline="Shape">
         <label class="field">
-          <span>Fill</span>
-          <di-colour-input
-            label="Fill colour"
-            .value=${layer.fill ?? "#000000"}
-            @change=${(event: CustomEvent) => this.#patch({ fill: event.detail.value } as Partial<DiLayer>)}>
-          </di-colour-input>
+          <span>Shape</span>
+          <uui-select
+            .value=${shape}
+            .options=${optionsFrom(["rectangle", "ellipse", "polygon", "star"], shape)}
+            @change=${(event: Event) =>
+              this.#patch({ shape: (event.target as HTMLSelectElement).value as ShapeKind } as Partial<DiLayer>)}>
+          </uui-select>
         </label>
 
-        <label class="field">
+        ${shape === "polygon" || shape === "star"
+          ? html`
+              <div class="pair">
+                <di-number-field
+                  label=${shape === "star" ? "Points" : "Sides"}
+                  suffix=""
+                  min=${MIN_SIDES}
+                  max=${MAX_SIDES}
+                  .value=${layer.sides ?? 5}
+                  @change=${(event: CustomEvent) =>
+                    this.#patch({ sides: Math.round(event.detail.value ?? 5) } as Partial<DiLayer>)}>
+                </di-number-field>
+                ${shape === "star"
+                  ? html`<di-number-field
+                      label="Inner ratio"
+                      suffix=""
+                      step="0.05"
+                      min=${MIN_INNER_RATIO}
+                      max=${MAX_INNER_RATIO}
+                      .value=${layer.innerRatio ?? 0.5}
+                      @change=${(event: CustomEvent) =>
+                        this.#patch({ innerRatio: event.detail.value ?? 0.5 } as Partial<DiLayer>)}>
+                    </di-number-field>`
+                  : nothing}
+              </div>
+            `
+          : nothing}
+
+        <label class="field inline">
+          <span>Fill</span>
+          <uui-toggle
+            ?checked=${hasFill}
+            @change=${(event: Event) =>
+              this.#patch({ fill: (event.target as HTMLInputElement).checked ? "#000000" : null } as Partial<DiLayer>)}>
+          </uui-toggle>
+        </label>
+
+        ${hasFill
+          ? html`<label class="field">
+              <span>Fill colour</span>
+              <di-colour-input
+                label="Fill colour"
+                .value=${layer.fill ?? "#000000"}
+                @change=${(event: CustomEvent) => this.#patch({ fill: event.detail.value } as Partial<DiLayer>)}>
+              </di-colour-input>
+            </label>`
+          : nothing}
+
+        <label class="field inline">
           <span>Gradient</span>
           <uui-toggle
             ?checked=${!!layer.gradient}
@@ -682,11 +736,38 @@ export class DiLayerInspectorElement extends UmbLitElement {
             `
           : nothing}
 
-        <di-number-field
-          label="Corner radius"
-          .value=${layer.cornerRadius}
-          @change=${(event: CustomEvent) => this.#patch({ cornerRadius: event.detail.value ?? 0 } as Partial<DiLayer>)}>
-        </di-number-field>
+        ${shape === "rectangle"
+          ? html`<di-number-field
+              label="Corner radius"
+              .value=${layer.cornerRadius}
+              @change=${(event: CustomEvent) => this.#patch({ cornerRadius: event.detail.value ?? 0 } as Partial<DiLayer>)}>
+            </di-number-field>`
+          : nothing}
+
+        <label class="field">
+          <span>Border</span>
+          <div class="row">
+            <di-number-field
+              label="Width"
+              .value=${layer.border?.width ?? 0}
+              @change=${(event: CustomEvent) => {
+                const width = event.detail.value ?? 0;
+                this.#patch({
+                  border: width > 0 ? { width, colour: layer.border?.colour ?? "#FFFFFF" } : null,
+                } as Partial<DiLayer>);
+              }}>
+            </di-number-field>
+            ${layer.border
+              ? html`<di-colour-input
+                  label="Border colour"
+                  .value=${layer.border.colour}
+                  @change=${(event: CustomEvent) =>
+                    this.#patch({ border: { ...layer.border!, colour: event.detail.value } } as Partial<DiLayer>)}>
+                </di-colour-input>`
+              : nothing}
+          </div>
+          <small class="hint">Drawn inside the box. Turn Fill off for an outline only.</small>
+        </label>
       </uui-box>
     `;
   }
@@ -694,6 +775,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
   #renderLayout(layer: DiLayer) {
     const trackedX = isTracked(layer.position, "x");
     const trackedY = isTracked(layer.position, "y");
+    const rotation = layer.rotation ?? 0;
 
     return html`
       <uui-box headline="Layout">
@@ -712,8 +794,22 @@ export class DiLayerInspectorElement extends UmbLitElement {
                   ${trackedX && trackedY ? "components are" : "component is"} set by the edge
                   ${trackedX && trackedY ? "each axis tracks" : "that axis tracks"}.`
               : nothing}
+            ${rotation !== 0 ? html`The layer turns around this point.` : nothing}
           </small>
         </label>
+
+        <div class="field">
+          <di-number-field
+            label="Rotation"
+            suffix="°"
+            step="1"
+            placeholder="0"
+            .value=${rotation}
+            @change=${(event: CustomEvent) =>
+              this.#patch({ rotation: normalise(event.detail.value ?? 0) } as Partial<DiLayer>)}>
+          </di-number-field>
+          <small class="hint">Clockwise, around the anchor point. Drag the handle above the selection on the canvas; hold Shift for 15° steps.</small>
+        </div>
 
         <div class="pair">
           <di-number-field

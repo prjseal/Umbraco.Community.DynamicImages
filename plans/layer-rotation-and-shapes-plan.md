@@ -1,5 +1,8 @@
 # Layer rotation, and shape layers with fill and border
 
+*Implemented as described here; the few places the code forced a different choice are noted
+inline ("built:") and in the commit messages.*
+
 ## Context
 
 Every layer has a position, an anchor and a size; nothing in the model, the renderers or the
@@ -100,7 +103,10 @@ against `Client/src/models/shape-fixtures.json`:
   `0.5`. Polygon: `n` points, point `i` at angle `-90° + i·360°/n` (first point at the top). Star:
   `2n` points at `-90° + i·180°/n`, alternating the outer radius `0.5` and the inner radius
   `0.5·innerRatio`. `sides` is clamped to 3..12 and `innerRatio` to 0.1..0.9 here, so both sides
-  clamp identically.
+  clamp identically; the limits are public constants (`MinSides`/`MIN_SIDES` etc.) with
+  `ClampSides`/`ClampInnerRatio` helpers, which the validator and the inspector's min/max use.
+  The client module also has `clipPathFor(kind, sides, innerRatio)` → the CSS `polygon(...)` in
+  percentages, or undefined for the two primitives.
 - The points are scaled to the layer's box (`left + x·width`, `top + y·height`), so a polygon
   fills a non-square box by stretching, exactly as CSS `clip-path: polygon(%)` does. Rectangle and
   ellipse have no vertex list; they are primitives on both sides.
@@ -144,9 +150,13 @@ against `Client/src/models/shape-fixtures.json`:
     `new Polygon(ShapeGeometry.Vertices(...) scaled to the box)`.
   - Fill path for the box; border path for the box **deflated by `Width / 2`** on every side, so
     the stroke, centred on that outline, lies inside the box (the image layer's inset trick,
-    generalised). Draw the fill (gradient or solid) then the border with
+    generalised). A rectangle's border path uses `max(0, CornerRadius - Width / 2)` as its
+    radius, so the stroke's *outer* edge has the layer's corner radius, as a CSS border does
+    and as the designer draws it (built: the image layer keeps its own, unchanged, behaviour).
+    Draw the fill (gradient or solid) then the border with
     `new SolidPen(new PenOptions(colour, width) { JointStyle = JointStyle.Round })`, both with the
-    layer opacity as `BlendPercentage` as today.
+    layer opacity as `BlendPercentage` as today. The border is skipped when the box is no wider
+    or taller than the stroke.
   - Rotation ≠ 0: `matrix = RotationMath.Matrix(pivot, rotation)`; `fill = fill.Transform(matrix)`,
     `border = border.Transform(matrix)`, and `BuildGradientBrush` transforms its `start`/`end`
     with `Vector2.Transform(point, matrix)` because the brush is not transformed by the fill.
@@ -162,9 +172,11 @@ against `Client/src/models/shape-fixtures.json`:
 - `Layers/BadgesLayerRenderer.cs`: `Rotation == 0` keeps the current direct-draw path untouched
   (that path is deliberately pixel-identical to v1 imports). Otherwise: extract the per-slot
   drawing into `DrawRun(Image target, BadgesPlan plan, float originX, float originY)`, render the
-  run into a transparent `Image<Rgba32>(ceil(TotalWidth), ceil(TotalHeight))` at origin `(0, 0)`
-  with the per-element opacity applied exactly as now, then composite it like the image layer
-  (rotate, place the centre, `DrawImage(scratch, point, 1f)`). Bounds as for images.
+  run into a transparent `Image<Rgba32>` of `ceil(TotalWidth) × ceil(TotalHeight)` **plus
+  `ceil(BorderWidth)` of padding on every side** (a circle's border stroke is centred on its
+  edge and would otherwise be clipped), at origin `(padding, padding)`, with the per-element
+  opacity applied exactly as now, then composite it like the image layer (rotate, place the
+  centre, `DrawImage(scratch, point, 1f)`). Bounds as for images.
 - `DynamicImageRenderer`, `HealthService`, `LegacyConfigImporter`, `SampleData`: no change. v1
   configuration has neither rotation nor shapes, so imported layers get the defaults.
 
@@ -185,17 +197,19 @@ against `Client/src/models/shape-fixtures.json`:
   `pivotX`, `pivotY`.
 - `models/layer-factories.ts`: every factory sets `rotation: 0`; `createRectLayer(context, name =
   "Shape", shape: ShapeKind = "rectangle")` sets `shape`, `sides: 5`, `innerRatio: 0.5`,
-  `border: null`, and names an ellipse "Ellipse". Read `layer.rotation ?? 0` wherever a layer is
-  consumed, for in-memory layers created before this change.
+  `border: null`, names an ellipse "Ellipse" and makes it 200×200 (a circle is the ellipse
+  people reach for) where a rectangle stays 400×200. Read `layer.rotation ?? 0` wherever a
+  layer is consumed, for in-memory layers created before this change.
 - `models/rotation.ts`, `models/shape-geometry.ts` + tests + the two fixtures (above).
 - `models/relative-layout.ts`: `Positioned` gains `rotation?: number`; `ResolvedLayer` gains
   `extent: Box` (`extent(box, position, rotation)`); `resolveAll` hands `resolve(reference).extent`
   to `boundsOf`. `resolvePosition`'s contract is unchanged ("`boundsOf` returns what the reference
   covered"), so the existing fixture cases pass as they are; add one case where the supplied
   bounds are a rotated title's extent.
-- `designer/di-property-palette.element.ts`: the **Shape** chip becomes **Rectangle** and
-  **Ellipse** (`PalettePayload` static variant gains `shape?: ShapeKind`); polygon and star are a
-  select away in the inspector, where their sides and ratio live anyway.
+- `designer/di-property-palette.element.ts`: the **Shape** chip becomes **Rectangle**
+  (`icon-stop`) and **Ellipse** (`icon-record`) (`PalettePayload` static variant gains
+  `shape?: ShapeKind`); polygon and star are a select away in the inspector, where their sides
+  and ratio live anyway.
   `workspace/views/di-design-view.element.ts` passes `payload.shape` to `createRectLayer`.
 - `designer/di-layer-inspector.element.ts`:
   - **Shape** box: Shape select (Rectangle / Ellipse / Polygon / Star); **Sides** (polygon:
@@ -204,8 +218,9 @@ against `Client/src/models/shape-fixtures.json`:
     toggle; Gradient as today; **Corner radius** only for rectangle; **Border** width + colour
     with the image layer's "width 0 → null" pattern.
   - **Layout** box: **Rotation** `di-number-field`, suffix `°`, step 1, writing
-    `normalise(value)`; hint "Clockwise, around the anchor point." The anchor hint gains a
-    sentence when rotated: "The layer turns around this point."
+    `normalise(value)`; hint "Clockwise, around the anchor point." plus a pointer to the canvas
+    handle and Shift. The anchor hint gains a sentence when rotated: "The layer turns around
+    this point."
 - `designer/di-layer-box.element.ts`:
   - `.box` gets `transform: rotate(<deg>deg)` and `transform-origin: <(position.x - box.x)·scale>px
     <(position.y - box.y)·scale>px`, the pivot being the resolved position - the same numbers the
@@ -226,11 +241,13 @@ against `Client/src/models/shape-fixtures.json`:
     width, clipped by the same polygon, painted with the fill or gradient - the standard CSS
     approximation of an inside stroke on a clipped shape. `fill ?? "transparent"`.
 - `designer/di-designer-canvas.element.ts`:
-  - `#boxOf` stays the unrotated box (it positions the DOM); new `#extentOf(layer)` from the
-    resolved entry. Snap candidates (`others`) use extents.
-  - **Move** of a rotated layer snaps by its extent: at drag start record `offset = extent - box`
-    (constant during a move, because the pivot moves with the box), snap `proposed + offset`, then
-    subtract the offset again. Unrotated layers take exactly today's path.
+  - `#boxOf` stays the unrotated box (it positions the DOM); new `#extentOf(layer)` and
+    `#positionOf(layer)` from the resolved entry, and `#toImagePoint` (the unrounded client →
+    image conversion, for the angle maths). Snap candidates (`others`) use extents.
+  - **Move** of a rotated layer snaps by its extent: at drag start record the extent (its offset
+    from the box *and its size* are constant during a move, because the pivot moves with the
+    box), snap the proposed box shifted by that offset and sized as the extent, then subtract
+    the offset again. Unrotated layers take exactly today's path.
   - **Resize** of a rotated layer: convert the pointer delta into the layer's local frame with
     `toLocal` (rotate the vector by `-rotation`), run `#resizeBox` unchanged in local space, then
     the new position is the local anchor point of the new box (`topLeftToAnchor`) mapped back
@@ -321,9 +338,13 @@ Each step leaves the build green and the existing tests passing.
     than its `Height`; `MeasureAsync` agrees with `RenderAsync` for rotated text, image-less
     and badge layers.
   - An ellipse in a 100×50 box paints its centre and not its corner; a star with 5 points
-    paints the centre and not the midpoint of its top edge; a border-only rectangle paints its
-    edge pixel and not its centre, and reports bounds; a shape with no fill, gradient or border
-    reports nothing.
+    paints the centre and its top tip and not the box's top corners or its bottom-centre (the
+    tip *is* the midpoint of the top edge, so that pixel is painted); a diamond stretches to a
+    100×50 box; a border-only rectangle paints its edge pixel and not its centre, and reports
+    bounds; a border around a filled ellipse; a shape with no fill, gradient or border reports
+    nothing; 20 sides draws as 12; a rotated ellipse stands upright.
+  - An image layer rotated 90° lands where the rectangle does, with its left half at the top
+    (a stripe-image source in the tests pins the direction of ImageSharp's `Rotate`).
   - A description tracking *below* a 90°-rotated rectangle lands under the rectangle's extent,
     not under its unrotated height.
 - `cd src/DynamicImages/Client && npm ci && npm run typecheck && npm test && npm run build`.

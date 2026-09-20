@@ -30,5 +30,11 @@
     <None Include="..\..\src\DynamicImages\Client\src\models\relative-layout-fixtures.json"
           Link="relative-layout-fixtures.json"
           CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\DynamicImages\Client\src\models\rotation-fixtures.json"
+          Link="rotation-fixtures.json"
+          CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\src\DynamicImages\Client\src\models\shape-fixtures.json"
+          Link="shape-fixtures.json"
+          CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

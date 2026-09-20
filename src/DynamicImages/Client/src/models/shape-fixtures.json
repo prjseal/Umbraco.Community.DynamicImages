@@ -1,0 +1,182 @@
+{
+  "_comment": "Shared by Client/src/models/shape-geometry.test.ts and test/DynamicImages.Tests/ShapeGeometryTests.cs. Edit in one place only. Vertices are in the unit square, centre (0.5, 0.5), radius 0.5; a polygon's first point is at the top and a star alternates outer and inner radius. Sides clamp to 3..12 and the inner ratio to 0.1..0.9 before anything is generated.",
+  "cases": [
+    {
+      "name": "a rectangle has no vertices - it is a primitive on both sides",
+      "kind": "rectangle",
+      "sides": 4,
+      "innerRatio": 0.5,
+      "expected": []
+    },
+    {
+      "name": "an ellipse has no vertices - it is a primitive on both sides",
+      "kind": "ellipse",
+      "sides": 4,
+      "innerRatio": 0.5,
+      "expected": []
+    },
+    {
+      "name": "a triangle points up",
+      "kind": "polygon",
+      "sides": 3,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.933, 0.75],
+        [0.067, 0.75]
+      ]
+    },
+    {
+      "name": "four sides is a diamond, not a square",
+      "kind": "polygon",
+      "sides": 4,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [1.0, 0.5],
+        [0.5, 1.0],
+        [0.0, 0.5]
+      ]
+    },
+    {
+      "name": "a pentagon",
+      "kind": "polygon",
+      "sides": 5,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.9755, 0.3455],
+        [0.7939, 0.9045],
+        [0.2061, 0.9045],
+        [0.0245, 0.3455]
+      ]
+    },
+    {
+      "name": "a hexagon",
+      "kind": "polygon",
+      "sides": 6,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.933, 0.25],
+        [0.933, 0.75],
+        [0.5, 1.0],
+        [0.067, 0.75],
+        [0.067, 0.25]
+      ]
+    },
+    {
+      "name": "a five-point star with the default inner ratio",
+      "kind": "star",
+      "sides": 5,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.6469, 0.2977],
+        [0.9755, 0.3455],
+        [0.7378, 0.5773],
+        [0.7939, 0.9045],
+        [0.5, 0.75],
+        [0.2061, 0.9045],
+        [0.2622, 0.5773],
+        [0.0245, 0.3455],
+        [0.3531, 0.2977]
+      ]
+    },
+    {
+      "name": "a four-point star with a deep inner ratio",
+      "kind": "star",
+      "sides": 4,
+      "innerRatio": 0.25,
+      "expected": [
+        [0.5, 0.0],
+        [0.5884, 0.4116],
+        [1.0, 0.5],
+        [0.5884, 0.5884],
+        [0.5, 1.0],
+        [0.4116, 0.5884],
+        [0.0, 0.5],
+        [0.4116, 0.4116]
+      ]
+    },
+    {
+      "name": "fewer than three sides is drawn as a triangle",
+      "kind": "polygon",
+      "sides": 2,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.933, 0.75],
+        [0.067, 0.75]
+      ]
+    },
+    {
+      "name": "more than twelve sides is drawn with twelve",
+      "kind": "polygon",
+      "sides": 20,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.75, 0.067],
+        [0.933, 0.25],
+        [1.0, 0.5],
+        [0.933, 0.75],
+        [0.75, 0.933],
+        [0.5, 1.0],
+        [0.25, 0.933],
+        [0.067, 0.75],
+        [0.0, 0.5],
+        [0.067, 0.25],
+        [0.25, 0.067]
+      ]
+    },
+    {
+      "name": "a star with too small an inner ratio uses 0.1",
+      "kind": "star",
+      "sides": 5,
+      "innerRatio": 0.05,
+      "expected": [
+        [0.5, 0.0],
+        [0.5294, 0.4595],
+        [0.9755, 0.3455],
+        [0.5476, 0.5155],
+        [0.7939, 0.9045],
+        [0.5, 0.55],
+        [0.2061, 0.9045],
+        [0.4524, 0.5155],
+        [0.0245, 0.3455],
+        [0.4706, 0.4595]
+      ]
+    },
+    {
+      "name": "a star with too large an inner ratio uses 0.9",
+      "kind": "star",
+      "sides": 4,
+      "innerRatio": 2.0,
+      "expected": [
+        [0.5, 0.0],
+        [0.8182, 0.1818],
+        [1.0, 0.5],
+        [0.8182, 0.8182],
+        [0.5, 1.0],
+        [0.1818, 0.8182],
+        [0.0, 0.5],
+        [0.1818, 0.1818]
+      ]
+    },
+    {
+      "name": "a star with fewer than three points has three",
+      "kind": "star",
+      "sides": 1,
+      "innerRatio": 0.5,
+      "expected": [
+        [0.5, 0.0],
+        [0.7165, 0.375],
+        [0.933, 0.75],
+        [0.5, 0.75],
+        [0.067, 0.75],
+        [0.2835, 0.375]
+      ]
+    }
+  ]
+}
