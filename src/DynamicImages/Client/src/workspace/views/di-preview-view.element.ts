@@ -1,5 +1,6 @@
 import { css, customElement, html, nothing, repeat, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
+import { checkerboard } from "../../designer/checkerboard.js";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
@@ -344,6 +345,8 @@ export class DiPreviewViewElement extends UmbLitElement {
       max-width: 100%;
       border-radius: var(--uui-border-radius);
       box-shadow: var(--uui-shadow-depth-2);
+      /* Behind the image, so a transparent render reads as transparent rather than as white. */
+      ${checkerboard}
     }
 
     .hint {
