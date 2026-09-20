@@ -12,7 +12,7 @@ var es = (e, t, i, a) => ({
   }
 });
 import { nothing as m, html as r, css as A, state as p, customElement as L, repeat as B, property as v, classMap as Ho, styleMap as V } from "@umbraco-cms/backoffice/external/lit";
-import { UmbLitElement as F } from "@umbraco-cms/backoffice/lit-element";
+import { UmbLitElement as N } from "@umbraco-cms/backoffice/lit-element";
 import { UMB_AUTH_CONTEXT as Be } from "@umbraco-cms/backoffice/auth";
 import { UMB_NOTIFICATION_CONTEXT as ct } from "@umbraco-cms/backoffice/notification";
 import { umbOpenModal as tc, UMB_DISCARD_CHANGES_MODAL as ic, umbConfirmModal as Us, UmbModalToken as Go, UMB_MODAL_MANAGER_CONTEXT as Wa, UmbModalBaseElement as jo } from "@umbraco-cms/backoffice/modal";
@@ -99,11 +99,11 @@ const Vs = async (e, t, i) => D(await T("/preview/layout", i, {
     contentKey: t.contentKey ?? null,
     useSampleData: t.useSampleData ?? !1
   }
-})), Hs = async (e, t) => D(await T(`/media/${e}/image-info`, t)), Fa = async (e, t) => D(await T(`/documents/${e}/regenerate`, t, { method: "POST" })), pn = async (e, t, i) => D(await T(`/templates/${e}/regenerate`, i, { method: "POST", json: { onlyMissing: t } })), mn = async (e, t) => D(await T(`/jobs/${e}`, t));
+})), Hs = async (e, t) => D(await T(`/media/${e}/image-info`, t)), Na = async (e, t) => D(await T(`/documents/${e}/regenerate`, t, { method: "POST" })), pn = async (e, t, i) => D(await T(`/templates/${e}/regenerate`, i, { method: "POST", json: { onlyMissing: t } })), mn = async (e, t) => D(await T(`/jobs/${e}`, t));
 async function fn(e, t) {
   await T(`/jobs/${e}/cancel`, t, { method: "POST" });
 }
-const gn = async (e, t) => D(await T(`/templates/${e}/usage`, t)), Na = async (e) => D(await T("/health", e)), yn = async (e) => D(await T("/sync/status", e)), vn = async (e) => D(await T("/sync/export", e, { method: "POST" })), bn = async (e) => D(await T("/sync/import", e, { method: "POST" }));
+const gn = async (e, t) => D(await T(`/templates/${e}/usage`, t)), Fa = async (e) => D(await T("/health", e)), yn = async (e) => D(await T("/sync/status", e)), vn = async (e) => D(await T("/sync/export", e, { method: "POST" })), bn = async (e) => D(await T("/sync/import", e, { method: "POST" }));
 function ci(e) {
   const t = `section/${li}/workspace/${ji}/edit/${e}`;
   return new URL(t, document.baseURI).pathname;
@@ -136,7 +136,7 @@ const gc = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   fetchDocumentTypes: fc,
   fetchFontFile: un,
   fetchFonts: Ei,
-  fetchHealth: Na,
+  fetchHealth: Fa,
   fetchImageInfo: Hs,
   fetchJob: mn,
   fetchLayout: Vs,
@@ -154,7 +154,7 @@ const gc = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   importTemplate: tn,
   notifyTemplatesChanged: pi,
   refreshFont: rn,
-  regenerateDocument: Fa,
+  regenerateDocument: Na,
   regenerateTemplate: pn,
   registerFontPath: on,
   registerWebFont: nn,
@@ -624,7 +624,9 @@ class zc extends sc {
       _(this, Ki, a);
     }), this.consumeContext(ct, (a) => {
       _(this, xt, a);
-    }), window.addEventListener("willchangestate", c(this, si)), window.addEventListener("beforeunload", c(this, oi));
+    }), window.addEventListener("willchangestate", c(this, si)), window.addEventListener("beforeunload", c(this, oi)), this.observe(this._data.createObservablePartOfCurrent((a) => a == null ? void 0 : a.name), (a) => {
+      this.view.setTitle(a || "New template");
+    });
   }
   /** True until the first successful save. `isNew` itself is an observable on the base class. */
   get isUnsaved() {
@@ -1037,7 +1039,7 @@ var Ic = Object.defineProperty, Ac = Object.getOwnPropertyDescriptor, Dn = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Ic(t, i, s), s;
 }, Xs = (e, t, i) => t.has(e) || Dn("Cannot " + i), Lc = (e, t, i) => (Xs(e, t, "read from private field"), t.get(e)), Oo = (e, t, i) => t.has(e) ? Dn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Rc = (e, t, i, a) => (Xs(e, t, "write to private field"), t.set(e, i), i), Wc = (e, t, i) => (Xs(e, t, "access private method"), i), Ta, ys, Pn;
-let Pt = class extends F {
+let Pt = class extends N {
   constructor() {
     super(), Oo(this, ys), Oo(this, Ta), this._name = "", this._loading = !0, this.consumeContext(Lt, (e) => {
       Rc(this, Ta, e), e && (this.observe(e.template, (t) => {
@@ -1097,21 +1099,21 @@ js([
 Pt = js([
   L("di-template-editor")
 ], Pt);
-const Fc = Pt, Io = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const Nc = Pt, Io = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiTemplateEditorElement() {
     return Pt;
   },
-  default: Fc
+  default: Nc
 }, Symbol.toStringTag, { value: "Module" }));
-var Nc = Object.defineProperty, Uc = Object.getOwnPropertyDescriptor, Mn = (e) => {
+var Fc = Object.defineProperty, Uc = Object.getOwnPropertyDescriptor, Mn = (e) => {
   throw TypeError(e);
 }, mi = (e, t, i, a) => {
   for (var s = a > 1 ? void 0 : a ? Uc(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Nc(t, i, s), s;
+  return a && s && Fc(t, i, s), s;
 }, Ys = (e, t, i) => t.has(e) || Mn("Cannot " + i), yt = (e, t, i) => (Ys(e, t, "read from private field"), t.get(e)), _i = (e, t, i) => t.has(e) ? Mn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Bc = (e, t, i, a) => (Ys(e, t, "write to private field"), t.set(e, i), i), na = (e, t, i) => (Ys(e, t, "access private method"), i), ra, Ca, la, ca, Kt, vs, zn, On;
-let ze = class extends F {
+let ze = class extends N {
   constructor() {
     super(), _i(this, Kt), _i(this, ra), this._templates = [], this._issuesByTemplate = /* @__PURE__ */ new Map(), this._loading = !0, this._activeKey = us(), this._expanded = !0, _i(this, Ca, () => {
       var e;
@@ -1155,7 +1157,7 @@ vs = async function() {
   try {
     const [e, t] = await Promise.all([
       Bs(yt(this, Ca)),
-      Na(yt(this, Ca)).catch(() => {
+      Fa(yt(this, Ca)).catch(() => {
       })
     ]);
     this._templates = e, this._issuesByTemplate = Kc((t == null ? void 0 : t.issues) ?? []);
@@ -1243,8 +1245,8 @@ var Gc = Object.defineProperty, jc = Object.getOwnPropertyDescriptor, In = (e) =
   for (var s = a > 1 ? void 0 : a ? jc(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Gc(t, i, s), s;
-}, qs = (e, t, i) => t.has(e) || In("Cannot " + i), Ee = (e, t, i) => (qs(e, t, "read from private field"), i ? i.call(e) : t.get(e)), aa = (e, t, i) => t.has(e) ? In("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ao = (e, t, i, a) => (qs(e, t, "write to private field"), t.set(e, i), i), S = (e, t, i) => (qs(e, t, "access private method"), i), ua, Ea, De, $, fi, de, An, Ln, Rn, Wn, Fn, Nn, Un, $i, Bn, Kn, Vn, Hn, Gn;
-let pe = class extends F {
+}, qs = (e, t, i) => t.has(e) || In("Cannot " + i), Ee = (e, t, i) => (qs(e, t, "read from private field"), i ? i.call(e) : t.get(e)), aa = (e, t, i) => t.has(e) ? In("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ao = (e, t, i, a) => (qs(e, t, "write to private field"), t.set(e, i), i), S = (e, t, i) => (qs(e, t, "access private method"), i), ua, Ea, De, $, fi, de, An, Ln, Rn, Wn, Nn, Fn, Un, $i, Bn, Kn, Vn, Hn, Gn;
+let pe = class extends N {
   constructor() {
     super(), aa(this, $), aa(this, ua), aa(this, Ea), this._templates = [], this._fonts = [], this._loading = !0, this._importing = !1, this._pasteJson = "", this._showPaste = !1, aa(this, De, () => {
       var e;
@@ -1258,7 +1260,7 @@ let pe = class extends F {
   render() {
     return this._loading ? r`<div class="state"><uui-loader></uui-loader></div>` : r`
       <umb-body-layout headline="Dynamic Images">
-        ${S(this, $, Nn).call(this)} ${S(this, $, Un).call(this)} ${S(this, $, Bn).call(this)} ${S(this, $, Kn).call(this)}
+        ${S(this, $, Fn).call(this)} ${S(this, $, Un).call(this)} ${S(this, $, Bn).call(this)} ${S(this, $, Kn).call(this)}
       </umb-body-layout>
     `;
   }
@@ -1273,7 +1275,7 @@ fi = async function() {
     const [e, t, i] = await Promise.all([
       Bs(Ee(this, De)),
       Ei(Ee(this, De)).catch(() => []),
-      Na(Ee(this, De)).catch(() => {
+      Fa(Ee(this, De)).catch(() => {
       })
     ]);
     this._templates = e, this._fonts = t, this._health = i;
@@ -1333,7 +1335,7 @@ Wn = async function(e) {
     S(this, $, de).call(this, "danger", "The template could not be deleted", t);
   }
 };
-Fn = async function(e) {
+Nn = async function(e) {
   try {
     const t = await en(e.key, Ee(this, De)), i = URL.createObjectURL(t), a = document.createElement("a");
     a.href = i, a.download = `${e.alias}.json`, a.click(), URL.revokeObjectURL(i);
@@ -1341,7 +1343,7 @@ Fn = async function(e) {
     S(this, $, de).call(this, "danger", "The template could not be exported", t);
   }
 };
-Nn = function() {
+Fn = function() {
   var t;
   if (!((t = this._health) != null && t.legacyConfigPresent)) return m;
   const e = this._templates.length > 0;
@@ -1500,7 +1502,7 @@ Gn = function() {
                 <uui-button look="secondary" label="Duplicate ${e.name}" @click=${() => S(this, $, Rn).call(this, e)}>
                   Duplicate
                 </uui-button>
-                <uui-button look="secondary" label="Export ${e.name}" @click=${() => S(this, $, Fn).call(this, e)}>
+                <uui-button look="secondary" label="Export ${e.name}" @click=${() => S(this, $, Nn).call(this, e)}>
                   Export
                 </uui-button>
                 <uui-button
@@ -1731,7 +1733,7 @@ function iu(e) {
     return e ?? "Web";
   }
 }
-let nt = class extends F {
+let nt = class extends N {
   constructor() {
     super(), wi(this, O), wi(this, ha), wi(this, Mi), wi(this, zi), this._fonts = [], this._loading = !0, wi(this, Mt, () => {
       var e;
@@ -2064,7 +2066,7 @@ var ou = Object.defineProperty, nu = Object.getOwnPropertyDescriptor, tr = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && ou(t, i, s), s;
 }, Zs = (e, t, i) => t.has(e) || tr("Cannot " + i), qe = (e, t, i) => (Zs(e, t, "read from private field"), i ? i.call(e) : t.get(e)), sa = (e, t, i) => t.has(e) ? tr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Lo = (e, t, i, a) => (Zs(e, t, "write to private field"), t.set(e, i), i), Vt = (e, t, i) => (Zs(e, t, "access private method"), i), pa, Ht, ui, tt, Da, ws, ir;
-let Ne = class extends F {
+let Fe = class extends N {
   constructor() {
     super(), sa(this, tt), sa(this, pa), sa(this, Ht), this._loading = !0, this._busy = !1, sa(this, ui, () => {
       var e;
@@ -2144,7 +2146,7 @@ Da = async function() {
   this._loading = !0;
   try {
     const [e, t] = await Promise.all([
-      Na(qe(this, ui)),
+      Fa(qe(this, ui)),
       yn(qe(this, ui)).catch(() => {
       })
     ]);
@@ -2200,7 +2202,7 @@ ir = function() {
       </uui-box>
     ` : m;
 };
-Ne.styles = A`
+Fe.styles = A`
     :host {
       display: block;
     }
@@ -2251,23 +2253,23 @@ Ne.styles = A`
   `;
 Xi([
   p()
-], Ne.prototype, "_health", 2);
+], Fe.prototype, "_health", 2);
 Xi([
   p()
-], Ne.prototype, "_sync", 2);
+], Fe.prototype, "_sync", 2);
 Xi([
   p()
-], Ne.prototype, "_loading", 2);
+], Fe.prototype, "_loading", 2);
 Xi([
   p()
-], Ne.prototype, "_busy", 2);
-Ne = Xi([
+], Fe.prototype, "_busy", 2);
+Fe = Xi([
   L("di-health-dashboard")
-], Ne);
-const ru = Ne, lu = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+], Fe);
+const ru = Fe, lu = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiHealthDashboardElement() {
-    return Ne;
+    return Fe;
   },
   default: ru
 }, Symbol.toStringTag, { value: "Module" }));
@@ -2364,7 +2366,7 @@ var gu = Object.defineProperty, yu = Object.getOwnPropertyDescriptor, rr = (e) =
   return a && s && gu(t, i, s), s;
 }, Qs = (e, t, i) => t.has(e) || rr("Cannot " + i), ye = (e, t, i) => (Qs(e, t, "read from private field"), i ? i.call(e) : t.get(e)), is = (e, t, i) => t.has(e) ? rr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), as = (e, t, i, a) => (Qs(e, t, "write to private field"), t.set(e, i), i), j = (e, t, i) => (Qs(e, t, "access private method"), i), ft, xi, M, ja, eo, lr, cr, ur, hr, to, Pa, dr, pr, mr, fr, gr, yr, vr, br, _r;
 const vu = ["nw", "n", "ne", "e", "se", "s", "sw", "w"], ss = 18;
-let _e = class extends F {
+let _e = class extends N {
   constructor() {
     super(...arguments), is(this, M), this.scale = 1, this.selected = !1, this.showMeasured = !1, this._box = { x: 0, y: 0, width: 0, height: 0 }, is(this, ft), is(this, xi);
   }
@@ -2906,7 +2908,7 @@ var bu = Object.defineProperty, _u = Object.getOwnPropertyDescriptor, wr = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && bu(t, i, s), s;
 }, wu = (e, t, i) => t.has(e) || wr("Cannot " + i), $u = (e, t, i) => t.has(e) ? wr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), xu = (e, t, i) => (wu(e, t, "access private method"), i), $s, $r;
-let Oi = class extends F {
+let Oi = class extends N {
   constructor() {
     super(...arguments), $u(this, $s), this.guides = [], this.scale = 1;
   }
@@ -3003,7 +3005,7 @@ var ku = Object.defineProperty, Su = Object.getOwnPropertyDescriptor, xr = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && ku(t, i, s), s;
 }, Tu = (e, t, i) => t.has(e) || xr("Cannot " + i), Cu = (e, t, i) => t.has(e) ? xr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Wo = (e, t, i) => (Tu(e, t, "access private method"), i), ma, xs;
-let Y = class extends F {
+let Y = class extends N {
   constructor() {
     super(...arguments), Cu(this, ma), this.canvasWidth = 1200, this.canvasHeight = 630, this.scale = 1;
   }
@@ -3112,9 +3114,9 @@ var Eu = Object.defineProperty, Du = Object.getOwnPropertyDescriptor, kr = (e) =
   for (var s = a > 1 ? void 0 : a ? Du(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Eu(t, i, s), s;
-}, ao = (e, t, i) => t.has(e) || kr("Cannot " + i), I = (e, t, i) => (ao(e, t, "read from private field"), i ? i.call(e) : t.get(e)), se = (e, t, i) => t.has(e) ? kr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), fa = (e, t, i, a) => (ao(e, t, "write to private field"), t.set(e, i), i), z = (e, t, i) => (ao(e, t, "access private method"), i), gt, ki, at, E, so, ks, Ss, Xa, oo, Ts, Sr, Tr, no, Cr, Er, Cs, ga, Dr, Pr, Ft, ro, Es, Ds, Ps, Ms, zs, Os, Mr;
+}, ao = (e, t, i) => t.has(e) || kr("Cannot " + i), I = (e, t, i) => (ao(e, t, "read from private field"), i ? i.call(e) : t.get(e)), se = (e, t, i) => t.has(e) ? kr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), fa = (e, t, i, a) => (ao(e, t, "write to private field"), t.set(e, i), i), z = (e, t, i) => (ao(e, t, "access private method"), i), gt, ki, at, E, so, ks, Ss, Xa, oo, Ts, Sr, Tr, no, Cr, Er, Cs, ga, Dr, Pr, Nt, ro, Es, Ds, Ps, Ms, zs, Os, Mr;
 const Pu = 6, zr = 20, Mu = 15, zu = 0.1;
-let Z = class extends F {
+let Z = class extends N {
   constructor() {
     super(...arguments), se(this, E), this.serverBounds = [], this.showMeasured = !1, this.snapEnabled = !0, this.showRulers = !0, this.showSafeArea = !1, this._fitScale = 1, this._guides = [], this._dropTarget = !1, se(this, gt), se(this, ki), se(this, at, /* @__PURE__ */ new Map()), se(this, Cs, (e) => {
       const t = this.template.layers.find((n) => n.key === e.detail.key);
@@ -3179,7 +3181,7 @@ let Z = class extends F {
       }), this.dispatchEvent(
         new CustomEvent("di-layer-change", { bubbles: !0, composed: !0, detail: { key: i.key, patch: Ae } })
       );
-    }), se(this, Ft, () => {
+    }), se(this, Nt, () => {
       if (!I(this, gt)) return;
       const e = I(this, gt).moved;
       fa(this, gt, void 0), this._guides = [], this.dispatchEvent(new CustomEvent("di-transaction-end", { bubbles: !0, composed: !0, detail: { moved: e } }));
@@ -3218,11 +3220,11 @@ let Z = class extends F {
     return this.zoom ?? this._fitScale;
   }
   connectedCallback() {
-    super.connectedCallback(), fa(this, ki, new ResizeObserver(() => z(this, E, ks).call(this))), I(this, ki).observe(this), window.addEventListener("pointermove", I(this, ga)), window.addEventListener("pointerup", I(this, Ft)), window.addEventListener("pointercancel", I(this, Ft));
+    super.connectedCallback(), fa(this, ki, new ResizeObserver(() => z(this, E, ks).call(this))), I(this, ki).observe(this), window.addEventListener("pointermove", I(this, ga)), window.addEventListener("pointerup", I(this, Nt)), window.addEventListener("pointercancel", I(this, Nt));
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), (e = I(this, ki)) == null || e.disconnect(), window.removeEventListener("pointermove", I(this, ga)), window.removeEventListener("pointerup", I(this, Ft)), window.removeEventListener("pointercancel", I(this, Ft));
+    super.disconnectedCallback(), (e = I(this, ki)) == null || e.disconnect(), window.removeEventListener("pointermove", I(this, ga)), window.removeEventListener("pointerup", I(this, Nt)), window.removeEventListener("pointercancel", I(this, Nt));
   }
   updated(e) {
     z(this, E, ks).call(this), e.has("zoom") && z(this, E, so).call(this);
@@ -3408,7 +3410,7 @@ Pr = function(e, t, i) {
     })
   );
 };
-Ft = /* @__PURE__ */ new WeakMap();
+Nt = /* @__PURE__ */ new WeakMap();
 ro = function(e, t, i, a, s) {
   let { x: o, y: n, width: l, height: d } = e;
   if (t.includes("w") && (o = e.x + i, l = e.width - i), t.includes("e") && (l = e.width + i), t.includes("n") && (n = e.y + a, d = e.height - a), t.includes("s") && (d = e.height + a), s && e.width > 0 && e.height > 0) {
@@ -3542,8 +3544,8 @@ var Ou = Object.defineProperty, Iu = Object.getOwnPropertyDescriptor, Or = (e) =
   for (var s = a > 1 ? void 0 : a ? Iu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Ou(t, i, s), s;
-}, Ir = (e, t, i) => t.has(e) || Or("Cannot " + i), Au = (e, t, i) => (Ir(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Lu = (e, t, i) => t.has(e) ? Or("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ce = (e, t, i) => (Ir(e, t, "access private method"), i), le, Ar, Lr, Rr, Wr, Fr, vt;
-const Fo = {
+}, Ir = (e, t, i) => t.has(e) || Or("Cannot " + i), Au = (e, t, i) => (Ir(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Lu = (e, t, i) => t.has(e) ? Or("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ce = (e, t, i) => (Ir(e, t, "access private method"), i), le, Ar, Lr, Rr, Wr, Nr, vt;
+const No = {
   text: "icon-font",
   richtext: "icon-article",
   date: "icon-calendar",
@@ -3555,7 +3557,7 @@ const Fo = {
   readingTime: "icon-time",
   other: "icon-block"
 };
-let Ii = class extends F {
+let Ii = class extends N {
   constructor() {
     super(...arguments), Lu(this, le), this.properties = [], this._search = "";
   }
@@ -3579,7 +3581,7 @@ let Ii = class extends F {
       ([t, i]) => Ce(this, le, Wr).call(this, t, i)
     )}
 
-        ${Ce(this, le, Fr).call(this)}
+        ${Ce(this, le, Nr).call(this)}
       </div>
     `;
   }
@@ -3605,12 +3607,12 @@ Wr = function(e, t) {
         ${B(
     t,
     (i) => i.alias,
-    (i) => Ce(this, le, vt).call(this, i.name, Fo[i.classification] ?? Fo.other, i.classification, { kind: "property", property: i })
+    (i) => Ce(this, le, vt).call(this, i.name, No[i.classification] ?? No.other, i.classification, { kind: "property", property: i })
   )}
       </div>
     `;
 };
-Fr = function() {
+Nr = function() {
   return r`
       <div class="group">
         <h5>Static</h5>
@@ -3732,16 +3734,16 @@ function Ru(e) {
     a !== "Node" && i.set(a, s);
   return i;
 }
-var Wu = Object.defineProperty, Fu = Object.getOwnPropertyDescriptor, Nr = (e) => {
+var Wu = Object.defineProperty, Nu = Object.getOwnPropertyDescriptor, Fr = (e) => {
   throw TypeError(e);
 }, Ya = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Fu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
+  for (var s = a > 1 ? void 0 : a ? Nu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Wu(t, i, s), s;
-}, Ur = (e, t, i) => t.has(e) || Nr("Cannot " + i), Je = (e, t, i) => (Ur(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Nu = (e, t, i) => t.has(e) ? Nr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ti = (e, t, i) => (Ur(e, t, "access private method"), i), ee, Ai, Ci, qa, Br, Kr;
-let hi = class extends F {
+}, Ur = (e, t, i) => t.has(e) || Fr("Cannot " + i), Je = (e, t, i) => (Ur(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Fu = (e, t, i) => t.has(e) ? Fr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ti = (e, t, i) => (Ur(e, t, "access private method"), i), ee, Ai, Ci, qa, Br, Kr;
+let hi = class extends N {
   constructor() {
-    super(...arguments), Nu(this, ee), this.value = "#FFFFFF", this.label = "Colour", this._open = !1;
+    super(...arguments), Fu(this, ee), this.value = "#FFFFFF", this.label = "Colour", this._open = !1;
   }
   render() {
     return r`
@@ -3888,7 +3890,7 @@ var Uu = Object.defineProperty, Bu = Object.getOwnPropertyDescriptor, Hr = (e, t
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Uu(t, i, s), s;
 };
-const No = {
+const Fo = {
   topLeft: "Top left",
   topCentre: "Top centre",
   topRight: "Top right",
@@ -3899,7 +3901,7 @@ const No = {
   bottomCentre: "Bottom centre",
   bottomRight: "Bottom right"
 };
-let Ma = class extends F {
+let Ma = class extends N {
   constructor() {
     super(...arguments), this.value = "topLeft";
   }
@@ -3915,8 +3917,8 @@ let Ma = class extends F {
               role="radio"
               class=${e === this.value ? "cell active" : "cell"}
               aria-checked=${e === this.value}
-              aria-label=${No[e]}
-              title=${No[e]}
+              aria-label=${Fo[e]}
+              title=${Fo[e]}
               @click=${() => this.dispatchEvent(
         new CustomEvent("change", { bubbles: !0, composed: !0, detail: { value: e } })
       )}>
@@ -4024,7 +4026,7 @@ var Vu = Object.defineProperty, Hu = Object.getOwnPropertyDescriptor, Gr = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Vu(t, i, s), s;
 }, Gu = (e, t, i) => t.has(e) || Gr("Cannot " + i), ju = (e, t, i) => t.has(e) ? Gr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Xu = (e, t, i) => (Gu(e, t, "access private method"), i), Is, jr;
-let Oe = class extends F {
+let Oe = class extends N {
   constructor() {
     super(...arguments), ju(this, Is), this.label = "", this.suffix = "px", this.step = 1, this.placeholder = "Auto";
   }
@@ -4138,7 +4140,7 @@ var Yu = Object.defineProperty, qu = Object.getOwnPropertyDescriptor, Xr = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Yu(t, i, s), s;
 }, Ju = (e, t, i) => t.has(e) || Xr("Cannot " + i), Zu = (e, t, i) => t.has(e) ? Xr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), h = (e, t, i) => (Ju(e, t, "access private method"), i), u, y, je, Yr, qr, Jr, Zr, Qr, el, tl, il, As, al, ya, sl, ol, yi, co, nl;
-let zt = class extends F {
+let zt = class extends N {
   constructor() {
     super(...arguments), Zu(this, u), this.properties = [], this.fonts = [];
   }
@@ -5192,7 +5194,7 @@ const ah = {
   badges: "icon-tags",
   rect: "icon-layers"
 };
-let Ot = class extends F {
+let Ot = class extends N {
   constructor() {
     super(...arguments), ih(this, ue), this.layers = [];
   }
@@ -5384,7 +5386,7 @@ var sh = Object.defineProperty, oh = Object.getOwnPropertyDescriptor, pl = (e) =
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && sh(t, i, s), s;
 }, nh = (e, t, i) => t.has(e) || pl("Cannot " + i), rh = (e, t, i) => t.has(e) ? pl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), fe = (e, t, i) => (nh(e, t, "access private method"), i), oe, Xe, Si;
-let we = class extends F {
+let we = class extends N {
   constructor() {
     super(...arguments), rh(this, oe), this.effectiveScale = 1, this.snapEnabled = !0, this.showRulers = !0, this.showSafeArea = !1, this.showMeasured = !1, this.canUndo = !1, this.canRedo = !1, this.previewing = !1;
   }
@@ -5522,18 +5524,18 @@ var lh = Object.defineProperty, ch = Object.getOwnPropertyDescriptor, ml = (e) =
   for (var s = a > 1 ? void 0 : a ? ch(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && lh(t, i, s), s;
-}, uo = (e, t, i) => t.has(e) || ml("Cannot " + i), J = (e, t, i) => (uo(e, t, "read from private field"), t.get(e)), pt = (e, t, i) => t.has(e) ? ml("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ct = (e, t, i, a) => (uo(e, t, "write to private field"), t.set(e, i), i), Fe = (e, t, i) => (uo(e, t, "access private method"), i), Ze, Gt, jt, Et, za, Oa, ve, ho, va, po, Ls;
+}, uo = (e, t, i) => t.has(e) || ml("Cannot " + i), J = (e, t, i) => (uo(e, t, "read from private field"), t.get(e)), pt = (e, t, i) => t.has(e) ? ml("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ct = (e, t, i, a) => (uo(e, t, "write to private field"), t.set(e, i), i), Ne = (e, t, i) => (uo(e, t, "access private method"), i), Ze, Gt, jt, Et, za, Oa, ve, ho, va, po, Ls;
 const uh = 400;
-let It = class extends F {
+let It = class extends N {
   constructor() {
     super(), pt(this, ve), pt(this, Ze), pt(this, Gt), pt(this, jt), pt(this, Et), pt(this, za), pt(this, Oa, !0), this._loading = !1, this._collapsed = !1, this.consumeContext(Lt, (e) => {
       Ct(this, Ze, e), e && (this.observe(e.template, (t) => {
-        t && Fe(this, ve, va).call(this, t);
+        t && Ne(this, ve, va).call(this, t);
       }), this.observe(e.sampleContentKey, (t) => {
         var a;
         Ct(this, za, t);
         const i = (a = J(this, Ze)) == null ? void 0 : a.getData();
-        i && Fe(this, ve, va).call(this, i);
+        i && Ne(this, ve, va).call(this, i);
       }), this.observe(e.useSampleData, (t) => {
         Ct(this, Oa, t ?? !0);
       }));
@@ -5547,11 +5549,11 @@ let It = class extends F {
   refresh() {
     var t;
     const e = (t = J(this, Ze)) == null ? void 0 : t.getData();
-    e && (window.clearTimeout(J(this, Gt)), this._collapsed = !1, Fe(this, ve, po).call(this, e));
+    e && (window.clearTimeout(J(this, Gt)), this._collapsed = !1, Ne(this, ve, po).call(this, e));
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), window.clearTimeout(J(this, Gt)), (e = J(this, jt)) == null || e.abort(), Fe(this, ve, ho).call(this);
+    super.disconnectedCallback(), window.clearTimeout(J(this, Gt)), (e = J(this, jt)) == null || e.abort(), Ne(this, ve, ho).call(this);
   }
   render() {
     return r`
@@ -5564,7 +5566,7 @@ let It = class extends F {
       var e;
       if (this._collapsed = !this._collapsed, !this._collapsed) {
         const t = (e = J(this, Ze)) == null ? void 0 : e.getData();
-        t && Fe(this, ve, va).call(this, t);
+        t && Ne(this, ve, va).call(this, t);
       }
     }}>
           <uui-icon name=${this._collapsed ? "icon-navigation-up" : "icon-navigation-down"}></uui-icon>
@@ -5592,12 +5594,12 @@ ho = function() {
   J(this, Et) && (URL.revokeObjectURL(J(this, Et)), Ct(this, Et, void 0));
 };
 va = function(e) {
-  this._collapsed || (window.clearTimeout(J(this, Gt)), Ct(this, Gt, window.setTimeout(() => void Fe(this, ve, po).call(this, e), uh)));
+  this._collapsed || (window.clearTimeout(J(this, Gt)), Ct(this, Gt, window.setTimeout(() => void Ne(this, ve, po).call(this, e), uh)));
 };
 po = async function(e) {
   var t;
   if (J(this, Ze)) {
-    (t = J(this, jt)) == null || t.abort(), Ct(this, jt, new AbortController()), Fe(this, ve, Ls).call(this, !0), this._error = void 0;
+    (t = J(this, jt)) == null || t.abort(), Ct(this, jt, new AbortController()), Ne(this, ve, Ls).call(this, !0), this._error = void 0;
     try {
       const i = await Ks(
         e,
@@ -5608,12 +5610,12 @@ po = async function(e) {
         },
         J(this, Ze).getToken
       );
-      Fe(this, ve, ho).call(this), Ct(this, Et, URL.createObjectURL(i)), this._url = J(this, Et);
+      Ne(this, ve, ho).call(this), Ct(this, Et, URL.createObjectURL(i)), this._url = J(this, Et);
     } catch (i) {
       if ((i == null ? void 0 : i.name) === "AbortError") return;
       this._error = i instanceof Error ? i.message : "The preview could not be rendered.";
     } finally {
-      Fe(this, ve, Ls).call(this, !1);
+      Ne(this, ve, Ls).call(this, !1);
     }
   }
 };
@@ -5706,9 +5708,9 @@ var hh = Object.defineProperty, dh = Object.getOwnPropertyDescriptor, fl = (e) =
   for (var s = a > 1 ? void 0 : a ? dh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && hh(t, i, s), s;
-}, mo = (e, t, i) => t.has(e) || fl("Cannot " + i), b = (e, t, i) => (mo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Rt = (e, t, i) => t.has(e) ? fl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ia = (e, t, i, a) => (mo(e, t, "write to private field"), t.set(e, i), i), te = (e, t, i) => (mo(e, t, "access private method"), i), x, Li, Ri, Xt, W, Rs, fo, gl, yl, Ws, vl, bl, _l, Fs, wl, $l, xl, go, kl, ba;
+}, mo = (e, t, i) => t.has(e) || fl("Cannot " + i), b = (e, t, i) => (mo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Rt = (e, t, i) => t.has(e) ? fl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ia = (e, t, i, a) => (mo(e, t, "write to private field"), t.set(e, i), i), te = (e, t, i) => (mo(e, t, "access private method"), i), x, Li, Ri, Xt, W, Rs, fo, gl, yl, Ws, vl, bl, _l, Ns, wl, $l, xl, go, kl, ba;
 const ph = 400;
-let U = class extends F {
+let U = class extends N {
   constructor() {
     super(), Rt(this, W), Rt(this, x), Rt(this, Li), Rt(this, Ri), Rt(this, Xt), this._properties = [], this._fonts = [], this._serverBounds = [], this._effectiveScale = 1, this._previewing = !1, this._snapEnabled = !0, this._showRulers = !0, this._showSafeArea = !1, this._showMeasured = !1, this._canUndo = !1, this._canRedo = !1, Rt(this, ba, (e) => {
       var o;
@@ -5826,8 +5828,8 @@ let U = class extends F {
       var t, i;
       return (i = b(this, x)) == null ? void 0 : i.endTransaction(((t = e.detail) == null ? void 0 : t.moved) ?? !0);
     }}
-        @di-palette-add=${(e) => te(this, W, Fs).call(this, e.detail.payload)}
-        @di-palette-drop=${(e) => te(this, W, Fs).call(this, e.detail.payload, e.detail.x, e.detail.y)}
+        @di-palette-add=${(e) => te(this, W, Ns).call(this, e.detail.payload)}
+        @di-palette-drop=${(e) => te(this, W, Ns).call(this, e.detail.payload, e.detail.x, e.detail.y)}
         @di-pick-base-image=${te(this, W, $l)}
         @di-pick-layer-image=${(e) => te(this, W, xl).call(this, e.detail.key)}
         @di-use-image-size=${te(this, W, kl)}
@@ -5980,7 +5982,7 @@ _l = function() {
     }
   }, ph));
 };
-Fs = function(e, t, i) {
+Ns = function(e, t, i) {
   const a = this._template;
   if (!a || !b(this, x)) return;
   const s = { template: a, x: t, y: i, defaultFontKey: te(this, W, wl).call(this) }, o = e.kind === "property" ? bc(e.property, s) : e.layerType === "image" ? $n(s, "Image") : e.layerType === "badges" ? xn(s, "Badges", "") : e.layerType === "rect" ? yc(s, "Shape", e.shape) : wn(s, "Text", { kind: "static", text: "Text" });
@@ -6155,13 +6157,13 @@ var gh = Object.defineProperty, yh = Object.getOwnPropertyDescriptor, Sl = (e) =
   for (var s = a > 1 ? void 0 : a ? yh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && gh(t, i, s), s;
-}, yo = (e, t, i) => t.has(e) || Sl("Cannot " + i), K = (e, t, i) => (yo(e, t, "read from private field"), t.get(e)), Wt = (e, t, i) => t.has(e) ? Sl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Yt = (e, t, i, a) => (yo(e, t, "write to private field"), t.set(e, i), i), q = (e, t, i) => (yo(e, t, "access private method"), i), he, Wi, Fi, qt, Dt, H, Tl, Aa, Cl, El, vo, Dl, Ni, Pl, Ml, zl;
-let me = class extends F {
+}, yo = (e, t, i) => t.has(e) || Sl("Cannot " + i), K = (e, t, i) => (yo(e, t, "read from private field"), t.get(e)), Wt = (e, t, i) => t.has(e) ? Sl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Yt = (e, t, i, a) => (yo(e, t, "write to private field"), t.set(e, i), i), q = (e, t, i) => (yo(e, t, "access private method"), i), he, Wi, Ni, qt, Dt, H, Tl, Aa, Cl, El, vo, Dl, Fi, Pl, Ml, zl;
+let me = class extends N {
   constructor() {
-    super(), Wt(this, H), Wt(this, he), Wt(this, Wi), Wt(this, Fi), Wt(this, qt), Wt(this, Dt), this._bounds = [], this._loading = !1, this._regenerating = !1, this.consumeContext(Wa, (e) => {
+    super(), Wt(this, H), Wt(this, he), Wt(this, Wi), Wt(this, Ni), Wt(this, qt), Wt(this, Dt), this._bounds = [], this._loading = !1, this._regenerating = !1, this.consumeContext(Wa, (e) => {
       Yt(this, Wi, e);
     }), this.consumeContext(ct, (e) => {
-      Yt(this, Fi, e);
+      Yt(this, Ni, e);
     }), this.consumeContext(Lt, (e) => {
       Yt(this, he, e), e && this.observe(e.template, (t) => {
         const i = !this._template;
@@ -6170,7 +6172,7 @@ let me = class extends F {
     });
   }
   connectedCallback() {
-    super.connectedCallback(), q(this, H, Ni).call(this);
+    super.connectedCallback(), q(this, H, Fi).call(this);
   }
   disconnectedCallback() {
     var e;
@@ -6184,7 +6186,7 @@ let me = class extends F {
             <uui-button look="secondary" label="Choose content to preview against" @click=${q(this, H, Dl)}>
               ${this._sampleNode ? this._sampleNode.name : "Sample data"}
             </uui-button>
-            <uui-button look="secondary" label="Re-render" ?disabled=${this._loading} @click=${() => q(this, H, Ni).call(this)}>
+            <uui-button look="secondary" label="Re-render" ?disabled=${this._loading} @click=${() => q(this, H, Fi).call(this)}>
               Re-render
             </uui-button>
             <uui-button look="secondary" label="Download this image" ?disabled=${!this._url} @click=${q(this, H, Ml)}>
@@ -6247,14 +6249,14 @@ let me = class extends F {
 };
 he = /* @__PURE__ */ new WeakMap();
 Wi = /* @__PURE__ */ new WeakMap();
-Fi = /* @__PURE__ */ new WeakMap();
+Ni = /* @__PURE__ */ new WeakMap();
 qt = /* @__PURE__ */ new WeakMap();
 Dt = /* @__PURE__ */ new WeakMap();
 H = /* @__PURE__ */ new WeakSet();
 Tl = async function() {
   var t;
   const e = q(this, H, Cl).call(this);
-  e && (this._sampleNode = e, (t = K(this, he)) == null || t.setSampleContentKey(e.key), await q(this, H, Ni).call(this));
+  e && (this._sampleNode = e, (t = K(this, he)) == null || t.setSampleContentKey(e.key), await q(this, H, Fi).call(this));
 };
 Aa = function() {
   var e;
@@ -6284,9 +6286,9 @@ Dl = async function() {
     data: { docTypeAliases: this._template.docTypeAliases, selectedKey: (i = this._sampleNode) == null ? void 0 : i.key }
   }), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
   }));
-  t && (this._sampleNode = t.item, q(this, H, El).call(this, t.item), (s = K(this, he)) == null || s.setSampleContentKey((a = t.item) == null ? void 0 : a.key), await q(this, H, Ni).call(this));
+  t && (this._sampleNode = t.item, q(this, H, El).call(this, t.item), (s = K(this, he)) == null || s.setSampleContentKey((a = t.item) == null ? void 0 : a.key), await q(this, H, Fi).call(this));
 };
-Ni = async function() {
+Fi = async function() {
   var i, a;
   const e = this._template;
   if (!e || !K(this, he)) return;
@@ -6316,12 +6318,12 @@ Pl = async function() {
   if (!(!this._sampleNode || !K(this, he))) {
     this._regenerating = !0;
     try {
-      const i = await Fa(this._sampleNode.key, K(this, he).getToken);
-      (e = K(this, Fi)) == null || e.peek(i.outcome === "generated" ? "positive" : "warning", {
+      const i = await Na(this._sampleNode.key, K(this, he).getToken);
+      (e = K(this, Ni)) == null || e.peek(i.outcome === "generated" ? "positive" : "warning", {
         data: { message: `'${this._sampleNode.name}': ${i.outcome}` }
       });
     } catch (i) {
-      (t = K(this, Fi)) == null || t.peek("danger", {
+      (t = K(this, Ni)) == null || t.peek("danger", {
         data: {
           headline: "The image could not be regenerated",
           message: i instanceof Error ? i.message : ""
@@ -6429,8 +6431,8 @@ var _h = Object.defineProperty, wh = Object.getOwnPropertyDescriptor, Ol = (e) =
   for (var s = a > 1 ? void 0 : a ? wh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && _h(t, i, s), s;
-}, bo = (e, t, i) => t.has(e) || Ol("Cannot " + i), N = (e, t, i) => (bo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), os = (e, t, i) => t.has(e) ? Ol("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Uo = (e, t, i, a) => (bo(e, t, "write to private field"), t.set(e, i), i), it = (e, t, i) => (bo(e, t, "access private method"), i), G, At, be, Il, Al, Ll, Rl, Wl, Fl, Nl, Ul, Bl;
-let rt = class extends F {
+}, bo = (e, t, i) => t.has(e) || Ol("Cannot " + i), F = (e, t, i) => (bo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), os = (e, t, i) => t.has(e) ? Ol("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Uo = (e, t, i, a) => (bo(e, t, "write to private field"), t.set(e, i), i), it = (e, t, i) => (bo(e, t, "access private method"), i), G, At, be, Il, Al, Ll, Rl, Wl, Nl, Fl, Ul, Bl;
+let rt = class extends N {
   constructor() {
     super(), os(this, be), os(this, G), os(this, At), this._properties = [], this._showAdvanced = !1, this.consumeContext(Wa, (e) => {
       Uo(this, At, e);
@@ -6445,7 +6447,7 @@ let rt = class extends F {
   render() {
     return this._template ? r`
       <div class="grid">
-        ${it(this, be, Fl).call(this)} ${it(this, be, Nl).call(this)} ${it(this, be, Ul).call(this)} ${it(this, be, Bl).call(this)}
+        ${it(this, be, Nl).call(this)} ${it(this, be, Fl).call(this)} ${it(this, be, Ul).call(this)} ${it(this, be, Bl).call(this)}
       </div>
     ` : r`<uui-loader></uui-loader>`;
   }
@@ -6458,8 +6460,8 @@ Il = function() {
 };
 Al = async function() {
   var a, s;
-  if (!N(this, At) || !this._template) return;
-  const e = N(this, At).open(this, ac, {
+  if (!F(this, At) || !this._template) return;
+  const e = F(this, At).open(this, ac, {
     data: {
       multiple: !0,
       // Element types are never published on their own, so nothing would trigger the template.
@@ -6469,30 +6471,30 @@ Al = async function() {
   }));
   if (!t) return;
   const i = await it(this, be, Ll).call(this, t.selection.filter((o) => !!o));
-  (a = N(this, G)) == null || a.updateTemplateFields({ docTypeAliases: i }), await ((s = N(this, G)) == null ? void 0 : s.reloadProperties());
+  (a = F(this, G)) == null || a.updateTemplateFields({ docTypeAliases: i }), await ((s = F(this, G)) == null ? void 0 : s.reloadProperties());
 };
 Ll = async function(e) {
-  const { fetchDocumentTypes: t } = await Promise.resolve().then(() => gc), i = await t(N(this, G).getToken).catch(() => []), a = new Map(i.map((s) => [s.key, s.alias]));
+  const { fetchDocumentTypes: t } = await Promise.resolve().then(() => gc), i = await t(F(this, G).getToken).catch(() => []), a = new Map(i.map((s) => [s.key, s.alias]));
   return e.map((s) => a.get(s)).filter((s) => !!s).filter((s, o, n) => n.indexOf(s) === o);
 };
 Rl = function(e) {
   var i, a, s;
   const t = (((i = this._template) == null ? void 0 : i.docTypeAliases) ?? []).filter((o) => o !== e);
-  (a = N(this, G)) == null || a.updateTemplateFields({ docTypeAliases: t }), (s = N(this, G)) == null || s.reloadProperties();
+  (a = F(this, G)) == null || a.updateTemplateFields({ docTypeAliases: t }), (s = F(this, G)) == null || s.reloadProperties();
 };
 Wl = async function() {
   var i;
-  if (!N(this, At)) return;
-  const e = N(this, At).open(this, Xo, {
+  if (!F(this, At)) return;
+  const e = F(this, At).open(this, Xo, {
     // Not filtered to folders here: the media tree item carries its media type as a key, not
     // an alias, so there is nothing reliable to match on. The server checks the chosen item is
     // a folder and the validator warns when it is not.
     data: { multiple: !1 }
   }), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
   }));
-  t && ((i = N(this, G)) == null || i.updateOutput({ mediaFolderKey: t.selection[0] ?? null }));
+  t && ((i = F(this, G)) == null || i.updateOutput({ mediaFolderKey: t.selection[0] ?? null }));
 };
-Fl = function() {
+Nl = function() {
   const e = this._template;
   return r`
       <uui-box headline="Applies to">
@@ -6529,7 +6531,7 @@ Fl = function() {
             .value=${e.targetPropertyAlias}
             .options=${[
     { name: "- none -", value: "" },
-    ...N(this, be, Il).map((t) => ({
+    ...F(this, be, Il).map((t) => ({
       name: `${t.name} (${t.alias})`,
       value: t.alias,
       selected: t.alias === e.targetPropertyAlias
@@ -6537,7 +6539,7 @@ Fl = function() {
   ]}
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateTemplateFields({
+    return (i = F(this, G)) == null ? void 0 : i.updateTemplateFields({
       targetPropertyAlias: t.target.value
     });
   }}>
@@ -6550,14 +6552,14 @@ Fl = function() {
             ?checked=${e.isEnabled}
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateTemplateFields({ isEnabled: t.target.checked });
+    return (i = F(this, G)) == null ? void 0 : i.updateTemplateFields({ isEnabled: t.target.checked });
   }}>
           </uui-toggle>
         </umb-property-layout>
       </uui-box>
     `;
 };
-Nl = function() {
+Fl = function() {
   const e = this._template;
   return r`
       <uui-box headline="Output">
@@ -6570,7 +6572,7 @@ Nl = function() {
                   label="Use the media root"
                   @click=${() => {
     var t;
-    return (t = N(this, G)) == null ? void 0 : t.updateOutput({ mediaFolderKey: null });
+    return (t = F(this, G)) == null ? void 0 : t.updateOutput({ mediaFolderKey: null });
   }}>
                   Clear
                 </uui-button>` : m}
@@ -6583,7 +6585,7 @@ Nl = function() {
             .value=${e.output.fileNamePattern}
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateOutput({ fileNamePattern: t.target.value });
+    return (i = F(this, G)) == null ? void 0 : i.updateOutput({ fileNamePattern: t.target.value });
   }}>
           </uui-input>
         </umb-property-layout>
@@ -6599,7 +6601,7 @@ Nl = function() {
   }))}
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateOutput({
+    return (i = F(this, G)) == null ? void 0 : i.updateOutput({
       format: t.target.value
     });
   }}>
@@ -6615,7 +6617,7 @@ Nl = function() {
                 .value=${String(e.output.quality)}
                 @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateOutput({ quality: Number(t.target.value) });
+    return (i = F(this, G)) == null ? void 0 : i.updateOutput({ quality: Number(t.target.value) });
   }}>
               </uui-input>
             </umb-property-layout>`}
@@ -6632,7 +6634,7 @@ Ul = function() {
             ?checked=${e.trigger.onPublish}
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateTrigger({ onPublish: t.target.checked });
+    return (i = F(this, G)) == null ? void 0 : i.updateTrigger({ onPublish: t.target.checked });
   }}>
           </uui-toggle>
         </umb-property-layout>
@@ -6645,7 +6647,7 @@ Ul = function() {
             ?checked=${e.trigger.onlyWhenEmpty}
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateTrigger({ onlyWhenEmpty: t.target.checked });
+    return (i = F(this, G)) == null ? void 0 : i.updateTrigger({ onlyWhenEmpty: t.target.checked });
   }}>
           </uui-toggle>
         </umb-property-layout>
@@ -6663,7 +6665,7 @@ Bl = function() {
             placeholder="Generated from the name"
             @change=${(t) => {
     var i;
-    return (i = N(this, G)) == null ? void 0 : i.updateTemplateFields({ alias: t.target.value });
+    return (i = F(this, G)) == null ? void 0 : i.updateTemplateFields({ alias: t.target.value });
   }}>
           </uui-input>
         </umb-property-layout>
@@ -6751,13 +6753,13 @@ var kh = Object.defineProperty, Sh = Object.getOwnPropertyDescriptor, Kl = (e) =
   for (var s = a > 1 ? void 0 : a ? Sh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && kh(t, i, s), s;
-}, _o = (e, t, i) => t.has(e) || Kl("Cannot " + i), Bo = (e, t, i) => (_o(e, t, "read from private field"), t.get(e)), Ko = (e, t, i) => t.has(e) ? Kl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Th = (e, t, i, a) => (_o(e, t, "write to private field"), t.set(e, i), i), Vo = (e, t, i) => (_o(e, t, "access private method"), i), Ui, _a, Ns;
-let Ue = class extends F {
+}, _o = (e, t, i) => t.has(e) || Kl("Cannot " + i), Bo = (e, t, i) => (_o(e, t, "read from private field"), t.get(e)), Ko = (e, t, i) => t.has(e) ? Kl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Th = (e, t, i, a) => (_o(e, t, "write to private field"), t.set(e, i), i), Vo = (e, t, i) => (_o(e, t, "access private method"), i), Ui, _a, Fs;
+let Ue = class extends N {
   constructor() {
     super(), Ko(this, _a), Ko(this, Ui), this._loading = !0, this._onlyMissing = !1, this.consumeContext(Lt, (e) => {
       Th(this, Ui, e), e && this.observe(e.template, (t) => {
         const i = !this._template;
-        this._template = t, t && i && Vo(this, _a, Ns).call(this);
+        this._template = t, t && i && Vo(this, _a, Fs).call(this);
       });
     });
   }
@@ -6768,7 +6770,7 @@ let Ue = class extends F {
     return r`
       <uui-box headline="Content using this template">
         <div slot="header-actions">
-          <uui-button look="secondary" label="Reload" @click=${() => Vo(this, _a, Ns).call(this)}>Reload</uui-button>
+          <uui-button look="secondary" label="Reload" @click=${() => Vo(this, _a, Fs).call(this)}>Reload</uui-button>
         </div>
 
         <p class="summary">
@@ -6810,7 +6812,7 @@ let Ue = class extends F {
 };
 Ui = /* @__PURE__ */ new WeakMap();
 _a = /* @__PURE__ */ new WeakSet();
-Ns = async function() {
+Fs = async function() {
   const e = this._template;
   if (!(!e || !Bo(this, Ui))) {
     this._loading = !0;
@@ -6961,7 +6963,7 @@ class rs extends cc {
     const i = this.args.unique;
     if (i)
       try {
-        const o = await Fa(i, () => {
+        const o = await Na(i, () => {
           var n;
           return (n = c(this, Vi)) == null ? void 0 : n.getLatestToken();
         });
@@ -7014,7 +7016,7 @@ class ls extends uc {
       return;
     }
     try {
-      const n = await Fa(c(this, ri), () => {
+      const n = await Na(c(this, ri), () => {
         var l;
         return (l = c(this, Hi)) == null ? void 0 : l.getLatestToken();
       });
@@ -7045,14 +7047,14 @@ var Ih = Object.defineProperty, Ah = Object.getOwnPropertyDescriptor, Hl = (e) =
   for (var s = a > 1 ? void 0 : a ? Ah(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Ih(t, i, s), s;
-}, wo = (e, t, i) => t.has(e) || Hl("Cannot " + i), La = (e, t, i) => (wo(e, t, "read from private field"), t.get(e)), oa = (e, t, i) => t.has(e) ? Hl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Gl = (e, t, i, a) => (wo(e, t, "write to private field"), t.set(e, i), i), Nt = (e, t, i) => (wo(e, t, "access private method"), i), wa, Bi, $o, Ye, xo, jl, $a;
+}, wo = (e, t, i) => t.has(e) || Hl("Cannot " + i), La = (e, t, i) => (wo(e, t, "read from private field"), t.get(e)), oa = (e, t, i) => t.has(e) ? Hl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Gl = (e, t, i, a) => (wo(e, t, "write to private field"), t.set(e, i), i), Ft = (e, t, i) => (wo(e, t, "access private method"), i), wa, Bi, $o, Ye, xo, jl, $a;
 let lt = class extends jo {
   constructor() {
     super(), oa(this, Ye), oa(this, wa), oa(this, Bi), this._items = [], this._loading = !0, this._search = "", oa(this, $o, () => {
       var e;
       return (e = La(this, wa)) == null ? void 0 : e.getLatestToken();
     }), this.consumeContext(Be, (e) => {
-      Gl(this, wa, e), e && Nt(this, Ye, xo).call(this);
+      Gl(this, wa, e), e && Ft(this, Ye, xo).call(this);
     });
   }
   disconnectedCallback() {
@@ -7066,10 +7068,10 @@ let lt = class extends jo {
           label="Search content"
           placeholder="Search"
           .value=${this._search}
-          @input=${Nt(this, Ye, jl)}>
+          @input=${Ft(this, Ye, jl)}>
         </uui-input>
 
-        <uui-button look="secondary" label="Use sample data instead" @click=${() => Nt(this, Ye, $a).call(this, void 0)}>
+        <uui-button look="secondary" label="Use sample data instead" @click=${() => Ft(this, Ye, $a).call(this, void 0)}>
           Use sample data
         </uui-button>
 
@@ -7084,8 +7086,8 @@ let lt = class extends jo {
                       name=${e.name}
                       detail=${e.isPublished ? "Published" : "Draft"}
                       ?selected=${e.key === ((t = this.data) == null ? void 0 : t.selectedKey)}
-                      @open=${() => Nt(this, Ye, $a).call(this, e)}
-                      @click=${() => Nt(this, Ye, $a).call(this, e)}>
+                      @open=${() => Ft(this, Ye, $a).call(this, e)}
+                      @click=${() => Ft(this, Ye, $a).call(this, e)}>
                     </uui-ref-node>
                   `;
       }
@@ -7123,7 +7125,7 @@ xo = async function() {
   }
 };
 jl = function(e) {
-  this._search = e.target.value, window.clearTimeout(La(this, Bi)), Gl(this, Bi, window.setTimeout(() => void Nt(this, Ye, xo).call(this), 300));
+  this._search = e.target.value, window.clearTimeout(La(this, Bi)), Gl(this, Bi, window.setTimeout(() => void Ft(this, Ye, xo).call(this), 300));
 };
 $a = function(e) {
   this.value = { item: e }, this._submitModal();
@@ -7157,13 +7159,13 @@ const Lh = lt, Rh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineP
   },
   default: Lh
 }, Symbol.toStringTag, { value: "Module" }));
-var Wh = Object.defineProperty, Fh = Object.getOwnPropertyDescriptor, Xl = (e) => {
+var Wh = Object.defineProperty, Nh = Object.getOwnPropertyDescriptor, Xl = (e) => {
   throw TypeError(e);
 }, He = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Fh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
+  for (var s = a > 1 ? void 0 : a ? Nh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
     (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
   return a && s && Wh(t, i, s), s;
-}, ko = (e, t, i) => t.has(e) || Xl("Cannot " + i), di = (e, t, i) => (ko(e, t, "read from private field"), i ? i.call(e) : t.get(e)), cs = (e, t, i) => t.has(e) ? Xl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Nh = (e, t, i, a) => (ko(e, t, "write to private field"), t.set(e, i), i), Ut = (e, t, i) => (ko(e, t, "access private method"), i), xa, ea, ke, Yl, ql, So, Jl, Zl, Ql, ec;
+}, ko = (e, t, i) => t.has(e) || Xl("Cannot " + i), di = (e, t, i) => (ko(e, t, "read from private field"), i ? i.call(e) : t.get(e)), cs = (e, t, i) => t.has(e) ? Xl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Fh = (e, t, i, a) => (ko(e, t, "write to private field"), t.set(e, i), i), Ut = (e, t, i) => (ko(e, t, "access private method"), i), xa, ea, ke, Yl, ql, So, Jl, Zl, Ql, ec;
 const Uh = [100, 200, 300, 400, 500, 600, 700, 800, 900], Bh = [
   { value: "google", name: "Google Fonts" },
   { value: "bunny", name: "Bunny Fonts" },
@@ -7175,7 +7177,7 @@ let ce = class extends jo {
       var e;
       return (e = di(this, xa)) == null ? void 0 : e.getLatestToken();
     }), this.consumeContext(Be, (e) => {
-      Nh(this, xa, e);
+      Fh(this, xa, e);
     });
   }
   render() {

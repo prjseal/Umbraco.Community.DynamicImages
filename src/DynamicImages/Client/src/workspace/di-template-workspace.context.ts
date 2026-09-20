@@ -123,6 +123,13 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
     window.addEventListener("willchangestate", this.#onWillNavigate);
     window.addEventListener("beforeunload", this.#onBeforeUnload);
+
+    // Without this the browser tab reads "| Design | Umbraco" - a leading empty segment, which
+    // is exactly what the host's #computeTitle() produces when the view's title is undefined.
+    // `view` comes from the base class; it is an UmbViewContext, which has setTitle.
+    this.observe(this._data.createObservablePartOfCurrent((template) => template?.name), (name) => {
+      this.view.setTitle(name || "New template");
+    });
   }
 
   // ------------------------------------------------------------------ the unsaved-changes guard
