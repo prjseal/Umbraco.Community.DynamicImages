@@ -501,13 +501,31 @@ and the reason to prove the harness on one small element before writing the rest
 
 **Layer 3 — Playwright E2E (new), `test/e2e/`.**
 
-`@umbraco/playwright-testhelpers` per the `umbraco-cms-backoffice-testing-skills:umbraco-e2e-testing`
-skill. Boot notes, all verified: readiness must probe **`/umbraco`, never `/`** — the Clean.Core 7.x
-front end 500s by design; `appsettings.Local.json` is loaded only under `#if DEBUG`
-(`Program.cs`), so CI must supply `Umbraco__CMS__Unattended__InstallUnattended` and friends as
-environment variables; the site is `https://localhost:44344` with a dev cert, so
-`ignoreHTTPSErrors: true`; first boot imports ~192 uSync items, so `webServer.timeout` needs minutes;
-use auto-waiting assertions, never fixed timeouts, because views take 5–10 seconds to mount.
+Boot notes, all verified against a real booted site: readiness must probe **`/umbraco`, never
+`/`** — the Clean.Core 7.x front end 500s by design; `appsettings.Local.json` is loaded only under
+`#if DEBUG` (`Program.cs`), so CI must supply `Umbraco__CMS__Unattended__InstallUnattended` and
+friends as environment variables; the site is `https://localhost:44344` with a dev cert, so
+`ignoreHTTPSErrors: true`; first boot imports ~192 uSync items, so `webServer.timeout` needs
+minutes; use auto-waiting assertions, never fixed timeouts, because views take 5–10 seconds to
+mount.
+
+**Learned during implementation, and all of it load-bearing:**
+
+- **HTTPS is not optional.** The backoffice's OpenIddict authorize endpoint rejects plain HTTP
+  outright (`error_description: This server only accepts HTTPS requests`) *before* rendering a
+  login form, so the symptom is a blank page with no inputs — which reads as a mounting problem
+  and is not one. `dotnet dev-certs https` plus `ignoreHTTPSErrors` is the whole answer.
+- **The section has to be granted to a user group.** Declaring a section in
+  `umbraco-package.json` registers it but does not grant it, and a freshly installed site's
+  Administrators group lists only the core sections — so the package installed into an invisible
+  section. Fixed in the package itself with a `GrantSectionToAdministrators` migration, not in
+  test setup, because it is a real first-install defect.
+- **Specs live in `src/DynamicImages/Client/e2e/`, not `test/e2e/`.** `@playwright/test` is
+  installed in the client's `node_modules`, and Node resolves upward from the spec file: specs at
+  the repo root cannot see it. They sit beside the config that drives them.
+- `@umbraco/playwright-testhelpers` is installed, but only its conventions are used — its
+  fixture stack assumes Umbraco's own suite layout, and everything these specs need is a login
+  and shadow-piercing selectors.
 
 **Assert on intercepted request payloads, not image diffs.** Every preview surface goes through
 `POST …/dynamic-images/preview` and `POST …/dynamic-images/preview/layout`, and the request body is
@@ -588,7 +606,10 @@ there, delete the duplicated line 360 in the root `.gitignore` (a verbatim repea
 - `src/DynamicImages/Client/src/inputs/number-clamp.test.ts`
 - `src/DynamicImages/Client/src/event-contract.test.ts` — the `di-*` emitter/listener guard
 - `src/DynamicImages/Client/src/**/*.browser.test.ts` — one per Layer 2 row above
-- `src/DynamicImages/Client/playwright.config.ts`, `test/e2e/*.spec.ts`
+- `src/DynamicImages/Client/playwright.config.ts`, `src/DynamicImages/Client/e2e/*.spec.ts`
+  (beside the config and the dependency, not at `test/e2e/` — see section 10 Layer 3)
+- `src/DynamicImages/Migrations/GrantSectionToAdministrators.cs` — the section is registered but
+  not granted on a fresh install
 - `src/DynamicImages/Core/Rendering/LayerSkip.cs` (or a record on the existing render-result type)
 - `.github/workflows/ci.yml`, `.github/workflows/e2e.yml`
 

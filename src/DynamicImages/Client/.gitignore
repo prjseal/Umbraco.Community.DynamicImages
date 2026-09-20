@@ -2,3 +2,7 @@ node_modules/
 
 # vitest browser mode writes a screenshot next to a spec when an assertion fails.
 __screenshots__/
+
+# Playwright E2E output: traces, videos and the HTML report.
+test-results/
+playwright-report/

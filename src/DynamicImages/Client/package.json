@@ -8,7 +8,8 @@
     "watch": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --project node",
-    "test:browser": "vitest run --project browser"
+    "test:browser": "vitest run --project browser",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@umbraco-cms/backoffice": "^17.0.0"

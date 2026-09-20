@@ -68,17 +68,27 @@ export class DiFontsDashboardElement extends UmbLitElement {
 
   #getToken: TokenGetter = () => this.#authContext?.getLatestToken();
 
-  /** Set by an add, cleared by updated(): focus the new row's name so it can be typed straight in. */
-  #focusNewStyleName = false;
-
-  override updated(changed: Map<string, unknown>) {
-    super.updated(changed);
-
-    if (!this.#focusNewStyleName) return;
-    this.#focusNewStyleName = false;
+  /**
+   * Puts the cursor in the newly added style's name. Awaiting updateComplete rather than hooking
+   * updated() is what makes this deterministic: the reload's re-render has to have happened
+   * before the new row exists to focus.
+   */
+  async #focusLastStyleName(): Promise<void> {
+    await this.updateComplete;
+    // One frame past the render: the row exists in the DOM at updateComplete, but uui-input has
+    // its own update to finish before its inner control can take focus.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
 
     const names = this.renderRoot.querySelectorAll<HTMLElement>(".style-name");
-    names[names.length - 1]?.focus();
+    const last = names[names.length - 1];
+    if (!last) return;
+
+    await (last as HTMLElement & { updateComplete?: Promise<unknown> }).updateComplete;
+
+    // The native input inside, not the uui-input host: focusing the host does not reach the
+    // control, and focus would stay on the Add button that was just clicked.
+    const input = last.shadowRoot?.querySelector<HTMLInputElement>("input");
+    (input ?? last).focus();
   }
 
   async #load() {
@@ -179,7 +189,7 @@ export class DiFontsDashboardElement extends UmbLitElement {
       await this.#load();
 
       // The reload replaces the rows, so focus has to be put back afterwards.
-      if (options?.keepOpen) this.#focusNewStyleName = true;
+      if (options?.keepOpen) await this.#focusLastStyleName();
     } catch (error) {
       this.#notify("danger", "The font could not be saved", error);
     }

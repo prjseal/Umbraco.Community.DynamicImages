@@ -1,0 +1,64 @@
+name: E2E
+
+# Deliberately workflow_dispatch rather than on push: the test site's first boot imports ~192
+# uSync items, so this is minutes where ci.yml is seconds. Run it before a release, or when a
+# change touches the workspace, the preview surfaces or the fonts dashboard.
+
+on:
+  workflow_dispatch:
+
+jobs:
+
+  e2e:
+    name: Playwright
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/DynamicImages/Client/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: src/DynamicImages/Client
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: src/DynamicImages/Client
+
+      # The backoffice's OpenIddict authorize endpoint rejects plain HTTP outright, so the site
+      # has to be served over HTTPS. The certificate itself does not need to be trusted -
+      # playwright.config.ts sets ignoreHTTPSErrors.
+      - name: Trust a development certificate
+        run: dotnet dev-certs https
+
+      - name: Build the test site
+        run: dotnet build src/DynamicImages.TestSite.Clean/DynamicImages.TestSite.Clean.csproj -c Release
+
+      # playwright.config.ts starts the site itself, waits on /umbraco (never /, which the
+      # Clean.Core front end 500s by design) and passes the unattended install through
+      # environment variables - appsettings.Local.json is loaded only under #if DEBUG.
+      - name: Run the E2E suite
+        run: npx playwright test
+        working-directory: src/DynamicImages/Client
+
+      - name: Upload the report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: src/DynamicImages/Client/playwright-report
+          retention-days: 7

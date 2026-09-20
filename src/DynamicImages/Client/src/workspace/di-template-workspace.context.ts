@@ -141,15 +141,23 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
    * the workspace's own path as a prefix (`…/edit/<key>/view/<pathname>`), so this is false for
    * those and the editor is never prompted for moving between Design and Preview & test.
    *
-   * Core has the same one-liner as a protected method on `UmbEntityDetailWorkspaceContextBase`.
+   * Core has the same check as a protected method on `UmbEntityDetailWorkspaceContextBase`.
    * There is no exported helper for it, so it is inlined rather than reached for.
+   *
+   * The `URL` branch is not defensive padding: a real in-app navigation puts a `URL` **object**
+   * in `event.detail.url`, and only a synthetic event carries a string. Without it `.includes`
+   * throws, and because the handler is async the rejection is swallowed - so the guard silently
+   * did nothing on exactly the navigations it exists for, while passing every test that
+   * dispatched the event by hand.
    */
-  #willNavigateAway(newUrl: string): boolean {
-    return !newUrl.includes(this.routes.getActiveLocalPath());
+  #willNavigateAway(newUrl: string | URL): boolean {
+    const url = newUrl instanceof URL ? newUrl.href : newUrl;
+
+    return !url.includes(this.routes.getActiveLocalPath());
   }
 
   #onWillNavigate = async (event: Event): Promise<boolean> => {
-    const detail = (event as CustomEvent<{ url: string }>).detail;
+    const detail = (event as CustomEvent<{ url: string | URL }>).detail;
 
     if (this.#allowNavigateAway) return true;
     if (!detail?.url || !this.#willNavigateAway(detail.url)) return true;
@@ -162,7 +170,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     try {
       await umbOpenModal(this, UMB_DISCARD_CHANGES_MODAL);
       this.#allowNavigateAway = true;
-      window.history.pushState({}, "", detail.url);
+      window.history.pushState({}, "", detail.url instanceof URL ? detail.url.href : detail.url);
       return true;
     } catch {
       return false;
