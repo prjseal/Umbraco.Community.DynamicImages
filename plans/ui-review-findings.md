@@ -7,8 +7,13 @@ Every item below was found by driving the real backoffice in Chrome. Each one sa
 **confirmed in the browser** or **read in the source only**. Line references are to
 `src/DynamicImages/Client/src/`.
 
-Use the **Fix?** column to mark what we act on. Once agreed, the accepted items go into a proper
-plan document.
+**Triage is complete.** Each issue carries a **Decision** line: 17 to fix, one discarded. Those
+decisions are the scope for the implementation plan — an agent writing that plan should treat them
+as settled rather than re-litigating them.
+
+Two are not simply "fix as described", so read their Decision lines in full before planning:
+**A2** (remove the presets rather than implement them, leaning on A3 instead) and **C3** (reframed —
+booleans stay in the palette; what changes is what dropping one creates).
 
 Every issue carries a **Replicate** block naming the recipe to use from
 [`ui-review-method.md`](./ui-review-method.md) and the concrete steps. **Read sections 1–4 of that
@@ -57,7 +62,8 @@ busy state.
    ```
    The event reaching `window` while the strip's state is unchanged is the proof.
 
-**Fix?**
+**Decision: fix.** Either wire the button up to trigger a render or remove it; a dead control in
+the primary toolbar is not acceptable either way.
 
 ---
 
@@ -90,7 +96,10 @@ used. All three buttons produce an identical image from the server's own sample 
    (`Designing social share images that actually get clicked` at `64, 210`) is the finding. Read the
    table from raw HTML as shown, not via `__txt`, which would collapse repeated numbers.
 
-**Fix?**
+**Decision: replace, do not wire up.** Remove the three preset buttons. Previewing against a real
+content item is the supported path instead — see A3, which makes the chosen node apply to the
+designer's own preview. Revisit synthetic sample overrides only if choosing a node proves
+insufficient in practice.
 
 ---
 
@@ -133,7 +142,9 @@ This tripped me up first time round. Switch views **in-app** with `__goto`.
 3. `__goto(0)` to switch to Design in-app, wait ~10 seconds, screenshot the strip. Showing the
    sample title and no photo is the finding.
 
-**Fix?**
+**Decision: fix.** Pass the chosen node's key through to the strip. Given the A2 decision this
+becomes the primary way to preview against real content, so it carries more weight than its
+medium severity suggests.
 
 ---
 
@@ -175,7 +186,7 @@ which case a missing prompt proves nothing — I made exactly that mistake and h
    ```
 4. Reopen the template and confirm the edit is gone.
 
-**Fix?**
+**Decision: fix.** Highest priority of the whole set.
 
 ---
 
@@ -222,7 +233,8 @@ absurd values are accepted.
 3. Repeat with Rotation `999`; it normalises to `-81`. The contrast between the two is the point.
 4. **Restore:** click the toolbar Undo twice and confirm `opacity: 1, rotation: 0`. Do not save.
 
-**Fix?**
+**Decision: fix.** Clamp typed values in `di-number-field`, and give the other numeric fields
+sensible bounds.
 
 ---
 
@@ -274,7 +286,7 @@ and let `navigate` open a fresh window, or size the browser by hand.
    and re-measure — it only recovers to ~17px, which shows collapsing it is not a workaround.
 4. Never measure this from a screenshot; the capture scale varies between calls.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
@@ -311,7 +323,7 @@ onto the canvas." is clipped mid-sentence.
 3. Confirm the cause in source: `designer/di-layers-panel.element.ts:153`.
 4. For the clipped empty state, open **Create template** and look at the Layers panel.
 
-**Fix?**
+**Decision: fix.** Address together with B1 as a single layout change rather than two patches.
 
 ---
 
@@ -340,7 +352,7 @@ looking at, and "Fit" appears to do nothing because the number doesn't move.
    confirming it is sized rather than scaled — is the finding.
 3. Click **Fit** and re-run; the readout should change and does not.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
@@ -374,7 +386,8 @@ rather than lost, so this is an annoyance rather than data loss.
 6. **Restore:** delete the placeholder row and rename the original style back, then **Save**. Leave
    the dashboard reading exactly as it did before.
 
-**Fix?**
+**Decision: fix.** Keep the editor open after adding or deleting a row so the new style can be
+filled in place.
 
 ---
 
@@ -406,7 +419,7 @@ Each row prints `<path> · weight 400 · used by N template(s)`. Compare the wei
 filename: `…-ExtraBold.woff2` and `…-SemiBold.woff2` both report 400. A screenshot is worth taking
 too — it shows the specimens rendering at the correct weight, which proves only the metadata is wrong.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
@@ -428,7 +441,11 @@ Returns more than the tool will print in one go, so take it in slices:
 properties under **SEO** and **Visibility**. To see what a drop produces, click the `+` on one and
 inspect the created layer's `type`.
 
-**Fix?**
+**Decision: fix, reframed.** Booleans stay listed and draggable — they are wanted for conditional
+display, and the layer visibility rule already has a "Controlled by" property picker pointed at
+exactly this kind of property. What changes is what dropping one *produces*: offer it as a layer
+visibility condition rather than defaulting to a text layer that draws `True` / `False`. Treat this
+as input to the conditional-display work rather than as palette filtering.
 
 ---
 
@@ -452,7 +469,7 @@ Returns `| Design | Umbraco`. Check the create route too, and compare against an
 `grep -n "name\b" src/DynamicImages/Client/src/workspace/di-template-workspace.context.ts` — no
 `name` observable is exposed.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
@@ -481,7 +498,7 @@ far more useful for debugging.
 3. Pick a node that has a `mainImage` (*Community*) and re-dump: the Image row now appears as
    `Image | — | 760, 95 | 380 × 440`. The difference between the two dumps is the finding.
 
-**Fix?**
+**Decision: fix.** Render a row for every layer, with a reason when it did not draw.
 
 ---
 
@@ -504,7 +521,7 @@ dashboard empty state repeats the same three-format wording.
 Cross-check the server's allow-list in `Core/Services/FontService.cs`. Close with **Cancel** —
 the button sits below the fold, which is why the call above lists the buttons.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
@@ -518,7 +535,7 @@ looks out of place next to the uui-styled inputs and buttons in the same dialog.
 sits in the first box, above the uui-styled path input and provider select. The same
 `input[type=file]` query as C6 confirms it is a raw input rather than a wrapped component.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
@@ -540,7 +557,8 @@ Beware the inverse mistake: this same slowness makes an element check run too ea
 mounted", which looks like a routing bug and is not one. Always wait and re-check before concluding
 a view failed to load.
 
-**Fix?**
+**Decision: fix.** Add a loading affordance, and check separately whether the delay itself is
+avoidable on a release build.
 
 ---
 
@@ -562,7 +580,8 @@ The banner text and the `0 / Issues` tile appear in the same dump. Cross-check t
 but read that one from raw HTML — `__txt` collapses `0 error(s), 0 warning(s)` into
 `0 error(s), warning(s)` and makes it look like a missing value.
 
-**Fix?**
+**Decision: discard.** Working as intended. The banner is informational rather than a validation
+issue and should not inflate the Issues count. Recorded here so it is not re-raised.
 
 ---
 
@@ -590,7 +609,7 @@ show it.
 3. Then open the Design view and dump the palette (as in C3) to confirm the binding recovered —
    Node / Content / SEO / Visibility groups all resolving means it did.
 
-**Fix?**
+**Decision: fix.**
 
 ---
 
