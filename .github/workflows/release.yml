@@ -78,12 +78,19 @@ jobs:
             exit 1
           fi
 
-          # A prerelease ships off the release it leads up to, so 2.0.1-rc1 is checked against a
-          # repo sitting at 2.0.1. Only the two versions that ship are checked: the csproj's,
+          # A prerelease ships off the release it leads up to, so 1.0.0-rc01 is checked against a
+          # repo sitting at 1.0.0. Only the two versions that ship are checked: the csproj's,
           # which becomes the NuGet version, and the manifest's, which the backoffice reads.
           base="${version%%-*}"
-          csproj=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' \
-            src/DynamicImages/Umbraco.Community.DynamicImages.csproj)
+
+          # <VersionPrefix> when the csproj splits prefix from suffix, <Version> when it does not;
+          # either way the suffix is dropped, because the tag is what decides the suffix.
+          csproj_file=src/DynamicImages/Umbraco.Community.DynamicImages.csproj
+          csproj=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' "$csproj_file")
+          if [ -z "$csproj" ]; then
+            csproj=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$csproj_file")
+          fi
+          csproj="${csproj%%-*}"
           manifest=$(jq -r .version \
             src/DynamicImages/wwwroot/App_Plugins/DynamicImages/umbraco-package.json)
 

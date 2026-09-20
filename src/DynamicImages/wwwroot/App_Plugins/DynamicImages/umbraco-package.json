@@ -1,7 +1,7 @@
 {
   "$schema": "../../../Client/node_modules/@umbraco-cms/backoffice/umbraco-package-schema.json",
   "name": "DynamicImages",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "allowTelemetry": false,
 
   "//": "Umbraco reads this file before the bundle loads, so everything here paints immediately. That is why the section chrome - the sidebar app, the menu and the two link-kind menu items, none of which needs an element - lives here rather than in manifests.ts: a cold load of the section used to show an entirely empty screen, no sidebar and no spinner, while the 240 KB entry point downloaded. Anything that references an element or the workspace context stays in manifests.ts, where a renamed export is a build error instead of a blank panel at runtime.",

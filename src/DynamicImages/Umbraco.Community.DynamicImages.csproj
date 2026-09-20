@@ -12,7 +12,7 @@
     <PackageId>Umbraco.Community.DynamicImages</PackageId>
     <Product>Umbraco.Community.DynamicImages</Product>
     <Title>Dynamic Images</Title>
-    <Version>2.0.0</Version>
+    <Version>1.0.0</Version>
     <Authors>Paul Seal</Authors>
     <Copyright>$([System.DateTime]::UtcNow.ToString(`yyyy`)) © Paul Seal</Copyright>
     <Description>Generates Open Graph / social share images from your content on publish, designed in a drag-and-drop backoffice section instead of hand-written configuration.</Description>
