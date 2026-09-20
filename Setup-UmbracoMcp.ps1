@@ -52,7 +52,7 @@ param(
     [switch]$DryRun,
     [string]$ProjectPath = (Join-Path $PSScriptRoot 'src\DynamicImages.TestSite.Clean'),
     [string]$SearchRoot = $PSScriptRoot,
-    [string]$PackageVersion = '16.1.0',
+    [string]$PackageVersion = '17.0.0',
     [string]$ApiUserName = 'Demo API User',
     [string]$ApiUserEmail = 'demo-api@example.com',
     [string]$ClientId = 'umbraco-back-office-demo-api-user',
@@ -323,7 +323,7 @@ $claudeArgs = @(
     '--env', "UMBRACO_BASE_URL=$baseUrl",
     '--env', 'NODE_TLS_REJECT_UNAUTHORIZED=0',
     '--env', "UMBRACO_INCLUDE_TOOL_COLLECTIONS=$ToolCollections",
-    '--', 'npx', '@umbraco-cms/mcp-dev@latest'
+    '--', 'npx', '@umbraco-cms/mcp-dev@lts-17'
 )
 
 # Display string matches the form in the Umbraco docs so it's copy/paste-ready.
@@ -334,7 +334,7 @@ $displayCommand = (@(
     "--env UMBRACO_BASE_URL=`"$baseUrl`""
     '--env NODE_TLS_REJECT_UNAUTHORIZED="0"'
     "--env UMBRACO_INCLUDE_TOOL_COLLECTIONS=`"$ToolCollections`""
-    '-- npx @umbraco-cms/mcp-dev@latest'
+    '-- npx @umbraco-cms/mcp-dev@lts-17'
 ) -join ' ')
 
 Write-Host ""
