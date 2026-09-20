@@ -172,6 +172,22 @@ updates the stored hash and drops the old cached copy on every server.
 
 The **Health** dashboard reports a web font that cannot be fetched as `FontUnreachable`.
 
+### A font's weight, and a named style's *style*
+
+These are two different things, and the Fonts dashboard shows both, which is easy to misread.
+
+- A font row's **weight** is a number (100–900) describing the *family*. It is detected by reading
+  the weight out of the font file's own names — the typographic subfamily, the full font name, the
+  PostScript name, then the family name. That is a guess, because a font file is not obliged to put
+  its weight in any of them, so the field is **editable**: correct it and save if it is wrong.
+- A named style's **style** is one of `Regular`, `Bold`, `Italic` or `BoldItalic`. It names the
+  *face*, because that is the four-member enum SixLabors.Fonts itself takes. So an ExtraBold family
+  quite correctly carries a named style called `Regular`: the family is already extra bold, and the
+  style is not asking for any further emphasis.
+
+In short: one family, one file, one weight — and named styles are a size-and-face shortcut within
+that family, not a way to pick a different one.
+
 ## Permissions
 
 | Policy | Grants | Applies to |

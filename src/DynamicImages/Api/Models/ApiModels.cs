@@ -85,7 +85,17 @@ public sealed record RegisterWebFontRequest(
 /// <summary>The rows created, and one message per variant that was not.</summary>
 public sealed record RegisterWebFontResponse(IReadOnlyList<FontResponse> Fonts, IReadOnlyList<string> Errors);
 
-public sealed record UpdateFontRequest(string FamilyName, List<FontStyleDefinition> Styles);
+/// <summary>
+/// Weight and IsItalic are here because a detected weight is a guess - the file's own names are
+/// the only source, and a family that puts its weight nowhere a name can carry it is not
+/// recoverable automatically. An editor has to be able to overrule it. Null leaves the stored
+/// value alone.
+/// </summary>
+public sealed record UpdateFontRequest(
+    string FamilyName,
+    List<FontStyleDefinition> Styles,
+    int? Weight = null,
+    bool? IsItalic = null);
 
 // ---------------------------------------------------------------- document types
 

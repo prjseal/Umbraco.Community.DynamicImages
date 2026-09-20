@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Text.RegularExpressions;
 using SixLabors.Fonts;
+using SixLabors.Fonts.WellKnownIds;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.IO;
@@ -51,7 +53,7 @@ public sealed partial class FontService(
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
         if (!AllowedExtensions.Contains(extension))
         {
-            return new FontUploadResult(null, $"'{extension}' is not a font file. Upload a .ttf, .otf or .woff2.");
+            return new FontUploadResult(null, $"'{extension}' is not a font file. Upload a .ttf, .otf, .woff2 or .woff.");
         }
 
         using var buffer = new MemoryStream();
@@ -336,13 +338,17 @@ public sealed partial class FontService(
         return new FontUploadResult(updated, null);
     }
 
-    public FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles)
+    public FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles, int? weight = null, bool? isItalic = null)
     {
         var font = repository.Get(key);
         if (font is null) return null;
 
         if (!string.IsNullOrWhiteSpace(familyName)) font.FamilyName = familyName;
         font.Styles = styles.ToList();
+
+        // A detected weight is a guess read out of the file's names; this is how it is corrected.
+        if (weight is not null) font.Weight = Math.Clamp(weight.Value, 1, 1000);
+        if (isItalic is not null) font.IsItalic = isItalic.Value;
 
         var updated = repository.Update(font);
         if (updated is not null) Notify(key);
@@ -455,44 +461,54 @@ public sealed partial class FontService(
     }
 
     /// <summary>
-    /// FontDescription exposes only a regular/bold/italic style, which would report a SemiBold or
-    /// ExtraBold face as weight 400. The sub-family name ("SemiBold", "ExtraBold", "Light") is the
-    /// one piece of weight information the file does give us, so it is mapped to the usual
-    /// CSS numbers, falling back to the style.
+    /// The weight the file reports, read out of its names.
+    /// <para>
+    /// This used to look only at <c>FontSubFamilyNameInvariantCulture</c> - OpenType name ID 2,
+    /// which the spec restricts to Regular/Bold/Italic/BoldItalic. So a face like
+    /// Inter-SemiBold.ttf, which puts its weight in the family name and reports subfamily
+    /// "Regular", came back as 400 - and every font on the test site reported weight 400
+    /// regardless of the file behind it, while rendering at visibly the right weight.
+    /// </para>
+    /// <para>
+    /// SixLabors.Fonts 2.0.8 exposes no OS/2 <c>usWeightClass</c>, but the name table is public,
+    /// so the weight is looked for in the names most likely to carry it, most specific first:
+    /// the typographic subfamily (ID 17, which is not restricted the way ID 2 is), then ID 2,
+    /// then the full font name, the PostScript name and finally the family name. The style is
+    /// still the fallback.
+    /// </para>
     /// </summary>
     private static int WeightOf(FontDescription description)
+        => FontWeights.From(
+            WeightBearingNames(description),
+            description.Style is FontStyle.Bold or FontStyle.BoldItalic ? 700 : 400);
+
+    /// <summary>
+    /// The names to search, in the order they should be trusted. The typographic subfamily comes
+    /// first because it is the one the spec lets carry "SemiBold"; the family name comes last
+    /// because a family called "Bold Type Co" would otherwise out-vote a real subfamily.
+    /// </summary>
+    private static IEnumerable<string?> WeightBearingNames(FontDescription description)
     {
-        var subFamily = (description.FontSubFamilyNameInvariantCulture ?? string.Empty)
-            .Replace(" ", string.Empty)
-            .Replace("-", string.Empty);
-
-        foreach (var (name, weight) in NamedWeights)
-        {
-            if (subFamily.Contains(name, StringComparison.OrdinalIgnoreCase)) return weight;
-        }
-
-        return description.Style is FontStyle.Bold or FontStyle.BoldItalic ? 700 : 400;
+        yield return Name(description, KnownNameIds.TypographicSubfamilyName);
+        yield return description.FontSubFamilyNameInvariantCulture;
+        yield return Name(description, KnownNameIds.FullFontName);
+        yield return Name(description, KnownNameIds.PostscriptName);
+        yield return Name(description, KnownNameIds.TypographicFamilyName);
+        yield return description.FontFamilyInvariantCulture;
     }
 
-    /// <summary>More specific names first, so "ExtraBold" is not matched as plain "Bold".</summary>
-    private static readonly (string Name, int Weight)[] NamedWeights =
-    [
-        ("ExtraLight", 200),
-        ("UltraLight", 200),
-        ("SemiBold", 600),
-        ("DemiBold", 600),
-        ("ExtraBold", 800),
-        ("UltraBold", 800),
-        ("Thin", 100),
-        ("Light", 300),
-        ("Medium", 500),
-        ("Black", 900),
-        ("Heavy", 900),
-        ("Bold", 700),
-        ("Regular", 400),
-        ("Normal", 400),
-        ("Book", 400)
-    ];
+    private static string? Name(FontDescription description, KnownNameIds nameId)
+    {
+        try
+        {
+            return description.GetNameById(CultureInfo.InvariantCulture, nameId);
+        }
+        catch
+        {
+            // A font need not carry every name; a missing one is not a problem worth reporting.
+            return null;
+        }
+    }
 
     private int EnsureFontFolder()
     {

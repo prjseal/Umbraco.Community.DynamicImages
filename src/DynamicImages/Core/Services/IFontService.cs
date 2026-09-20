@@ -51,7 +51,7 @@ public interface IFontService
     Task<FontUploadResult> RefreshAsync(Guid key, CancellationToken cancellationToken = default);
 
     /// <summary>Updates the editable parts of a font row: its display family name and named styles.</summary>
-    FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles);
+    FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles, int? weight = null, bool? isItalic = null);
 
     /// <summary>
     /// Deletes a font. Returns the templates still using it instead of deleting, when there are

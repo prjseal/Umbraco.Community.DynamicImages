@@ -130,9 +130,17 @@ export const refreshFont = async (key: string, getToken: TokenGetter): Promise<D
   json(await request(`/fonts/${key}/refresh`, getToken, { method: "POST" }));
 
 export const updateFont = async (
-  key: string, familyName: string, styles: DiFontStyle[], getToken: TokenGetter,
+  key: string,
+  familyName: string,
+  styles: DiFontStyle[],
+  getToken: TokenGetter,
+  // A detected weight is a guess read out of the file's names; these let an editor overrule it.
+  overrides?: { weight?: number; isItalic?: boolean },
 ): Promise<DiFont> =>
-  json(await request(`/fonts/${key}`, getToken, { method: "PUT", json: { familyName, styles } }));
+  json(await request(`/fonts/${key}`, getToken, {
+    method: "PUT",
+    json: { familyName, styles, weight: overrides?.weight ?? null, isItalic: overrides?.isItalic ?? null },
+  }));
 
 export async function deleteFont(key: string, getToken: TokenGetter): Promise<void> {
   await request(`/fonts/${key}`, getToken, { method: "DELETE" });
