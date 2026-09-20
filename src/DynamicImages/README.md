@@ -277,7 +277,8 @@ Behaviour that changed on purpose:
   up without a restart.
 - Media keys survive a Deploy push, so a template's base image reference holds. Templates
   themselves are data, not schema: move them between environments with **Export**/**Import** on the
-  Health dashboard, or with file sync. A Deploy connector is not included in this version.
+  Health dashboard, with file sync, or with the uSync package below. A Deploy connector is not
+  included in this version.
 - Only the scheduling publisher runs the start-up import, so instances do not race.
 - **Web fonts are cached per instance, not shared.** The cache sits in the local temp folder,
   which is ephemeral on Cloud, so every instance downloads each font once after a deploy or a
@@ -285,6 +286,34 @@ Behaviour that changed on purpose:
   the site needs **outbound HTTPS** to `fonts.googleapis.com` and `fonts.gstatic.com` (Google),
   `fonts.bunny.net` (Bunny) or your own host (direct URL). If outbound access is restricted, upload
   the file instead.
+
+## uSync
+
+Dynamic Images keeps its templates and fonts in its own two tables, so nothing in Umbraco backs
+them up and uSync on its own does not move them. The optional companion package does:
+
+```bash
+dotnet add package Umbraco.Community.DynamicImages.uSync
+```
+
+It adds two handlers to the uSync dashboard's **Settings** group, which export to
+`uSync/{version}/DynamicImagesTemplates` and `uSync/{version}/DynamicImagesFonts`, one `.config`
+file per row. Saving a template or a font in the backoffice writes its file straight away, the way
+uSync already does for a document type. Fonts import before templates, because a text layer names
+its font by key.
+
+It is a separate package so that uSync, which is MPL-2.0, never becomes a transitive dependency of
+Dynamic Images itself. It tracks the uSync **17** line; a uSync 18 site needs an 18.x build of it.
+
+One thing it cannot do on its own:
+
+> uSync moves the template and font **rows**, and Umbraco's own Media handler moves the media
+> **nodes** an uploaded font lives in — but uSync does not move media **files**. A `url` or `path`
+> font travels completely; an uploaded font arrives as a row pointing at a media item whose binary
+> the target environment must already have (Deploy, uSync.Complete, or a re-upload).
+
+The Health dashboard's own **Export**/**Import** and the `Sync` configuration section are
+unaffected and still work without uSync.
 
 ## Extending it
 
