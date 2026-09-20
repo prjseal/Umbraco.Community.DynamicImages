@@ -326,4 +326,81 @@ public class TemplateJsonTests
     [InlineData("   ")]
     public void Deserialize_ReturnsNullForNothing(string? json)
         => Assert.Null(Migrator.Deserialize(json!));
+
+    [Fact]
+    public void RoundTrip_PreservesACanvasGradientAndARadialShapeGradient()
+    {
+        var template = Sample();
+        template.Canvas.BackgroundGradient = new Gradient
+        {
+            Kind = GradientKind.Radial,
+            From = "#112233",
+            To = "#00000000",
+            CentreX = 0.25f,
+            CentreY = 0.75f,
+        };
+        ((RectLayer)template.Layers[3]).Gradient = new Gradient { From = "#FF0000", To = "#0000FF", Angle = 45f };
+
+        var json = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default);
+        var back = Migrator.Deserialize(json)!;
+
+        var canvas = back.Canvas.BackgroundGradient;
+        Assert.NotNull(canvas);
+        Assert.Equal(GradientKind.Radial, canvas!.Kind);
+        Assert.Equal("#112233", canvas.From);
+        Assert.Equal(0.25f, canvas.CentreX);
+        Assert.Equal(0.75f, canvas.CentreY);
+
+        var shape = Assert.IsType<RectLayer>(back.Layers[3]).Gradient;
+        Assert.NotNull(shape);
+        Assert.Equal(GradientKind.Linear, shape!.Kind);
+        Assert.Equal(45f, shape.Angle);
+    }
+
+    [Fact]
+    public void Serialize_WritesGradientKindsAsPinnedNamesUnderBothOptionSets()
+    {
+        var template = Sample();
+        template.Canvas.BackgroundGradient = new Gradient { Kind = GradientKind.Radial };
+        ((RectLayer)template.Layers[3]).Gradient = new Gradient { Kind = GradientKind.Linear };
+
+        var ours = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default);
+        var hostLike = JsonSerializer.Serialize(template, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+
+        foreach (var json in new[] { ours, hostLike })
+        {
+            Assert.Contains("\"kind\":\"radial\"", json);
+            Assert.Contains("\"kind\":\"linear\"", json);
+        }
+    }
+
+    [Fact]
+    public void Deserialize_ReadsAGradientWithoutAKindAsTheLinearOneItAlwaysWas()
+    {
+        // The exact shape a v2 document stores. If this string ever has to change to pass, the
+        // change is not backwards compatible.
+        var back = Migrator.Deserialize("""
+            {"schemaVersion":2,"alias":"x","name":"X","layers":[
+              {"type":"rect","name":"R","gradient":{"from":"#000000CC","to":"#00000000","angle":180}}
+            ]}
+            """)!;
+
+        var gradient = Assert.IsType<RectLayer>(back.Layers[0]).Gradient;
+        Assert.NotNull(gradient);
+        Assert.Equal(GradientKind.Linear, gradient!.Kind);
+        Assert.Equal(180f, gradient.Angle);
+        Assert.Equal(0.5f, gradient.CentreX);
+        Assert.Equal(0.5f, gradient.CentreY);
+    }
+
+    [Fact]
+    public void Deserialize_ReadsACanvasWithoutAGradientAsASolidBackground()
+    {
+        var back = Migrator.Deserialize("""
+            {"schemaVersion":2,"alias":"x","name":"X","canvas":{"width":800,"height":800,"background":"#0B0F19"}}
+            """)!;
+
+        Assert.Null(back.Canvas.BackgroundGradient);
+        Assert.Equal("#0B0F19", back.Canvas.Background);
+    }
 }
