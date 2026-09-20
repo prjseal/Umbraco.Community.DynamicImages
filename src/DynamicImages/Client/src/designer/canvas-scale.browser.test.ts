@@ -68,7 +68,14 @@ describe("di-designer-canvas scale reporting", () => {
     document.body.append(toolbar);
     await settle(toolbar, 2);
 
-    const readout = toolbar.shadowRoot!.querySelector<HTMLElement>(".value")!;
-    expect(readout.textContent?.trim()).toBe("27%");
+    // The readout is a typeable di-number-field rather than a span now, so the number lives in
+    // the input's value and the "%" in its suffix. What is asserted is unchanged: the toolbar
+    // shows the effective scale, not the zoom.
+    const field = toolbar.shadowRoot!.querySelector("di-number-field");
+    expect(field, "the toolbar has no percentage field").toBeTruthy();
+    await settle(field!, 1);
+
+    const input = field!.shadowRoot!.querySelector<HTMLInputElement>("input")!;
+    expect(input.value).toBe("27");
   });
 });

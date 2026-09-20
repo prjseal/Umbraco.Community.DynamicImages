@@ -81,6 +81,14 @@ export class DiLayersPanelElement extends UmbLitElement {
     `;
   }
 
+  /**
+   * The visibility button shows `icon-eye` in both states, with the state carried by the button's
+   * look and a dimmed glyph - the pattern di-canvas-toolbar's own toggles use. The hidden state
+   * used to ask for an eye-with-a-slash, which is not in Umbraco 17's registry under any name, so
+   * it rendered blank; there is no such glyph at all, and an unrelated one would read worse than
+   * the look does. The label already says Hide/Show, so the accessible name was never the problem.
+   * `icon-contract.test.ts` now fails on any name the registry does not have.
+   */
   #renderRow(layer: DiLayer, displayIndex: number) {
     const selected = layer.key === this.selectedLayerKey;
 
@@ -99,13 +107,14 @@ export class DiLayersPanelElement extends UmbLitElement {
 
         <uui-button
           compact
-          look="secondary"
+          class="visibility ${layer.isVisible ? "" : "off"}"
+          look=${layer.isVisible ? "primary" : "secondary"}
           label="${layer.isVisible ? "Hide" : "Show"} ${layer.name}"
           @click=${(event: Event) => {
             event.stopPropagation();
             this.#emit("di-layer-visibility", { key: layer.key, isVisible: !layer.isVisible });
           }}>
-          <uui-icon name=${layer.isVisible ? "icon-eye" : "icon-eye-off"}></uui-icon>
+          <uui-icon name="icon-eye"></uui-icon>
         </uui-button>
 
         <uui-button
@@ -201,6 +210,12 @@ export class DiLayersPanelElement extends UmbLitElement {
     .row.background {
       opacity: 0.6;
       cursor: default;
+    }
+
+    /* The hidden state has no icon of its own to show, so it is carried by the look plus a
+       dimmed glyph - the same visual language as the toolbar's toggles. */
+    .visibility.off uui-icon {
+      opacity: 0.45;
     }
 
     .name {

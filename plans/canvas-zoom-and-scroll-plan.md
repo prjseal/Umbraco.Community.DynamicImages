@@ -141,9 +141,19 @@ In `designer/di-canvas-toolbar.element.ts`:
   below. It already clamps via `clampNumber()`, writes the corrected value back into the input, and keeps
   the previous value when what was typed is unparseable. It emits `change` with `{ value }`; the toolbar's
   handler turns percent into a fraction and emits `di-zoom-change`, ignoring `null` (an empty field is not
-  a zoom).
+  a zoom). The handler reads `detail?.value` rather than destructuring: it is bound on the toolbar row,
+  so any other control in that row raising a bare `change` must not throw.
 - **Do not clobber the field while it has focus.** `effectiveScale` re-renders the toolbar on every resize
   and drag; guard the value binding on the field not being `:focus-within`, so typing survives a re-render.
+
+  **Built slightly differently.** Simply withholding the value while focused sets the binding to
+  `undefined`, which di-number-field renders as an *empty* field - it blanks what is being typed
+  rather than preserving it. The toolbar instead remembers the last percentage it pushed
+  (`#shownPercent`) and repeats that number while `:focus-within` holds. An unchanged binding is one
+  lit does not commit, so di-number-field never re-renders and the half-typed text stands. A
+  `@focusout` on the toolbar row calls `requestUpdate()`, so the field resyncs to the real scale the
+  moment focus leaves it rather than waiting for the next unrelated render. Both behaviours are
+  pinned by `zoom-controls.browser.test.ts`.
 - Give the field a fixed narrow width in `.zoom`, so the toolbar row does not jump as the digit count
   changes — that is what `.value`'s `min-width: 44px` and `tabular-nums` were for, moved onto the field.
 
@@ -163,6 +173,11 @@ the pattern `di-canvas-toolbar`'s own `#renderToggle()` already uses. In
 `designer/di-layers-panel.element.ts:100-109`: always `icon-eye`,
 `look=${layer.isVisible ? "primary" : "secondary"}`, and dim the icon when hidden. The `label` already says
 "Hide"/"Show", so the accessible name was never the problem.
+
+As built, the dimming needs a hook the panel's own stylesheet can reach, so the button also carries
+`class="visibility off"` when hidden and `.visibility.off uui-icon { opacity: 0.45 }` sits beside the
+row rules. Reaching into `uui-button`'s shadow root from here is not possible, and the class is the
+same channel `.row.selected` already uses.
 
 ### 5. A guard so no unverified icon name ships again
 
@@ -190,6 +205,9 @@ events by scraping source text and asserting a contract; mirror it exactly.
 - `src/DynamicImages/Client/src/workspace/views/di-design-view.element.ts` — the `di-zoom-change` handler
   reads `ZOOM_BOUNDS` instead of inline `0.1`/`4`.
 - `src/DynamicImages/Client/src/designer/di-layers-panel.element.ts` — the visibility button.
+- `src/DynamicImages/Client/vite.config.ts` — the browser project's chromium instance launches with
+  `ignoreDefaultArgs: ["--hide-scrollbars"]`, without which the scroll-stability spec's premise cannot
+  hold. See "The tests" below.
 - `src/DynamicImages/Client/src/designer/canvas-scale.browser.test.ts` — its third case asserts `.value`'s
   textContent is `"27%"`. Retarget it at the input's value (`"27"`). **This is the one existing spec this
   change breaks, and it must keep asserting the same thing: the readout shows the effective scale, not the
@@ -245,6 +263,14 @@ So the spec first injects `::-webkit-scrollbar { width: 15px; height: 15px }` in
 asserts `viewport.clientWidth < viewport.offsetWidth` once the spacer is in — the premise is guaranteed,
 not assumed.
 
+**Found during implementation: the CSS alone was not enough.** Playwright's headless defaults include
+`--hide-scrollbars`, which zeroes every scrollbar whatever the stylesheet says. With it on, the spacer
+made the viewport overflow (`scrollWidth` 1900 against a `clientWidth` of 400) while `clientWidth` stayed
+level with `offsetWidth`, so the premise assertion failed — correctly, and loudly, which is what it is
+there for. `vite.config.ts`'s browser instance now passes
+`launch: { ignoreDefaultArgs: ["--hide-scrollbars"] }`. CI installs its own Chromium and runs the same
+config, so the premise holds there too or the spec says so.
+
 Also in the same file:
 
 - **No knife edge.** After settling, the artboard's border box is *strictly* narrower and shorter than the
@@ -281,6 +307,12 @@ it is what stops the next one.
 Note what this test can and cannot do: it catches a name that does not **exist**. It cannot catch
 `icon-remove`, which exists and draws the wrong thing — that one is caught by the icon-name assertion in
 `zoom-controls.browser.test.ts`.
+
+**One implementation note.** The committed bundle is unminified, so comments ship in it, and this plan's
+own Context relies on grepping that bundle for icon names. The two comments explaining these fixes
+therefore describe the old icons ("the registry's *remove* icon", "an eye-with-a-slash") rather than
+quoting their names, so `grep icon-remove wwwroot/.../dynamic-images.js` stays a real check instead of
+matching a comment about the bug it is looking for. Both names are now absent from the built output.
 
 ---
 
@@ -322,6 +354,24 @@ dotnet build src/DynamicImages.sln && dotnet test test/DynamicImages.Tests
 **Confirm each new spec fails before the fix**, not merely that it passes after: `git stash` the source
 change, re-run, and put the observed numbers — the pre-fix scale delta, the exactly-equal artboard
 measurement — in the commit message.
+
+**Observed, on this implementation:**
+
+| Spec | Pre-fix |
+| --- | --- |
+| `icon-contract` → every icon name is registered | fails: `icon-eye-off (used in designer/di-layers-panel.element.ts)` |
+| scroll stability → does not re-fit when the viewport gains a scrollbar | fails: scale **0.29333333 → 0.28083333**, a delta of **0.0125** against a `0.001` epsilon |
+| scroll stability → artboard sits strictly inside the content box | fails: **`expected 352 to be less than 352`** — dead level, exactly as predicted |
+| zoom controls → zoom-out is a magnifier | fails: renders **`icon-remove`** |
+| zoom controls → zoom-in is a magnifier | fails: renders **`icon-add`** |
+| zoom controls → the six percentage-field cases | fail: *the toolbar has no di-number-field* |
+| `canvas-scale` third case, retargeted | fails: *the toolbar has no percentage field* |
+
+Two of the new assertions pass pre-fix and are kept as guards rather than as evidence, which the plan
+already anticipated for the first: *it converges* (whether it fails depends on the geometry landing on the
+rounding boundary) and *zooming in still scrolls* (it guards against curing the flicker by suppressing
+scrolling, so passing before and after is the point). *Steps out and in from the effective scale* is the
+same: pre-existing behaviour the icon change must not disturb.
 
 Manual check, if the test site is booted (`plans/ui-review-method.md` §6 — HTTPS, probe `/umbraco`, never
 `/`): open a template in the designer and confirm the toolbar reads `[magnifier−] [27 %] [magnifier+]

@@ -16,6 +16,22 @@ const SNAP_THRESHOLD_PX = 6;
 /** Must match di-rulers' own thickness - it is the width of the gutter they sit in. */
 const RULER_THICKNESS = 20;
 
+/**
+ * Slack between the artboard at fit and the viewport's content box.
+ *
+ * The fit used to be measured from `.viewport` - the overflow:auto box whose scrollbar the
+ * artboard it sizes is what causes. Overflow shrank the measurement, which shrank the artboard,
+ * which cleared the overflow, which grew the measurement back, so both scrollbars flickered on
+ * every interaction. Measuring the host instead breaks that loop by construction: the host is
+ * overflow:hidden, so its client size cannot move in response to its own content.
+ *
+ * That leaves the second half of it. At fit the artboard came out sized to *exactly* the content
+ * box, dead level with the overflow threshold, where sub-pixel layout rounding decides which side
+ * you land on - and a vertical scrollbar stealing width tips the horizontal axis, which steals
+ * height. These two pixels keep the artboard off that edge.
+ */
+const FIT_HEADROOM = 2;
+
 /** Degrees a rotation drag snaps to with Shift held, and the precision it keeps without. */
 const ROTATE_STEP_DEGREES = 15;
 const ROTATE_PRECISION_DEGREES = 0.1;
@@ -141,13 +157,15 @@ export class DiDesignerCanvasElement extends UmbLitElement {
   }
 
   #recomputeFit() {
-    const viewport = this.renderRoot.querySelector<HTMLElement>(".viewport");
-    if (!viewport || !this.template) return;
+    if (!this.template) return;
 
-    const padding = 48 + (this.showRulers ? RULER_THICKNESS : 0);
+    // `.viewport` is width/height 100% in a display:block host with no border or padding, so its
+    // border box *is* the host's content box. The only difference between measuring the two is the
+    // scrollbar - which is precisely the term that has to go.
+    const padding = 48 + (this.showRulers ? RULER_THICKNESS : 0) + FIT_HEADROOM;
     const available = {
-      width: Math.max(1, viewport.clientWidth - padding),
-      height: Math.max(1, viewport.clientHeight - padding),
+      width: Math.max(1, this.clientWidth - padding),
+      height: Math.max(1, this.clientHeight - padding),
     };
 
     const fit = Math.min(

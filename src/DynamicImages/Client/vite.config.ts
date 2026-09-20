@@ -46,7 +46,18 @@ export default defineConfig({
             enabled: true,
             provider: "playwright",
             headless: true,
-            instances: [{ browser: "chromium" }],
+            instances: [
+              {
+                browser: "chromium",
+                // Playwright's headless defaults include `--hide-scrollbars`, which gives every
+                // scrolling box a zero-width scrollbar. `canvas-scroll-stability.browser.test.ts`
+                // exists precisely because a scrollbar takes space and the canvas used to measure
+                // what was left after its own overflow had stolen it, so with that flag on the
+                // spec would pass without testing anything. It asserts the premise, so this is
+                // not silent - but the premise has to be satisfiable.
+                launch: { ignoreDefaultArgs: ["--hide-scrollbars"] },
+              },
+            ],
           },
         },
       },

@@ -69,6 +69,16 @@ export const INSPECTOR_BOUNDS = {
 export type InspectorBoundsKey = keyof typeof INSPECTOR_BOUNDS;
 
 /**
+ * What the canvas will zoom to, as a fraction. 10% still shows a poster-sized canvas whole; past
+ * 400% a 1200px design is bigger than any screen it would be reviewed on.
+ *
+ * It lives beside the inspector's table for the same reason that one exists: the clamp was written
+ * out inline in the design view, the toolbar's typed percentage would have been a second copy, and
+ * two copies of a bound drift. The toolbar reads it as percent, hence the x100 at that call site.
+ */
+export const ZOOM_BOUNDS = { min: 0.1, max: 4 } as const satisfies NumberBounds;
+
+/**
  * What a `<di-number-field>` should report for what was typed into it.
  *
  * - `""` clears the field, which is a real setting ("as big as the content needs"), so `null`.
