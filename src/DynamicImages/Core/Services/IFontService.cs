@@ -54,6 +54,13 @@ public interface IFontService
     FontDefinition? Update(Guid key, string familyName, IReadOnlyList<FontStyleDefinition> styles, int? weight = null, bool? isItalic = null);
 
     /// <summary>
+    /// Inserts or replaces a font row exactly as given. The other write methods all fetch a file
+    /// first and read the family, weight and slant out of it; this one takes the row as the
+    /// caller has it, which is what restoring a font from another environment needs.
+    /// </summary>
+    FontDefinition Upsert(FontDefinition font);
+
+    /// <summary>
     /// Deletes a font. Returns the templates still using it instead of deleting, when there are
     /// any - removing a font out from under a template would break its next publish.
     /// </summary>
