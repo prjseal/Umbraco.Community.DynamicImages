@@ -17,6 +17,7 @@
     <PackageReference Include="Clean.Core"/>
     <!-- Imports the uSync/v17 folder (content, media and settings) on first boot. -->
     <PackageReference Include="uSync"/>
+    <PackageReference Include="uSync.Command.Setup"/>
   </ItemGroup>
 
   <!-- The package under test. Referenced as a project rather than a package, so a change to the
