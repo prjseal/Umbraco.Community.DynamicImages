@@ -40,9 +40,14 @@ sees the section until you do, including administrators.
 
 ### The canvas
 
-A fixed size in pixels, a background colour, and an optional base image - a media item, a file in
-`wwwroot`, or a property on the page being rendered. *Use image size* sets the canvas to the base
-image's own dimensions.
+A fixed size in pixels, a fill, and an optional base image - a media item, a file in `wwwroot`, or
+a property on the page being rendered. The base image is drawn on top of the fill, so a *contain*
+fit pads onto it. *Use image size* sets the canvas to the base image's own dimensions.
+
+The **fill** is a solid colour, a two-stop gradient - **linear** at an angle, or **radial** from a
+centre you place - or **transparent**. PNG and WebP keep transparency; JPEG has no alpha channel,
+so it flattens whatever is transparent to the colour underneath it, and the validator warns when
+the template is set up that way.
 
 ### Layers
 
@@ -107,7 +112,8 @@ polygon has 3 to 12 **sides**, the first point at the top; a star has that many 
 box, the way CSS `clip-path` does, so a circle is an ellipse in a square box. **Corner radius**
 applies to rectangles only.
 
-The fill is a solid colour, a linear gradient, or nothing: turn **Fill** off and set a **Border**
+The fill is a solid colour, a two-stop gradient (linear or radial, the same as the canvas's), or
+nothing: turn **Fill** off and set a **Border**
 for an outline alone - a ring, a frame, a rule. The border is drawn inside the box, the way an
 image layer's border and a CSS border are, so a bordered shape occupies exactly its box. A shape
 with no fill, no gradient and no border draws nothing, and the validator says so. The palette
