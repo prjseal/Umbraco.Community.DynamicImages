@@ -7,6 +7,7 @@ import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "
 import type { DiFont, DiLayer, DiLayerBounds, DiPosition, DiProperty, DiTemplate } from "../../api/types.js";
 import { detach, isTracked, type Axis } from "../../models/relative-layout.js";
 import type { DiDesignerCanvasElement } from "../../designer/di-designer-canvas.element.js";
+import type { DiPreviewStripElement } from "./di-preview-strip.element.js";
 import { fetchImageInfo, fetchLayout } from "../../api/dynamic-images-api.js";
 import {
   createBadgesLayer, createImageLayer, createLayerForProperty, createRectLayer, createTextLayer,
@@ -61,6 +62,10 @@ export class DiDesignViewElement extends UmbLitElement {
   /** What the canvas is actually drawing at - see `di-scale-change` on di-designer-canvas. */
   @state()
   private _effectiveScale = 1;
+
+  /** Whether the preview strip has a render in flight, so the toolbar button can show it. */
+  @state()
+  private _previewing = false;
 
   @state()
   private _snapEnabled = true;
@@ -139,6 +144,10 @@ export class DiDesignViewElement extends UmbLitElement {
   /** The canvas holds the resolved positions, because it is what measures the rendered boxes. */
   get #canvas(): DiDesignerCanvasElement | null {
     return this.renderRoot.querySelector("di-designer-canvas");
+  }
+
+  get #strip(): DiPreviewStripElement | null {
+    return this.renderRoot.querySelector("di-preview-strip");
   }
 
   /**
@@ -396,6 +405,10 @@ export class DiDesignViewElement extends UmbLitElement {
         @di-pick-base-image=${this.#pickBaseImage}
         @di-pick-layer-image=${(event: CustomEvent) => this.#pickLayerImage(event.detail.key)}
         @di-use-image-size=${this.#useImageSize}
+        @di-request-preview=${() => this.#strip?.refresh()}
+        @di-preview-state=${(event: CustomEvent) => {
+          this._previewing = event.detail.busy;
+        }}
         @di-scale-change=${(event: CustomEvent) => {
           this._effectiveScale = event.detail.scale;
         }}
@@ -429,7 +442,8 @@ export class DiDesignViewElement extends UmbLitElement {
             .showSafeArea=${this._showSafeArea}
             .showMeasured=${this._showMeasured}
             .canUndo=${this._canUndo}
-            .canRedo=${this._canRedo}>
+            .canRedo=${this._canRedo}
+            .previewing=${this._previewing}>
           </di-canvas-toolbar>
 
           <di-designer-canvas

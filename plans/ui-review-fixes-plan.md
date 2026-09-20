@@ -231,6 +231,13 @@ but never calls `context.setSampleContentKey(...)`. So after a full page load th
 unset even though the Preview & test view shows the right node. Add the call, so the strip agrees
 with the picker on a cold load too, not only after an in-app pick.
 
+**And a third, found while implementing it:** the restore cannot stay in `connectedCallback` at
+all. `#storageKey()` is `di:sample-node:${this._template?.key ?? "new"}`, and `_template` is set
+from the context observable, which has not resolved when `connectedCallback` runs — so the
+restore was reading the `…:new` key and could never find what `#remember` wrote under the
+template's own key. The restore moves into the `context.template` observer, firing once when the
+template first arrives, which is the earliest point the key is knowable.
+
 **A1.** `di-canvas-toolbar` emits `di-request-preview` (`:69`) and nothing listens. Give
 `di-preview-strip` a public `refresh()` that renders immediately, bypassing `PREVIEW_DEBOUNCE_MS`,
 and expands the strip if collapsed. Handle the event on `.layout` in `di-design-view` alongside the

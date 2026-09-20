@@ -18,6 +18,10 @@ export class DiPreviewStripElement extends UmbLitElement {
   #abort?: AbortController;
   #objectUrl?: string;
 
+  /** The node picked in Preview & test, so the strip shows the same thing that view does. */
+  #contentKey?: string;
+  #useSampleData = true;
+
   @state()
   private _url?: string;
 
@@ -40,11 +44,31 @@ export class DiPreviewStripElement extends UmbLitElement {
       this.observe(context.template, (template) => {
         if (template) this.#schedule(template);
       });
-      this.observe(context.sampleContentKey, () => {
+      this.observe(context.sampleContentKey, (key) => {
+        this.#contentKey = key;
+
         const template = this.#context?.getData();
         if (template) this.#schedule(template);
       });
+      this.observe(context.useSampleData, (value) => {
+        this.#useSampleData = value ?? true;
+      });
     });
+  }
+
+  /**
+   * Render now, bypassing the debounce, and open the strip if it was collapsed. This is what the
+   * toolbar's "Server preview" button does - the button emitted `di-request-preview` and nothing
+   * listened for it, so it had never done anything at all.
+   */
+  refresh(): void {
+    const template = this.#context?.getData();
+    if (!template) return;
+
+    window.clearTimeout(this.#timer);
+    this._collapsed = false;
+
+    void this.#render(template);
   }
 
   override disconnectedCallback() {
@@ -76,14 +100,20 @@ export class DiPreviewStripElement extends UmbLitElement {
     this.#abort?.abort();
     this.#abort = new AbortController();
 
-    this._loading = true;
+    this.#setBusy(true);
     this._error = undefined;
 
     try {
-      const contentKey = this.#context.getData() ? undefined : undefined;
+      // Both of these used to be hard-coded - `contentKey` to undefined through a
+      // `cond ? undefined : undefined`, and `useSampleData` to true - so picking a node in
+      // Preview & test never reached the strip under the canvas.
       const blob = await fetchPreview(
         template,
-        { signal: this.#abort.signal, useSampleData: true, contentKey },
+        {
+          signal: this.#abort.signal,
+          contentKey: this.#contentKey,
+          useSampleData: this.#useSampleData,
+        },
         this.#context.getToken,
       );
 
@@ -95,8 +125,14 @@ export class DiPreviewStripElement extends UmbLitElement {
 
       this._error = error instanceof Error ? error.message : "The preview could not be rendered.";
     } finally {
-      this._loading = false;
+      this.#setBusy(false);
     }
+  }
+
+  /** Announced so the toolbar's `previewing` property - which nothing ever set - can mean something. */
+  #setBusy(busy: boolean) {
+    this._loading = busy;
+    this.dispatchEvent(new CustomEvent("di-preview-state", { bubbles: true, composed: true, detail: { busy } }));
   }
 
   render() {

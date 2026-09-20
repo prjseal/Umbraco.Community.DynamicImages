@@ -8,17 +8,6 @@ import { DI_SAMPLE_NODE_PICKER_MODAL } from "../../modals/tokens.js";
 import { fetchLayout, fetchPreview, regenerateDocument } from "../../api/dynamic-images-api.js";
 import type { DiLayerBounds, DiSampleContentItem, DiTemplate } from "../../api/types.js";
 
-/** Title lengths worth checking a design against before it meets real content. */
-const TITLE_PRESETS = [
-  { label: "Short", value: "Ship it" },
-  { label: "Typical", value: "Designing social share images that actually get clicked" },
-  {
-    label: "Very long",
-    value:
-      "Everything you ever wanted to know about generating Open Graph images from your content, and rather more besides",
-  },
-];
-
 /** The full-size server render, what each layer resolved to, and the way to regenerate one node. */
 @customElement("di-preview-view")
 export class DiPreviewViewElement extends UmbLitElement {
@@ -66,18 +55,35 @@ export class DiPreviewViewElement extends UmbLitElement {
       if (!context) return;
 
       this.observe(context.template, (template) => {
+        const isFirst = !this._template;
         this._template = template;
+
+        // The remembered node is keyed by the template, so it can only be restored once the
+        // template is known - which is here, not in connectedCallback.
+        if (template && isFirst) void this.#restoreRememberedNode();
       });
     });
   }
 
+  /**
+   * Re-selects whichever node was last previewed for this template, so returning to the tab does
+   * not mean picking it again - and, crucially, tells the workspace context as well. Without
+   * that last part the restored node reached only this view: after a full page load the
+   * designer's preview strip went on showing sample data while the picker here already read the
+   * right node's name.
+   */
+  async #restoreRememberedNode(): Promise<void> {
+    const remembered = this.#rememberedNode();
+    if (!remembered) return;
+
+    this._sampleNode = remembered;
+    this.#context?.setSampleContentKey(remembered.key);
+
+    await this.#render();
+  }
+
   override connectedCallback() {
     super.connectedCallback();
-
-    // Restore whichever node was last previewed for this template, so returning to the tab does
-    // not mean picking it again.
-    const remembered = this.#rememberedNode();
-    if (remembered) this._sampleNode = remembered;
 
     void this.#render();
   }
@@ -135,17 +141,7 @@ export class DiPreviewViewElement extends UmbLitElement {
     await this.#render();
   }
 
-  async #useSampleTitle(title: string) {
-    // The preset only affects the preview; it is a way of stress-testing the design, not an edit.
-    if (!this._template) return;
-
-    this._sampleNode = undefined;
-    this.#remember(undefined);
-
-    await this.#render(title);
-  }
-
-  async #render(_sampleTitle?: string) {
+  async #render() {
     const template = this._template;
     if (!template || !this.#context) return;
 
@@ -242,22 +238,9 @@ export class DiPreviewViewElement extends UmbLitElement {
               ? html`<img class="render" src=${this._url} alt="Rendered preview of this template" />`
               : nothing}
 
-          <div class="presets">
-            <span>Try a title length:</span>
-            ${repeat(
-              TITLE_PRESETS,
-              (preset) => preset.label,
-              (preset) => html`
-                <uui-button
-                  compact
-                  look="secondary"
-                  label="Preview with a ${preset.label.toLowerCase()} title"
-                  @click=${() => this.#useSampleTitle(preset.value)}>
-                  ${preset.label}
-                </uui-button>
-              `,
-            )}
-          </div>
+          <p class="hint">
+            Choose a content item above to preview this template against a real title and image.
+          </p>
         </uui-box>
 
         <uui-box headline="Resolved values">
@@ -340,14 +323,10 @@ export class DiPreviewViewElement extends UmbLitElement {
       box-shadow: var(--uui-shadow-depth-2);
     }
 
-    .presets {
-      display: flex;
-      align-items: center;
-      gap: var(--uui-size-space-2);
-      margin-top: var(--uui-size-space-4);
+    .hint {
+      margin: var(--uui-size-space-4) 0 0;
       font-size: 12px;
       color: var(--uui-color-text-alt);
-      flex-wrap: wrap;
     }
 
     .error {
