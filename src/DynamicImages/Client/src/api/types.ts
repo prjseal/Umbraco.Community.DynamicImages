@@ -156,6 +156,24 @@ export interface DiBadgesLayer extends DiLayerBase {
 
 export type ShapeKind = "rectangle" | "ellipse" | "polygon" | "star";
 
+export type GradientKind = "linear" | "radial";
+
+/**
+ * A two-stop gradient, on a shape layer or as the canvas's fill. The server writes every field,
+ * so none of them is optional here; a gradient the *client* builds comes from `createGradient()`,
+ * which is the one place the defaults live.
+ */
+export interface DiGradient {
+  kind: GradientKind;
+  from: string;
+  to: string;
+  /** Linear only. Degrees clockwise from "top to bottom" = 180, as in CSS. */
+  angle: number;
+  /** Radial only. The centre as a fraction of the box, 0..1. */
+  centreX: number;
+  centreY: number;
+}
+
 /**
  * A filled and/or outlined shape. The discriminator stays "rect" whatever the shape, so every
  * stored template stays valid and an older package draws a rectangle.
@@ -165,7 +183,7 @@ export interface DiRectLayer extends DiLayerBase {
   shape: ShapeKind;
   /** null with no gradient means outline-only. */
   fill?: string | null;
-  gradient?: { from: string; to: string; angle: number } | null;
+  gradient?: DiGradient | null;
   /** Rectangle only. */
   cornerRadius: number;
   /** Sides of a polygon or points of a star, 3..12. */
@@ -201,7 +219,10 @@ export interface DiTemplate {
   canvas: {
     width: number;
     height: number;
+    /** The fill, unless `backgroundGradient` is set; the base image draws on top of either. */
     background: string;
+    /** When set, the canvas is filled with this instead of `background`. */
+    backgroundGradient?: DiGradient | null;
     baseImage: DiImageSource;
     baseImageFit: ImageFitMode;
   };

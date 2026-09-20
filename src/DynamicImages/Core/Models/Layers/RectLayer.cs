@@ -3,14 +3,42 @@ using Umbraco.Community.DynamicImages.Core.Json;
 
 namespace Umbraco.Community.DynamicImages.Core.Models.Layers;
 
+/// <summary>How a <see cref="Gradient"/> spreads across its box.</summary>
+[JsonConverter(typeof(CamelCaseJsonStringEnumConverter))]
+public enum GradientKind
+{
+    /// <summary>Along an axis, at <see cref="Gradient.Angle"/>.</summary>
+    [JsonStringEnumMemberName("linear")]
+    Linear,
+
+    /// <summary>Out from <see cref="Gradient.CentreX"/>, <see cref="Gradient.CentreY"/>.</summary>
+    [JsonStringEnumMemberName("radial")]
+    Radial
+}
+
+/// <summary>
+/// A two-stop gradient, on a shape layer or as the canvas's fill. Shared by both, so the two
+/// cannot drift apart.
+/// </summary>
 public class Gradient
 {
+    /// <summary>Absent in a v2 document, which is exactly the linear gradient it used to be.</summary>
+    public GradientKind Kind { get; set; } = GradientKind.Linear;
+
     public string From { get; set; } = "#000000CC";
 
     public string To { get; set; } = "#00000000";
 
-    /// <summary>Degrees clockwise from "top to bottom" = 180, matching CSS linear-gradient.</summary>
+    /// <summary><see cref="GradientKind.Linear"/> only. Degrees clockwise from "top to bottom" = 180,
+    /// matching CSS linear-gradient.</summary>
     public float Angle { get; set; } = 180f;
+
+    /// <summary><see cref="GradientKind.Radial"/> only. The centre as a fraction of the box, as in
+    /// CSS's <c>at 50% 50%</c>. The renderer clamps to 0..1.</summary>
+    public float CentreX { get; set; } = 0.5f;
+
+    /// <summary><see cref="GradientKind.Radial"/> only. See <see cref="CentreX"/>.</summary>
+    public float CentreY { get; set; } = 0.5f;
 }
 
 /// <summary>What a <see cref="RectLayer"/> draws inside its box.</summary>

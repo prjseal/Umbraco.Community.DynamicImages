@@ -1,5 +1,6 @@
 import { css, customElement, html, nothing, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
+import { checkerboard } from "../../designer/checkerboard.js";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import { fetchPreview } from "../../api/dynamic-images-api.js";
 import type { DiTemplate } from "../../api/types.js";
@@ -210,6 +211,8 @@ export class DiPreviewStripElement extends UmbLitElement {
       max-height: var(--di-preview-strip-image-max-height, 120px);
       border-radius: var(--uui-border-radius);
       box-shadow: var(--uui-shadow-depth-2);
+      /* Behind the image, so a transparent render reads as transparent rather than as white. */
+      ${checkerboard}
     }
 
     @media (prefers-reduced-motion: no-preference) {

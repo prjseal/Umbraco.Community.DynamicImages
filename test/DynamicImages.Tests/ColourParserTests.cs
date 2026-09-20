@@ -13,6 +13,7 @@ public class ColourParserTests
     [InlineData("#6B7280", 107, 114, 128, 255)]
     [InlineData("#FFFFFF14", 255, 255, 255, 20)]
     [InlineData("ffffff26", 255, 255, 255, 38)]
+    [InlineData("#0B0F1900", 11, 15, 25, 0)]
     [InlineData("#f00", 255, 0, 0, 255)]
     public void TryParse_ReadsEveryAcceptedForm(string value, byte r, byte g, byte b, byte a)
     {

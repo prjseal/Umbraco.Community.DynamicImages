@@ -1,10 +1,12 @@
 import { css, customElement, html, nothing, property, repeat } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type {
-  Anchor, DiBadgesLayer, DiFont, DiImageLayer, DiLayer, DiPosition, DiProperty, DiRectLayer, DiTemplate,
-  DiTextLayer, RelativeEdge, ShapeKind,
+  Anchor, DiBadgesLayer, DiFont, DiGradient, DiImageLayer, DiLayer, DiPosition, DiProperty, DiRectLayer,
+  DiTemplate, DiTextLayer, RelativeEdge, ShapeKind,
 } from "../api/types.js";
 import { reanchor } from "../models/anchor.js";
+import { canvasFill, withAlpha, type CanvasFill } from "../models/canvas-fill.js";
+import { createGradient } from "../models/layer-factories.js";
 import { DEFAULT_RELATIVE_GAP, isTracked, referenceOn, type Axis } from "../models/relative-layout.js";
 import { normalise } from "../models/rotation.js";
 import { MAX_INNER_RATIO, MAX_SIDES, MIN_INNER_RATIO, MIN_SIDES } from "../models/shape-geometry.js";
@@ -77,14 +79,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
           </di-number-field>
         </div>
 
-        <label class="field">
-          <span>Background</span>
-          <di-colour-input
-            label="Canvas background"
-            .value=${canvas.background}
-            @change=${(event: CustomEvent) => this.#canvas({ background: event.detail.value })}>
-          </di-colour-input>
-        </label>
+        ${this.#renderCanvasFill(canvas)}
 
         <label class="field">
           <span>Base image</span>
@@ -149,6 +144,122 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
       <p class="hint">Select a layer to edit it, or drag a property from the left onto the canvas.</p>
     `;
+  }
+
+  /**
+   * The canvas's fill: a colour, a gradient, or nothing. Three states, so a picker rather than
+   * the shape panel's toggle - and a projection of the two fields that already say which it is,
+   * not a fourth field to keep in sync.
+   */
+  #renderCanvasFill(canvas: DiTemplate["canvas"]) {
+    const mode = canvasFill(canvas);
+
+    return html`
+      <label class="field">
+        <span>Fill</span>
+        <uui-select
+          .value=${mode}
+          .options=${optionsFrom(["colour", "gradient", "transparent"], mode)}
+          @change=${(event: Event) => this.#setCanvasFill(canvas, (event.target as HTMLSelectElement).value as CanvasFill)}>
+        </uui-select>
+      </label>
+
+      ${mode === "colour"
+        ? html`<label class="field">
+            <span>Colour</span>
+            <di-colour-input
+              label="Canvas background"
+              .value=${canvas.background}
+              @change=${(event: CustomEvent) => this.#canvas({ background: event.detail.value })}>
+            </di-colour-input>
+          </label>`
+        : nothing}
+
+      ${mode === "gradient" && canvas.backgroundGradient
+        ? this.#renderGradientFields(canvas.backgroundGradient, (next) => this.#canvas({ backgroundGradient: next }))
+        : nothing}
+
+      ${mode === "transparent"
+        ? html`<p class="hint">
+            The canvas is transparent. PNG and WebP keep transparency; JPEG does not, and will flatten it.
+          </p>`
+        : nothing}
+    `;
+  }
+
+  /**
+   * Each switch is a plain write, and switching to or from Transparent flips the alpha nibble on
+   * the colour that is already there rather than replacing it - so an editor who tries it and
+   * changes their mind gets their colour back.
+   */
+  #setCanvasFill(canvas: DiTemplate["canvas"], mode: CanvasFill) {
+    if (mode === "gradient") {
+      this.#canvas({ backgroundGradient: canvas.backgroundGradient ?? createGradient() });
+      return;
+    }
+
+    this.#canvas({
+      background: withAlpha(canvas.background, mode === "transparent" ? "00" : "FF"),
+      backgroundGradient: null,
+    });
+  }
+
+  /**
+   * The gradient editor, shared by the canvas panel and the shape panel. `patch` takes the whole
+   * replacement gradient, because the two panels write through different paths (`#canvas` vs
+   * `#patch`) and neither should have to know about the other's.
+   */
+  #renderGradientFields(gradient: DiGradient, patch: (next: DiGradient) => void) {
+    return html`
+      <label class="field">
+        <span>Type</span>
+        <uui-select
+          .value=${gradient.kind}
+          .options=${optionsFrom(["linear", "radial"], gradient.kind)}
+          @change=${(event: Event) =>
+            patch({ ...gradient, kind: (event.target as HTMLSelectElement).value as DiGradient["kind"] })}>
+        </uui-select>
+      </label>
+
+      <div class="pair">
+        <di-colour-input
+          label="From"
+          .value=${gradient.from}
+          @change=${(event: CustomEvent) => patch({ ...gradient, from: event.detail.value })}>
+        </di-colour-input>
+        <di-colour-input
+          label="To"
+          .value=${gradient.to}
+          @change=${(event: CustomEvent) => patch({ ...gradient, to: event.detail.value })}>
+        </di-colour-input>
+      </div>
+
+      ${gradient.kind === "radial"
+        ? html`<div class="pair">
+            ${this.#renderCentreField("Centre X", gradient.centreX, (value) => patch({ ...gradient, centreX: value }))}
+            ${this.#renderCentreField("Centre Y", gradient.centreY, (value) => patch({ ...gradient, centreY: value }))}
+          </div>`
+        : html`<di-number-field
+            .min=${INSPECTOR_BOUNDS.gradientAngle.min}
+            .max=${INSPECTOR_BOUNDS.gradientAngle.max}
+            label="Angle"
+            suffix="°"
+            .value=${gradient.angle}
+            @change=${(event: CustomEvent) => patch({ ...gradient, angle: event.detail.value ?? 180 })}>
+          </di-number-field>`}
+    `;
+  }
+
+  /** Percent in, fraction stored - the x100 / divide-by-100 the zoom toolbar already does. */
+  #renderCentreField(label: string, value: number, patch: (next: number) => void) {
+    return html`<di-number-field
+      .min=${INSPECTOR_BOUNDS.gradientCentre.min * 100}
+      .max=${INSPECTOR_BOUNDS.gradientCentre.max * 100}
+      label=${label}
+      suffix="%"
+      .value=${Math.round((value ?? 0.5) * 100)}
+      @change=${(event: CustomEvent) => patch((event.detail.value ?? 50) / 100)}>
+    </di-number-field>`;
   }
 
   // ------------------------------------------------------------------ layer
@@ -736,39 +847,13 @@ export class DiLayerInspectorElement extends UmbLitElement {
             ?checked=${!!layer.gradient}
             @change=${(event: Event) =>
               this.#patch({
-                gradient: (event.target as HTMLInputElement).checked
-                  ? { from: "#000000CC", to: "#00000000", angle: 180 }
-                  : null,
+                gradient: (event.target as HTMLInputElement).checked ? createGradient() : null,
               } as Partial<DiLayer>)}>
           </uui-toggle>
         </label>
 
         ${layer.gradient
-          ? html`
-              <div class="pair">
-                <di-colour-input
-                  label="From"
-                  .value=${layer.gradient.from}
-                  @change=${(event: CustomEvent) =>
-                    this.#patch({ gradient: { ...layer.gradient!, from: event.detail.value } } as Partial<DiLayer>)}>
-                </di-colour-input>
-                <di-colour-input
-                  label="To"
-                  .value=${layer.gradient.to}
-                  @change=${(event: CustomEvent) =>
-                    this.#patch({ gradient: { ...layer.gradient!, to: event.detail.value } } as Partial<DiLayer>)}>
-                </di-colour-input>
-              </div>
-              <di-number-field
-                .min=${INSPECTOR_BOUNDS.gradientAngle.min}
-                .max=${INSPECTOR_BOUNDS.gradientAngle.max}
-                label="Angle"
-                suffix="°"
-                .value=${layer.gradient.angle}
-                @change=${(event: CustomEvent) =>
-                  this.#patch({ gradient: { ...layer.gradient!, angle: event.detail.value ?? 180 } } as Partial<DiLayer>)}>
-              </di-number-field>
-            `
+          ? this.#renderGradientFields(layer.gradient, (next) => this.#patch({ gradient: next } as Partial<DiLayer>))
           : nothing}
 
         ${shape === "rectangle"

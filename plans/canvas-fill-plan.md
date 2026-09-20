@@ -252,9 +252,7 @@ public static class GradientBrushes
         // grown until it passes through the corner furthest from the centre. For a rectangle the
         // farthest corner sits at the two farthest-side distances, which solves to sqrt(2) times
         // each of them - so an off-centre gradient stays an ellipse rather than skewing.
-        var centreX = x + width * Math.Clamp(gradient.CentreX, 0f, 1f);
-        var centreY = y + height * Math.Clamp(gradient.CentreY, 0f, 1f);
-
+        var (centreX, centreY) = GradientGeometry.RadialCentre(x, y, width, height, gradient.CentreX, gradient.CentreY);
         var (a, b) = GradientGeometry.RadialSemiAxes(x, y, width, height, centreX, centreY);
 
         // The gradient turns with the shape: the reference axis goes through the same matrix, and
@@ -276,8 +274,11 @@ public static class GradientBrushes
 The two pieces of arithmetic go in a **new `Core/Rendering/GradientGeometry.cs`** — `LinearAxis(...)`
 returning the start and end points, and `RadialSemiAxes(...)` returning `(a, b)` — public static and
 free of ImageSharp brushes, so they can be unit-tested against hand-computed numbers the way
-`ShapeGeometry`, `AnchorMath` and `RotationMath` already are. `GradientBrushes` is then the thin
-adapter that wraps them in a brush.
+`ShapeGeometry`, `AnchorMath` and `RotationMath` already are. **As built it carries the centre clamp
+too**, as `RadialCentre(...)` (fractions in, pixels out) and `ClampFraction(...)`: the clamp is part
+of the radial definition, the validator's warning needs to ask the geometry what will be drawn, and
+"a centre outside 0..1 clamps" is then asserted against arithmetic rather than through a brush.
+`GradientBrushes` is then the thin adapter that wraps them in a brush.
 
 `RectLayerRenderer` loses `BuildGradientBrush` and calls `GradientBrushes.Build(rect.Gradient, x, y, width, height, matrix)`
 at `:54`. Everything else about it is untouched.
@@ -490,6 +491,8 @@ their mind gets their colour back:
 - → `transparent`: `{ background: withAlpha(canvas.background, "00"), backgroundGradient: null }`
 - → `gradient`: `{ backgroundGradient: createGradient() }`, leaving `background` untouched
 
+(`clamp01` is exported from the same module, since the preview and the renderer have to clamp alike.)
+
 `isTransparent` and `withAlpha` are two small functions in the new `models/gradient-css.ts`'s
 neighbour, `models/canvas-fill.ts`, node-tested — they are the only place the 8-digit hex convention
 is reasoned about on the client, and `di-colour-input` already normalises everything it emits to
@@ -514,12 +517,14 @@ the two. Nothing else reads those two entries, so this is a one-line widening.
 subtitle says "The base image and canvas colour are edited in the inspector". Make it say *fill*
 rather than *colour*, so it is not wrong once a gradient is set.
 
-**The rendered previews** — `workspace/views/di-preview-view.element.ts:352-358` and
-`di-preview-strip.element.ts:176` both sit the returned `<img>` on `var(--uui-color-surface)`, so a
-transparent render reads as a *white* render on the two surfaces an editor actually checks their
-work on. The designer artboard has solved this since it was written; lift its checkerboard
-(`di-designer-canvas.element.ts:694-704`) into a shared `designer/checkerboard.ts` exporting a
-`css` fragment, and use it in all three places rather than pasting the nine declarations twice more.
+**The rendered previews** — the Preview tab's `<img class="render">` sits in a `uui-box` and the
+strip's sits on the host's `var(--uui-color-surface)`, so a transparent render reads as a *white*
+render on the two surfaces an editor actually checks their work on. The designer artboard has
+solved this since it was written; lift its checkerboard (`di-designer-canvas.element.ts:694-704`)
+into a shared `designer/checkerboard.ts` exporting a `css` fragment, and use it in all three places
+rather than pasting the nine declarations twice more. **As built** the fragment goes on the two
+`<img>` rules themselves rather than on a wrapper: an image's own background paints behind its
+transparent pixels, which is exactly the surface that was missing.
 
 ### 7. Docs
 
@@ -662,10 +667,15 @@ somehow never covered the one value that means "invisible".
 ### `TemplateValidatorTests.cs` (new)
 
 **`TemplateValidator` has no test file today** — the 22 files in `test/DynamicImages.Tests` include
-none for it. So this is a new file, and it costs two stubs rather than one: the `IImageSourceProvider`
-stub already exists as `NoImages` (`RendererTests.cs:882`, lift it to a shared helper rather than
-copy it), and `IMediaService` needs a minimal stub of its own, since `ValidateOutputFolder` calls
-`GetById`. Keep the file narrow — this change's three warnings, not a retrospective suite for the
+none for it. So this is a new file, and it costs stubs: the `IImageSourceProvider` stub already
+exists as `NoImages` (`RendererTests.cs:882`, lifted to a shared `NoImages.cs` — `LayerSkipTests`
+had a second copy, which now goes too), plus a three-line `IFontRepository`. **`IMediaService`
+turned out not to need one**: it is only touched when `Output.MediaFolderKey` is set, so these
+templates leave it null. **`IContentTypeService` needs one after all**, and no template can avoid
+it: `KnownPropertyAliases` passes `contentTypeService.Get` as a *method group*, which binds even
+for an empty alias list and throws on null. Rather than hand-write that interface, one
+`DispatchProxy` returns default for every member — anything actually called comes back as nothing
+rather than quietly passing. Keep the file narrow — this change's three warnings, not a retrospective suite for the
 whole validator:
 
 - JPEG plus a transparent background warns `TransparencyNotKept`; JPEG plus an opaque background does
@@ -712,7 +722,9 @@ jsdom computes no styles, so these belong in browser mode:
   builder reaching the other consumer.
 - With `background` at alpha 0 and no gradient, the stage's computed `background-color` has an alpha
   of 0, so the viewport's checkerboard is what the editor sees. This one is only meaningful in
-  browser mode — it is a computed style on a real cascade.
+  browser mode — it is a computed style on a real cascade. (It reads `rgba(11, 15, 25, 0)`, not
+  `rgba(0, 0, 0, 0)`: the hue survives at alpha 0, which is what makes switching back to Colour
+  return the same one.)
 
 ---
 
@@ -772,6 +784,11 @@ git status --short ../wwwroot   # expect the rebuilt bundle + map, nothing else
 change, the hand-written v2 JSON test should not compile (the properties do not exist); after it, it
 must pass *without* touching the JSON string. If the string has to change, the change is not
 backwards compatible and the plan is wrong.
+
+**These checks are now automated** as `Client/e2e/canvas-fill.spec.ts` (`npm run test:e2e`), which
+covers 1, 2, 3, 5, 6, 7, 10, 11 and 12 below, plus the 6000px half of 9. What is left for a human
+is the part that needs a publish: 4 (the gradient in a `contain` base image's padding), 8, and the
+publish half of 9.
 
 Manual check against the test site (`plans/ui-review-method.md` §6 — it must be HTTPS, probe
 `/umbraco` and never `/`):

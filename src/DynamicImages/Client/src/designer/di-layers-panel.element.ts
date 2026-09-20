@@ -75,7 +75,7 @@ export class DiLayersPanelElement extends UmbLitElement {
         <div class="row background">
           <uui-icon name="icon-picture"></uui-icon>
           <span class="name">Background</span>
-          <uui-icon name="icon-lock" title="The base image and canvas colour are edited in the inspector"></uui-icon>
+          <uui-icon name="icon-lock" title="The base image and canvas fill are edited in the inspector"></uui-icon>
         </div>
       </div>
     `;

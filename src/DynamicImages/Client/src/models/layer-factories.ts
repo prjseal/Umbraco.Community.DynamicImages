@@ -1,5 +1,5 @@
 import type {
-  DiBadgesLayer, DiImageLayer, DiLayer, DiProperty, DiRectLayer, DiTemplate, DiTextLayer,
+  DiBadgesLayer, DiGradient, DiImageLayer, DiLayer, DiProperty, DiRectLayer, DiTemplate, DiTextLayer,
   PropertyClassification, ShapeKind,
 } from "../api/types.js";
 
@@ -196,6 +196,15 @@ function bindingFor(property: DiProperty): DiTextLayer["binding"] {
   }
 
   return { kind: "property", propertyAlias: property.alias };
+}
+
+/**
+ * What a gradient starts as when one is first switched on, for the canvas and a shape alike. The
+ * third partner in the wire contract's lockstep - `DiGradient` in types.ts and `Gradient` in C#
+ * are the other two - so a gradient the client builds carries every field the server writes.
+ */
+export function createGradient(): DiGradient {
+  return { kind: "linear", from: "#000000CC", to: "#00000000", angle: 180, centreX: 0.5, centreY: 0.5 };
 }
 
 /** A brand-new, empty-but-valid template, so "Create" lands on something renderable. */

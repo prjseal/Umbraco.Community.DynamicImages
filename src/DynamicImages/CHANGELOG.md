@@ -4,6 +4,21 @@
 
 ### Added
 
+- **The canvas fill**: the canvas is filled with a solid colour, a two-stop gradient, or nothing
+  at all, and the base image still draws on top of whatever it is - so a *contain* fit pads onto
+  the fill rather than onto black. Gradients gain a **radial** kind beside the linear one, on the
+  canvas and on shape layers alike, and both read from one gradient model, one brush and one CSS
+  builder, so the artboard and the render cannot disagree. **Transparent** is now something to
+  choose rather than an alpha slider to know about: the Preview tab and the preview strip show a
+  checkerboard behind the render instead of white, and the validator warns when the output format
+  is JPEG, which has no alpha channel, and the fill would be flattened. A radial centre outside
+  0-1 warns and is clamped, as a shape's sides already are. Nothing needs migrating: a stored
+  gradient with no `kind` is the linear one it always was, and a canvas with no
+  `backgroundGradient` is the solid colour it always was.
+- **The designer accepts the canvas sizes the server does**: width and height went up to 8000 per
+  side, matching `TemplateValidator`. At 5000 the designer quietly clamped a larger imported
+  template the moment its Width field was touched.
+
 - **Rotation**: every layer has a rotation in degrees, clockwise, and turns about its anchor point
   - so a tracked axis still works and a middle-anchored layer spins in place. Text rotates through
   ImageSharp's drawing transform, so wrapping and the reported line box are untouched; shapes turn

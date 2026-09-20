@@ -50,6 +50,68 @@ rediscover — `plans/ui-review-method.md` §6 has the full list:
   `Umbraco__CMS__Unattended__*` environment variables.
 - **Probe `/umbraco`, never `/`** — the Clean.Core front end 500s by design.
 
+### Driving the backoffice from a session
+
+This works in the remote container and is worth doing for any change with a UI surface — the E2E
+suite is the only layer that sees the designer, the server render and the database round trip at
+once. The whole sequence, from a container with no SDK:
+
+```bash
+curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+bash /tmp/dotnet-install.sh --channel 10.0 --install-dir "$HOME/.dotnet"
+export PATH="$HOME/.dotnet:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
+dotnet dev-certs https
+
+# Boot it in the background; the first boot is minutes (uSync imports ~192 items).
+ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=https://localhost:44344 \
+Umbraco__CMS__Unattended__InstallUnattended=true \
+Umbraco__CMS__Unattended__UnattendedUserName="Test Editor" \
+Umbraco__CMS__Unattended__UnattendedUserEmail=test@example.com \
+Umbraco__CMS__Unattended__UnattendedUserPassword='CHANGE-ME-local-only-1234' \
+dotnet run --project src/DynamicImages.TestSite.Clean -c Release --no-launch-profile > /tmp/site.log 2>&1 &
+
+# Ready when this answers 200. Never probe `/`.
+curl -sk -o /dev/null -w "%{http_code}\n" https://localhost:44344/umbraco
+
+cd src/DynamicImages/Client
+E2E_BASE_URL=https://localhost:44344 npx playwright test canvas-fill --reporter=list
+```
+
+**The login is the unattended admin above** — `test@example.com` / `CHANGE-ME-local-only-1234`,
+the throwaway values in `appsettings.Local.json.example`, which `Client/playwright.config.ts` and
+`e2e/helpers.ts` already default to. There is no `appsettings.Local.json` in a fresh clone; it is
+gitignored, and the environment variables above are what a Release build reads instead.
+
+**Playwright's pinned Chromium is usually not the one the container ships.** The failure is
+`Executable doesn't exist at /opt/pw-browsers/chromium_headless_shell-<pinned>/…`, and it stops
+`npm run test:browser` as well as the E2E suite. Do not run `playwright install` — point the
+pinned build at the installed one (`ls /opt/pw-browsers` for the real number):
+
+```bash
+INSTALLED=1194; PINNED=1243   # whatever the two actually are
+mkdir -p /opt/pw-browsers/chromium_headless_shell-$PINNED/chrome-headless-shell-linux64
+ln -sfn /opt/pw-browsers/chromium-$INSTALLED/chrome-linux /opt/pw-browsers/chromium-$PINNED/chrome-linux
+ln -sfn /opt/pw-browsers/chromium_headless_shell-$INSTALLED/chrome-linux/headless_shell \
+  /opt/pw-browsers/chromium_headless_shell-$PINNED/chrome-headless-shell-linux64/chrome-headless-shell
+```
+
+Four selector traps, all of which look like a broken feature and are not:
+
+- **Scope workspace view tabs to the editor.** Umbraco's own *section* tabs are Content, Media,
+  **Settings**, Users…, so `uui-tab:has-text('Settings')` navigates out of the template entirely.
+  Use `umb-workspace-editor uui-tab`. The preview tab is labelled **"Preview & test"**.
+- **Playwright's CSS pierces open shadow roots**, which cuts both ways: `.field > span` inside a
+  panel also matches the spans inside every `di-number-field` in it. Scope by the custom element,
+  or walk the light DOM in `evaluate`.
+- **`uui-select` needs its inner native control**: `locator("… uui-select select").selectOption(…)`,
+  and scope it (`umb-property-layout[label="Format"] select`) rather than taking `.first()`.
+- **`di-layer-box` is never `toBeVisible`** — it is a positioned wrapper whose paint is in its
+  shadow root. Wait for `state: "attached"` and assert on the computed style inside.
+
+And one fact about the fixture itself: **the auto-imported "Article OG image" template has a
+`cover` base image**, so any validation rule that is suppressed when the base image covers the
+canvas (`TransparencyNotKept`) will correctly *not* fire on it until the fit is changed.
+
 ## Plans
 
 Feature work is planned before it is implemented, and the two happen in separate sessions.

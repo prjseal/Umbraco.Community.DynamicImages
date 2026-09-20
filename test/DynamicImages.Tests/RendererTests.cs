@@ -810,6 +810,139 @@ public class RendererTests
         Assert.Equal(210, descBounds.Y, 2);
     }
 
+    [Fact]
+    public async Task RenderAsync_FillsTheCanvasWithAGradient()
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = new Gradient { From = "#FF0000", To = "#0000FF", Angle = 180f };
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 2]);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 197]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_PrefersTheCanvasGradientOverTheBackgroundColour()
+    {
+        var template = Template();
+        template.Canvas.Background = "#00FF00";
+        template.Canvas.BackgroundGradient = new Gradient { From = "#FF0000", To = "#0000FF", Angle = 180f };
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                Assert.True(image[x, y].G < 64, $"the background colour should not show at {x},{y}: {image[x, y]}");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RenderAsync_FillsTheCanvasWithARadialGradient()
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = new Gradient { Kind = GradientKind.Radial, From = "#FF0000", To = "#0000FF" };
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 100]);
+        foreach (var (x, y) in new[] { (2, 2), (397, 2), (2, 197), (397, 197) })
+        {
+            AssertNear(new Rgba32(0, 0, 255, 255), image[x, y], tolerance: 24);
+        }
+    }
+
+    [Fact]
+    public async Task RenderAsync_LeavesTheBackgroundColourAloneWithoutAGradient()
+    {
+        // The guard that the gradient path did not capture the solid one.
+        var template = Template();
+        template.Canvas.Background = "#112233";
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(0x11, 0x22, 0x33, 255), image[5, 5]);
+        Assert.Equal(new Rgba32(0x11, 0x22, 0x33, 255), image[395, 195]);
+    }
+
+    [Theory]
+    [InlineData("#0B0F1900")]
+    [InlineData("")]
+    public async Task RenderAsync_LeavesTheCanvasTransparent(string background)
+    {
+        // Zero alpha is the chosen way to say it; an empty string is the unwarned way, because
+        // ParseOrDefault's fallback here is Color.Transparent and the validator skips empty
+        // values. Both render the same thing, and both are pinned so neither quietly changes.
+        var template = Template();
+        template.Canvas.Background = background;
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        foreach (var (x, y) in new[] { (0, 0), (200, 100), (399, 199) })
+        {
+            Assert.Equal(0, image[x, y].A);
+        }
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsAShapeGradient()
+    {
+        // The first coverage the gradient brush has ever had: it was a private method on this
+        // renderer and no test reached it.
+        var shape = GradientRect(new Gradient { From = "#FF0000", To = "#0000FF", Angle = 180f });
+
+        using var result = await Renderer().RenderAsync(Template(shape), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 2]);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 197]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsARadialShapeGradient()
+    {
+        var shape = GradientRect(new Gradient { Kind = GradientKind.Radial, From = "#FF0000", To = "#0000FF" });
+
+        using var result = await Renderer().RenderAsync(Template(shape), Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 100]);
+        foreach (var (x, y) in new[] { (2, 2), (397, 2), (2, 197), (397, 197) })
+        {
+            AssertNear(new Rgba32(0, 0, 255, 255), image[x, y], tolerance: 24);
+        }
+    }
+
+    /// <summary>A shape filling the whole canvas, so a gradient can be probed at known pixels.</summary>
+    private static RectLayer GradientRect(Gradient gradient) => new()
+    {
+        Name = "Gradient",
+        Gradient = gradient,
+        Position = new Position { X = 0, Y = 0, Anchor = Anchor.TopLeft },
+        Size = new LayerSize(),
+    };
+
+    /// <summary>
+    /// A gradient interpolates, so exact equality is the wrong assertion near either stop; and
+    /// CountNonBackgroundOutside and HasNonBackgroundPixels both hard-code opaque black as "the
+    /// background", which on a gradient would silently mean something else.
+    /// </summary>
+    private static void AssertNear(Rgba32 expected, Rgba32 actual, int tolerance = 12)
+    {
+        var off = Math.Abs(expected.R - actual.R) + Math.Abs(expected.G - actual.G)
+            + Math.Abs(expected.B - actual.B) + Math.Abs(expected.A - actual.A);
+
+        Assert.True(off <= tolerance, $"{actual} should be within {tolerance} of {expected}");
+    }
+
     private static int CountPixels(Image<Rgba32> image, Rgba32 colour)
     {
         var count = 0;
@@ -874,22 +1007,6 @@ public class RendererTests
         public void Clear() { }
 
         public void Clear(Guid fontKey) { }
-    }
-
-    /// <summary>No image sources, so these tests need no media library or web root.</summary>
-    private sealed class NoImages : IImageSourceProvider
-    {
-        public Task<Image?> LoadAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
-            => Task.FromResult<Image?>(null);
-
-        public Task<bool> ExistsAsync(ImageSource? source, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
-
-        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, CancellationToken cancellationToken = default)
-            => Task.FromResult<(int, int)?>(null);
-
-        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
-            => Task.FromResult<(int, int)?>(null);
     }
 
     /// <summary>One 100x20 image, red on the left half and blue on the right, for every source asked for.</summary>

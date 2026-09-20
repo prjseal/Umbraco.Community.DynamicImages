@@ -1,5 +1,7 @@
+using System.Numerics;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.Processing;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
@@ -17,8 +19,7 @@ public sealed class DynamicImageRenderer(
         var width = Math.Max(1, template.Canvas.Width);
         var height = Math.Max(1, template.Canvas.Height);
 
-        var background = ColourParser.ParseOrDefault(template.Canvas.Background, Color.Transparent);
-        var image = new Image<Rgba32>(width, height, background.ToPixel<Rgba32>());
+        var image = CreateCanvas(template.Canvas, width, height);
 
         try
         {
@@ -128,6 +129,25 @@ public sealed class DynamicImageRenderer(
                     layer.Name, layer.TypeAlias, template.Alias);
             }
         }
+    }
+
+    /// <summary>
+    /// A solid background is still the pixel the buffer is created with - it is one allocation and
+    /// no pass. A gradient has no single pixel to seed with, so the buffer starts transparent and
+    /// takes a fill. The brush spans the whole canvas, untransformed: the canvas never rotates.
+    /// </summary>
+    private static Image<Rgba32> CreateCanvas(CanvasSettings canvas, int width, int height)
+    {
+        if (canvas.BackgroundGradient is null)
+        {
+            var background = ColourParser.ParseOrDefault(canvas.Background, Color.Transparent);
+            return new Image<Rgba32>(width, height, background.ToPixel<Rgba32>());
+        }
+
+        var image = new Image<Rgba32>(width, height);
+        var brush = GradientBrushes.Build(canvas.BackgroundGradient, 0, 0, width, height, Matrix3x2.Identity);
+        image.Mutate(ctx => ctx.Fill(brush));
+        return image;
     }
 
     private async Task DrawBaseImageAsync(Image canvas, Template template, IRenderValueSource values, CancellationToken cancellationToken)
