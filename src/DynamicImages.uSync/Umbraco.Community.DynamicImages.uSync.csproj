@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Umbraco.Community.DynamicImages.uSync</RootNamespace>
+    <LangVersion>latest</LangVersion>
+
+    <IsPackable>true</IsPackable>
+    <PackageId>Umbraco.Community.DynamicImages.uSync</PackageId>
+    <Product>Umbraco.Community.DynamicImages.uSync</Product>
+    <Title>Dynamic Images for uSync</Title>
+    <!-- Kept in step with the main package. -->
+    <Version>1.0.0</Version>
+    <Authors>Paul Seal</Authors>
+    <Copyright>$([System.DateTime]::UtcNow.ToString(`yyyy`)) © Paul Seal</Copyright>
+    <Description>uSync handlers for Umbraco.Community.DynamicImages: moves its template and font rows between environments as files under uSync/, the way uSync already moves document types and data types.</Description>
+    <PackageTags>umbraco;umbraco-marketplace;usync;opengraph;og-image;social;images</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Brings uSync.BackOffice and uSync.Core transitively. This package tracks the uSync 17
+         line: the handler and serializer base classes are not guaranteed across a uSync major,
+         and NuGet would unify a uSync 18 site onto uSync 18 assemblies. -->
+    <PackageReference Include="uSync.Extend" Version="17.3.5" />
+    <!-- Packs as a NuGet dependency on the main package, so uSync never becomes a transitive
+         dependency of Dynamic Images itself. -->
+    <ProjectReference Include="..\DynamicImages\Umbraco.Community.DynamicImages.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="\" />
+    <!-- The same logo as the main package; nuget.org and the Marketplace both read it from here. -->
+    <None Include="..\DynamicImages\icon.png" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+</Project>
