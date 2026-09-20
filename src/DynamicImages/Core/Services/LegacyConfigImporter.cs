@@ -13,7 +13,25 @@ namespace Umbraco.Community.DynamicImages.Core.Services;
 public sealed record ImportReport(
     IReadOnlyList<string> Created,
     IReadOnlyList<string> Skipped,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings)
+{
+    /// <summary>
+    /// The validation codes behind <see cref="Warnings"/>, which the messages themselves lose.
+    /// Startup needs them to tell a warning that will resolve itself - a document type uSync has
+    /// not created yet - from one that will not.
+    /// </summary>
+    public IReadOnlyList<string> WarningCodes { get; init; } = [];
+
+    /// <summary>
+    /// True when every warning is one that a document type appearing later would clear. A first
+    /// boot races uSync, so these are expected rather than alarming - see
+    /// DynamicImagesStartupHandler.
+    /// </summary>
+    public bool WarningsAreAllDeferrable
+        => Warnings.Count > 0 && WarningCodes.Count == Warnings.Count && WarningCodes.All(IsDeferrable);
+
+    public static bool IsDeferrable(string code) => code is "DocTypeUnknown" or "PropertyUnknown";
+}
 
 public interface ILegacyConfigImporter
 {
@@ -57,6 +75,8 @@ public sealed class LegacyConfigImporter(
         var created = new List<string>();
         var skipped = new List<string>();
         var warnings = new List<string>();
+        // Kept alongside `warnings` and in step with it, because the message loses the code.
+        var warningCodes = new List<string>();
 
         // Fonts first: the v1 "{Family}_{Style}" keys on the layers resolve against what this
         // registers, so a template import with no fonts imported would lose every text layer.
@@ -84,6 +104,7 @@ public sealed class LegacyConfigImporter(
                 foreach (var issue in result.Validation.Issues)
                 {
                     warnings.Add($"{name}: {issue.Message}");
+                    warningCodes.Add(issue.Code);
                 }
             }
             else
@@ -92,11 +113,12 @@ public sealed class LegacyConfigImporter(
                 foreach (var issue in result.Validation.Errors)
                 {
                     warnings.Add($"{name}: {issue.Message}");
+                    warningCodes.Add(issue.Code);
                 }
             }
         }
 
-        return new ImportReport(created, skipped, warnings);
+        return new ImportReport(created, skipped, warnings) { WarningCodes = warningCodes };
     }
 
     /// <summary>Registers each v1 font file and maps its "{Family}_{StyleName}" keys to (font key, size, style).</summary>

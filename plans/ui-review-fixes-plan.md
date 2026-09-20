@@ -409,11 +409,39 @@ findings doc — the review flagged that some of this is dev-mode cost, and that
 (`Composing/DynamicImagesStartupComponent.cs:19`) to an
 `INotificationAsyncHandler<UmbracoApplicationStartedNotification>`, so it runs after every component
 has initialised. If the resulting report still carries `DocTypeUnknown` or `PropertyUnknown`
-warnings, register a one-shot `ContentTypeSavedNotification` handler that re-runs the import once the
-alias appears; the existing "only into an empty table" guard (`:52`) makes that idempotent, and it
-unregisters itself on success. Keep the `ServerRole.Subscriber` guard at `:25` and the
-`ServerRole.Unknown` allowance exactly as they are — the comment at `:22-24` explains why they
-matter. Log the deferral at Information, not Warning.
+warnings, register a one-shot `ContentTypeSavedNotification` handler that re-checks once the alias
+appears. Keep the `ServerRole.Subscriber` guard at `:25` and the `ServerRole.Unknown` allowance
+exactly as they are — the comment at `:22-24` explains why they matter. Log the deferral at
+Information, not Warning.
+
+**Corrected during implementation, on two points.**
+
+1. The plan had the retry *re-run the import*, with the existing "only into an empty table" guard
+   (`:52`) making it idempotent. The guard does make it safe, but it also makes it a **no-op**: the
+   first import already created the template, so there is nothing left to import. What actually
+   needs re-doing is the **validation**. So the retry re-validates when templates exist, and
+   re-runs the import only when the table is empty — the case where the first attempt really did
+   fail.
+2. Umbraco registers notification handlers at composition time, so a handler cannot literally
+   "unregister itself on success". `LegacyImportRetryState` (a singleton, claimed with an
+   interlocked exchange because a uSync run raises `ContentTypeSaved` for all 192 items) is what
+   makes it behave as one-shot.
+
+`ImportReport` gains `WarningCodes`, because the warning *message* loses the validation code and
+the code is what distinguishes a warning that will resolve itself from one that will not. A mixed
+report is reported in full rather than deferred — one missing font must not be hidden behind a
+document type that fixes itself.
+
+**Verified on a real cold boot**, `umbraco/Data` deleted in between:
+
+```
+before   12:24:13  Dynamic Images: imported 1 template(s) ... (1 warning(s))
+         12:24:13  Dynamic Images: ... There is no document type with the alias 'article'.
+         12:24:25  uSync First boot complete
+
+after    12:27:50  uSync First boot complete
+         12:27:51  Dynamic Images: imported 1 template(s) ... (0 warning(s))
+```
 
 ### 10. Regression tests
 
