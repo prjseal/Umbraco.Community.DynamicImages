@@ -2,6 +2,7 @@ import { css, customElement, html, nothing, state } from "@umbraco-cms/backoffic
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
+import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { UMB_MEDIA_PICKER_MODAL } from "@umbraco-cms/backoffice/media";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import type { DiFont, DiLayer, DiLayerBounds, DiPosition, DiProperty, DiTemplate } from "../../api/types.js";
@@ -35,6 +36,7 @@ export class DiDesignViewElement extends UmbLitElement {
 
   #context?: DiTemplateWorkspaceContext;
   #modalContext?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
+  #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
   #layoutTimer?: number;
   #layoutAbort?: AbortController;
 
@@ -90,6 +92,9 @@ export class DiDesignViewElement extends UmbLitElement {
 
     this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (context) => {
       this.#modalContext = context;
+    });
+    this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => {
+      this.#notificationContext = context;
     });
 
     this.consumeContext(DI_TEMPLATE_WORKSPACE_CONTEXT, (context) => {
@@ -241,7 +246,7 @@ export class DiDesignViewElement extends UmbLitElement {
 
   // ------------------------------------------------------------------ palette
 
-  #addFromPayload(payload: PalettePayload, x?: number, y?: number) {
+  #addFromPayload(payload: PalettePayload, x?: number, y?: number, targetKey?: string) {
     const template = this._template;
     if (!template || !this.#context) return;
 
@@ -249,18 +254,58 @@ export class DiDesignViewElement extends UmbLitElement {
     // straight away rather than defaulting to nothing.
     const context = { template, x, y, defaultFontKey: this.#defaultFontKey() };
 
+    if (payload.kind === "property") {
+      const drop = createLayerForProperty(payload.property, context);
+
+      if (drop.kind === "condition") {
+        this.#applyVisibilityCondition(drop.propertyAlias, drop.propertyName, targetKey);
+        return;
+      }
+
+      this.#context.addLayer(drop.layer);
+      return;
+    }
+
     const layer =
-      payload.kind === "property"
-        ? createLayerForProperty(payload.property, context)
-        : payload.layerType === "image"
-          ? createImageLayer(context, "Image")
-          : payload.layerType === "badges"
-            ? createBadgesLayer(context, "Badges", "")
-            : payload.layerType === "rect"
-              ? createRectLayer(context, "Shape", payload.shape)
-              : createTextLayer(context, "Text", { kind: "static", text: "Text" });
+      payload.layerType === "image"
+        ? createImageLayer(context, "Image")
+        : payload.layerType === "badges"
+          ? createBadgesLayer(context, "Badges", "")
+          : payload.layerType === "rect"
+            ? createRectLayer(context, "Shape", payload.shape)
+            : createTextLayer(context, "Text", { kind: "static", text: "Text" });
 
     this.#context.addLayer(layer);
+  }
+
+  /**
+   * A dropped Yes/No property controls when a layer is shown rather than drawing "True" onto the
+   * image. The target is whatever it was dropped on, falling back to the selection - and if
+   * there is neither, say so rather than silently doing nothing.
+   */
+  #applyVisibilityCondition(propertyAlias: string, propertyName: string, targetKey?: string) {
+    const key = targetKey ?? this._selectedKey;
+    const layer = this._template?.layers.find((candidate) => candidate.key === key);
+
+    if (!layer) {
+      this.#notificationContext?.peek("warning", {
+        data: {
+          headline: "Nothing to apply that to",
+          message:
+            `Drop a Yes/No property onto a layer, or select one first - it controls when that ` +
+            `layer is shown.`,
+        },
+      });
+      return;
+    }
+
+    this.#context?.updateLayer(layer.key, {
+      visibility: { rule: "whenPropertyTruthy", propertyAlias },
+    } as Partial<DiLayer>);
+
+    this.#notificationContext?.peek("positive", {
+      data: { message: `'${layer.name}' now shows only when '${propertyName}' is ticked.` },
+    });
   }
 
   #defaultFontKey(): string | undefined {
@@ -401,7 +446,7 @@ export class DiDesignViewElement extends UmbLitElement {
         @di-transaction-end=${(event: CustomEvent) => this.#context?.endTransaction(event.detail?.moved ?? true)}
         @di-palette-add=${(event: CustomEvent) => this.#addFromPayload(event.detail.payload)}
         @di-palette-drop=${(event: CustomEvent) =>
-          this.#addFromPayload(event.detail.payload, event.detail.x, event.detail.y)}
+          this.#addFromPayload(event.detail.payload, event.detail.x, event.detail.y, event.detail.targetKey)}
         @di-pick-base-image=${this.#pickBaseImage}
         @di-pick-layer-image=${(event: CustomEvent) => this.#pickLayerImage(event.detail.key)}
         @di-use-image-size=${this.#useImageSize}

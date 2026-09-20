@@ -524,10 +524,23 @@ export class DiDesignerCanvasElement extends UmbLitElement {
       new CustomEvent("di-palette-drop", {
         bubbles: true,
         composed: true,
-        detail: { payload: JSON.parse(payload), x: point.x, y: point.y },
+        detail: { payload: JSON.parse(payload), x: point.x, y: point.y, targetKey: this.#layerUnder(event) },
       }),
     );
   };
+
+  /**
+   * Which layer the pointer was over when something was dropped. A free hit-test - the event's
+   * own composed path already went through the layer box - with no geometry to get wrong. Used
+   * by a dropped Yes/No property to know which layer it should control.
+   */
+  #layerUnder(event: DragEvent): string | undefined {
+    const box = event.composedPath().find(
+      (node) => (node as HTMLElement).tagName === "DI-LAYER-BOX",
+    ) as HTMLElement | undefined;
+
+    return box?.dataset.key;
+  }
 
   #onWheel = (event: WheelEvent) => {
     // Ctrl+wheel is the established "zoom the canvas" gesture, and trackpad pinch arrives as it.
