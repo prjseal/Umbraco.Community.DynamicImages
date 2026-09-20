@@ -278,7 +278,16 @@ duplicating them:
 | Line spacing | 0.5 | 4 |
 | Letter spacing | −20 | 100 |
 | Max lines | 1 | 20 |
-| Corner radius, Gap, Row gap, Circle/Icon/Label size | 0 | 2000 |
+| Corner radius, Gap, Row gap, Circle/Icon/Label size, Label gap | 0 | 2000 |
+
+Four fields the plan's survey missed, added during implementation: Border width (0–200), the
+relative-layout Gap (−2000–2000, which unlike the badge gaps may be negative — overlapping the
+reference layer is a legitimate design), Max items (1–50) and the gradient Angle (0–360). The
+three fields that *already* had bounds — Sides/Points, Inner ratio and Opacity — move onto the
+same table rather than keeping their own literals, since one source of truth is the point of the
+table. Sides and Inner ratio re-export `MIN_SIDES`/`MAX_SIDES`/`MIN_INNER_RATIO`/`MAX_INNER_RATIO`
+from `shape-geometry.ts`: those are a geometry contract shared with the server, not a UI
+preference, so the table points at them rather than restating them.
 
 Rotation keeps normalising at the call site (`normalise()` at `:809`) rather than clamping — wrapping
 `999 → -81` is correct behaviour and the shared `rotation-fixtures.json` already pins it.
@@ -410,8 +419,16 @@ shared-fixture pattern — `rotation-fixtures.json` asserted by both `rotation.t
 - `di-number-field` clamping, as a new `inputs/number-clamp.test.ts` over a pure exported
   `clampNumber(value, min, max)` that the element calls. Fixtures: opacity `5 → 1`, `-3 → 0`,
   `"" → null`, `"abc" → unchanged`, and rotation `999 → -81` reusing `rotation-fixtures.json`.
+
+  Note from implementation: `"abc" → unchanged` is reachable only against the function. A native
+  `<input type="number">` refuses to hold a value it cannot parse and reports `""`, so through the
+  element letters read as an emptied field. The browser spec pins that real behaviour; the unit
+  test still covers the defensive branch, which matters for any other caller.
 - A table-driven test over the exported inspector bounds table from section 6, asserting every
-  numeric field declares a min and a max and that min < max.
+  numeric field declares a min and a max and that min < max. Plus a source scan of
+  `di-layer-inspector.element.ts` asserting Rotation is the *only* `<di-number-field>` without
+  bounds — so the next field added without any is caught, which is the state A5 found the
+  inspector in.
 - **A1 as a class of bug, not an instance.** A source-scanning guard test: walk
   `src/DynamicImages/Client/src/**/*.ts`, collect every `di-*` event name passed to
   `new CustomEvent(...)` / `#emit(...)`, collect every `@di-…=` listener binding, and assert the
