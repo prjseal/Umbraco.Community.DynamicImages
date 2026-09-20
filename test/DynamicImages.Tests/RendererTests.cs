@@ -811,6 +811,68 @@ public class RendererTests
     }
 
     [Fact]
+    public async Task RenderAsync_FillsTheCanvasWithAGradient()
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = new Gradient { From = "#FF0000", To = "#0000FF", Angle = 180f };
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 2]);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 197]);
+    }
+
+    [Fact]
+    public async Task RenderAsync_PrefersTheCanvasGradientOverTheBackgroundColour()
+    {
+        var template = Template();
+        template.Canvas.Background = "#00FF00";
+        template.Canvas.BackgroundGradient = new Gradient { From = "#FF0000", To = "#0000FF", Angle = 180f };
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        for (var y = 0; y < image.Height; y++)
+        {
+            for (var x = 0; x < image.Width; x++)
+            {
+                Assert.True(image[x, y].G < 64, $"the background colour should not show at {x},{y}: {image[x, y]}");
+            }
+        }
+    }
+
+    [Fact]
+    public async Task RenderAsync_FillsTheCanvasWithARadialGradient()
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = new Gradient { Kind = GradientKind.Radial, From = "#FF0000", To = "#0000FF" };
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 100]);
+        foreach (var (x, y) in new[] { (2, 2), (397, 2), (2, 197), (397, 197) })
+        {
+            AssertNear(new Rgba32(0, 0, 255, 255), image[x, y], tolerance: 24);
+        }
+    }
+
+    [Fact]
+    public async Task RenderAsync_LeavesTheBackgroundColourAloneWithoutAGradient()
+    {
+        // The guard that the gradient path did not capture the solid one.
+        var template = Template();
+        template.Canvas.Background = "#112233";
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        using var image = result.Image.CloneAs<Rgba32>();
+
+        Assert.Equal(new Rgba32(0x11, 0x22, 0x33, 255), image[5, 5]);
+        Assert.Equal(new Rgba32(0x11, 0x22, 0x33, 255), image[395, 195]);
+    }
+
+    [Fact]
     public async Task RenderAsync_DrawsAShapeGradient()
     {
         // The first coverage the gradient brush has ever had: it was a private method on this
