@@ -4,8 +4,14 @@ import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 /** Zoom, the display toggles, undo/redo and the way into a server render. */
 @customElement("di-canvas-toolbar")
 export class DiCanvasToolbarElement extends UmbLitElement {
+  /**
+   * The scale the canvas is actually drawing at, which is not the same thing as `zoom`: the
+   * stage is sized to fit rather than transformed, so an unset zoom means "fit" and reading 100%
+   * there was simply wrong - the review measured a 1200x630 canvas at a 326px stage, about 27%,
+   * while the toolbar read 100%. The canvas announces this through `di-scale-change`.
+   */
   @property({ type: Number })
-  zoom = 1;
+  effectiveScale = 1;
 
   @property({ type: Boolean })
   snapEnabled = true;
@@ -36,11 +42,21 @@ export class DiCanvasToolbarElement extends UmbLitElement {
     return html`
       <div class="toolbar">
         <div class="zoom">
-          <uui-button compact look="secondary" label="Zoom out" @click=${() => this.#emit("di-zoom-change", { zoom: this.zoom / 1.25 })}>
+          <!-- Stepping multiplies the *effective* scale, so stepping up out of Fit lands one
+               step above what is on screen rather than jumping to 125%. -->
+          <uui-button
+            compact
+            look="secondary"
+            label="Zoom out"
+            @click=${() => this.#emit("di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
             <uui-icon name="icon-remove"></uui-icon>
           </uui-button>
-          <span class="value">${Math.round(this.zoom * 100)}%</span>
-          <uui-button compact look="secondary" label="Zoom in" @click=${() => this.#emit("di-zoom-change", { zoom: this.zoom * 1.25 })}>
+          <span class="value">${Math.round(this.effectiveScale * 100)}%</span>
+          <uui-button
+            compact
+            look="secondary"
+            label="Zoom in"
+            @click=${() => this.#emit("di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
             <uui-icon name="icon-add"></uui-icon>
           </uui-button>
           <uui-button compact look="secondary" label="Fit to the window" @click=${() => this.#emit("di-zoom-fit")}>

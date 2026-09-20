@@ -159,16 +159,19 @@ export class DiPreviewStripElement extends UmbLitElement {
       padding: 0;
     }
 
+    /* Both sizes are custom properties so the design view can collapse the strip's reserved
+       space on a short window - the shadow boundary means it cannot reach these rules directly.
+       See the (max-height: 720px) block in di-design-view. */
     .body {
       display: flex;
       align-items: center;
       gap: var(--uui-size-space-3);
       margin-top: var(--uui-size-space-2);
-      min-height: 84px;
+      min-height: var(--di-preview-strip-body-min-height, 84px);
     }
 
     img {
-      max-height: 120px;
+      max-height: var(--di-preview-strip-image-max-height, 120px);
       border-radius: var(--uui-border-radius);
       box-shadow: var(--uui-shadow-depth-2);
     }

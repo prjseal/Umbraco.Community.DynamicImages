@@ -173,6 +173,13 @@ height resolved against a box that was itself sized by the content.
   becomes `72px`. That is the 126px the review measured the collapsed strip freeing, recovered
   automatically on a short window.
 
+  **Corrected during implementation:** both rules live inside `di-preview-strip`'s shadow root,
+  which the design view's stylesheet cannot reach. The strip declares them as the custom
+  properties `--di-preview-strip-body-min-height` and `--di-preview-strip-image-max-height`
+  (defaulting to today's 84px and 120px), and the media query sets those on `di-preview-strip`
+  from the design view. Same numbers, same effect, through the only channel that crosses a
+  shadow boundary.
+
 **`designer/di-layers-panel.element.ts:148-155`:** delete `max-height: 40%` from `:host`. The
 percentage resolves against the grid row the panel was already given, so 60% of that row was
 guaranteed waste. Replace with `min-height: 0; overflow: auto;` and move the scroll to `.panel`.
@@ -432,7 +439,7 @@ and the reason to prove the harness on one small element before writing the rest
 
 | finding | test (`*.browser.test.ts`) |
 |---|---|
-| B1 | mount `di-design-view` in a fixed-size container, parameterised over 1150×666, 1280×800 and 1536×900; assert `di-designer-canvas` height is above a 120px floor at every size |
+| B1 | drive the viewport with `page.viewport()` over 1150×666, 1280×800 and 1536×900 — the defect runs through `@media (max-width: 1280px)`, and a container's size does not answer a media query — with the view constrained to the height a workspace actually leaves it (the workspace header and view tabs sit above it; given `100vh` the canvas clears the floor on the *old* CSS too and the spec proves nothing). Assert `di-designer-canvas` height is above a 120px floor at every size. Seen to fail at 40px and 31px pre-fix. |
 | B2 | mount `di-layers-panel` with 5 layers in a fixed-height container; assert its height fills the row it was given and that the last row's `bottom` is within the panel |
 | B2 | mount it empty; assert the empty-state paragraph is not clipped (`scrollHeight <= clientHeight`) |
 | B3 | mount `di-designer-canvas` 1200×630 in a 400px box; assert the emitted `di-scale-change` matches `stage.getBoundingClientRect().width / 1200`, and that the toolbar's readout agrees |

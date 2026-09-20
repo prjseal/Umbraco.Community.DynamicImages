@@ -58,6 +58,10 @@ export class DiDesignViewElement extends UmbLitElement {
   @state()
   private _zoom?: number;
 
+  /** What the canvas is actually drawing at - see `di-scale-change` on di-designer-canvas. */
+  @state()
+  private _effectiveScale = 1;
+
   @state()
   private _snapEnabled = true;
 
@@ -392,6 +396,9 @@ export class DiDesignViewElement extends UmbLitElement {
         @di-pick-base-image=${this.#pickBaseImage}
         @di-pick-layer-image=${(event: CustomEvent) => this.#pickLayerImage(event.detail.key)}
         @di-use-image-size=${this.#useImageSize}
+        @di-scale-change=${(event: CustomEvent) => {
+          this._effectiveScale = event.detail.scale;
+        }}
         @di-zoom-change=${(event: CustomEvent) => {
           this._zoom = Math.max(0.1, Math.min(4, event.detail.zoom));
         }}
@@ -416,7 +423,7 @@ export class DiDesignViewElement extends UmbLitElement {
 
         <div class="centre">
           <di-canvas-toolbar
-            .zoom=${this._zoom ?? 1}
+            .effectiveScale=${this._effectiveScale}
             .snapEnabled=${this._snapEnabled}
             .showRulers=${this._showRulers}
             .showSafeArea=${this._showSafeArea}
@@ -474,11 +481,17 @@ export class DiDesignViewElement extends UmbLitElement {
       min-height: 0;
     }
 
+    /* The canvas row has a floor. It used to be the only flexible row in the column, so it
+       absorbed every shortfall: at a 1150x666 viewport the toolbar (91px) and preview strip
+       (160px) left it 141px of column and it measured 650x0 - no stage at all, and no scrollbar
+       to reveal one. With a floor the column scrolls instead, which is a far better failure mode
+       than a crushed stage. */
     .centre {
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto minmax(240px, 1fr) auto;
       min-width: 0;
       min-height: 0;
+      overflow: auto;
     }
 
     .side {
@@ -492,14 +505,25 @@ export class DiDesignViewElement extends UmbLitElement {
     @media (max-width: 1280px) {
       .layout {
         grid-template-columns: 200px 1fr;
-        grid-template-rows: 1fr auto;
+        /* The canvas row is guaranteed its share before the side block takes any. */
+        grid-template-rows: minmax(320px, 1fr) auto;
       }
 
       .side {
         grid-column: 1 / -1;
         grid-template-rows: auto auto;
-        max-height: 45vh;
+        max-height: 40vh;
         overflow: auto;
+      }
+    }
+
+    /* On a short window the preview strip's reserved space is what the canvas is short of, so
+       give it back automatically rather than making the editor collapse the strip by hand -
+       which the review measured as recovering the canvas to only 17px anyway. */
+    @media (max-height: 720px) {
+      di-preview-strip {
+        --di-preview-strip-body-min-height: 0px;
+        --di-preview-strip-image-max-height: 72px;
       }
     }
 

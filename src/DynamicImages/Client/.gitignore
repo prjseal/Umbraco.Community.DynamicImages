@@ -1,1 +1,4 @@
 node_modules/
+
+# vitest browser mode writes a screenshot next to a spec when an assertion fails.
+__screenshots__/
