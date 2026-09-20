@@ -13,6 +13,7 @@ import { fetchImageInfo, fetchLayout } from "../../api/dynamic-images-api.js";
 import {
   createBadgesLayer, createImageLayer, createLayerForProperty, createRectLayer, createTextLayer,
 } from "../../models/layer-factories.js";
+import { ZOOM_BOUNDS } from "../../inputs/number-bounds.js";
 import { loadFonts } from "../../designer/fonts/font-face-loader.js";
 import type { PalettePayload } from "../../designer/di-property-palette.element.js";
 import "../../designer/di-designer-canvas.element.js";
@@ -458,7 +459,7 @@ export class DiDesignViewElement extends UmbLitElement {
           this._effectiveScale = event.detail.scale;
         }}
         @di-zoom-change=${(event: CustomEvent) => {
-          this._zoom = Math.max(0.1, Math.min(4, event.detail.zoom));
+          this._zoom = Math.max(ZOOM_BOUNDS.min, Math.min(ZOOM_BOUNDS.max, event.detail.zoom));
         }}
         @di-zoom-fit=${() => {
           this._zoom = undefined;

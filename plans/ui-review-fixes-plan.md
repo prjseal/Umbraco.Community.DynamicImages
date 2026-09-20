@@ -165,6 +165,15 @@ height resolved against a box that was itself sized by the content.
   scroll instead of crushing: `grid-template-rows: auto minmax(240px, 1fr) auto;` and
   `overflow: auto` on `.centre`. When toolbar (91px) + strip (160px) + 240px exceeds the viewport,
   the centre column scrolls — a scrollbar is a far better failure mode than a zero-height stage.
+  **Followed up in `canvas-zoom-and-scroll-plan.md`:** giving `.centre` `overflow: auto` was right,
+  but it left the canvas still measuring `.viewport` - its own `overflow: auto` scroll box - to
+  decide the fit scale, so the artboard sized itself from the space left over after its own
+  overflow had taken a scrollbar's width away. That fed back on itself and both scrollbars
+  flickered on every interaction. `#recomputeFit()` now measures the `overflow: hidden` host, whose
+  client size cannot move in response to its content, with two pixels of headroom so the artboard
+  at fit sits inside the content box rather than dead level with the overflow threshold. `.centre`
+  itself is unchanged - `design-view-layout.browser.test.ts:76` still pins its `overflow: auto`.
+
 - At `@media (max-width: 1280px)` (`:492-504`) `.side` drops below the canvas at `max-height: 45vh`.
   Tighten to `max-height: 40vh` **and** change `.layout`'s rows to `minmax(320px, 1fr) auto`, so the
   canvas row is guaranteed its share before the side block takes any.
