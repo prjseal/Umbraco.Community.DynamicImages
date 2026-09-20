@@ -26,10 +26,19 @@ async function mountField(value: number, min: number, max: number) {
     changes.push((event as CustomEvent<{ value: number | null }>).detail.value);
   });
 
-  /** What a person typing into the field actually produces. */
+  /**
+   * What a person typing into the field actually produces.
+   *
+   * `composed: false` matters, and is not a detail: a real native `change` does **not** cross a
+   * shadow boundary, so only `di-number-field`'s own `CustomEvent` reaches a listener on the
+   * host. Dispatching the simulated one as `composed: true` let it escape too, and the listener
+   * above then read `.detail.value` off an event that has no detail - which threw, was reported
+   * as an unhandled error rather than a failing assertion, and so left the suite green while
+   * exiting non-zero.
+   */
   const type = async (text: string) => {
     input.value = text;
-    input.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true, composed: false }));
     await settle(field, 1);
   };
 
