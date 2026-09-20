@@ -177,21 +177,21 @@ public class DynamicImagesFontSerializer(
         font.ContentHash = NullIfEmpty(source?.Element("ContentHash")?.Value);
     }
 
-    public override async Task<FontDefinition?> FindItemAsync(Guid key)
+    public override Task<FontDefinition?> FindItemAsync(Guid key)
     {
         using var scope = scopeFactory.CreateScope();
-        return await Task.FromResult(scope.ServiceProvider.GetRequiredService<IFontService>().Get(key));
+        return Task.FromResult(scope.ServiceProvider.GetRequiredService<IFontService>().Get(key));
     }
 
-    public override async Task<FontDefinition?> FindItemAsync(string alias)
+    /// <summary>By the computed alias, then by a key written where an alias was expected.</summary>
+    public override Task<FontDefinition?> FindItemAsync(string alias)
     {
         using var scope = scopeFactory.CreateScope();
         var fonts = scope.ServiceProvider.GetRequiredService<IFontService>();
 
         var match = fonts.GetAll().FirstOrDefault(f => string.Equals(AliasFor(f), alias, StringComparison.OrdinalIgnoreCase));
-        if (match is not null) return await Task.FromResult<FontDefinition?>(match);
 
-        return await Task.FromResult(Guid.TryParse(alias, out var key) ? fonts.Get(key) : null);
+        return Task.FromResult(match ?? (Guid.TryParse(alias, out var key) ? fonts.Get(key) : null));
     }
 
     public override Task SaveItemAsync(FontDefinition item)

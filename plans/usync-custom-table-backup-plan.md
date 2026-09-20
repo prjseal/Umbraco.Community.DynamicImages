@@ -379,11 +379,43 @@ End to end, against `src/DynamicImages.TestSite.Clean` (HTTPS, and probe `/umbra
    The templates and fonts come back, fonts before templates, and the Dynamic Images dashboard
    lists them. Publish an article → the OG image generates with the right font, which proves the
    `FontKey` survived.
-6. Change a template's alias in the file, Report → a Create plus a Delete, not a silent rename
-   (uSync's documented behaviour for aliased items; worth confirming, not fixing).
+6. Change a template's alias in the file, Report → **an Update, and the import renames the row in
+   place.** Not the Create plus Delete this plan first predicted: `FindItemAsync(XElement)` tries
+   `Key` before alias, and `DeserializeCoreAsync` looks the row up by `Key` too, so a file whose
+   key is unchanged is the same template under a new alias. Confirmed on the test site — two rows
+   before, two rows after, same key, new alias. A file whose *key* changes is a different item
+   and does get a Create.
 7. `cd src/DynamicImages/Client && E2E_BASE_URL=https://localhost:44344 npm run test:e2e` still
    passes — the notification publishing is the only main-package change that touches a code path
    the designer uses.
 
 `dotnet build src/DynamicImages.sln` and `dotnet test test/DynamicImages.Tests` throughout. The
 client bundle is untouched, so no npm step beyond the E2E run.
+
+### Driving the verification without a browser
+
+`uSync.Command.Setup` is already installed on the Clean test site and
+`appsettings.Development.json` configures an API user, so the whole uSync pass can be run over
+HTTP instead of by clicking the dashboard. Get a token from
+`POST /umbraco/management/api/v1/security/back-office/token` with
+`grant_type=client_credentials` and the `uSync:Command` client id and secret, then step
+`POST /umbraco/usync/api/v1/perform` with
+`{ requestId, action: "Report" | "Import" | "Export", stepNumber, options: { group: "Settings" } }`
+until the response comes back `complete: true`. The response's `actions` carry a `handler` and a
+`change` per item, which is what "Report shows no changes" is actually asserting. The package's
+own rows can be read and written over
+`/umbraco/management/api/v1/dynamic-images/templates`.
+
+## What implementation changed
+
+- **Verification step 6** - an alias change is an in-place rename, not a Create plus a Delete. See
+  above.
+- **`SyncAttempt<XElement>.Succeed(name, node, ChangeType)` is obsolete in uSync 17.3.5**
+  ("Pass details (even if empty) for consistency. Will be removed in v18."). Both serializers pass
+  an empty details list.
+- **`FontService` grew `Saved`/`Deleted` helpers** rather than each call site publishing beside its
+  existing `Notify(key)`. There are seven write paths; one pair of helpers keeps the cache refresh
+  and the notification from drifting apart.
+- **`<Source>` writes `ContentHash` for every kind**, not only for `url` as the sketch above shows.
+  A `path` font has one too, and it is what the render cache keys on.
+- Everything else was built as planned.

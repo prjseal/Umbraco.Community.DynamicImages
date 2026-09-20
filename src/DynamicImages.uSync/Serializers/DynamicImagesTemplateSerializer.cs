@@ -146,18 +146,19 @@ public class DynamicImagesTemplateSerializer(
         _ => "The template could not be saved."
     };
 
-    public override async Task<Template?> FindItemAsync(Guid key)
+    public override Task<Template?> FindItemAsync(Guid key)
     {
         using var scope = scopeFactory.CreateScope();
-        return await Task.FromResult(scope.ServiceProvider.GetRequiredService<ITemplateService>().Get(key));
+        return Task.FromResult(scope.ServiceProvider.GetRequiredService<ITemplateService>().Get(key));
     }
 
-    public override async Task<Template?> FindItemAsync(string alias)
+    /// <summary>By alias, then by a key written where an alias was expected.</summary>
+    public override Task<Template?> FindItemAsync(string alias)
     {
         using var scope = scopeFactory.CreateScope();
         var templates = scope.ServiceProvider.GetRequiredService<ITemplateService>();
 
-        return await Task.FromResult(templates.GetByAlias(alias)
+        return Task.FromResult(templates.GetByAlias(alias)
             ?? (Guid.TryParse(alias, out var key) ? templates.Get(key) : null));
     }
 
