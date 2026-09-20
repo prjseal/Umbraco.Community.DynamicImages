@@ -146,11 +146,19 @@ public sealed record LayerBoundsResponse(
     float PivotX,
     float PivotY);
 
+/// <summary>
+/// A layer that produced nothing, and why. A layer that draws nothing is simply absent from
+/// <see cref="LayoutResponse.Layers"/>, which is precisely the case where an editor most needs
+/// telling - the image is missing something and the resolved-values panel was silent about it.
+/// </summary>
+public sealed record LayerSkipResponse(Guid Key, string Reason);
+
 public sealed record LayoutResponse(
     int CanvasWidth,
     int CanvasHeight,
     IReadOnlyList<LayerBoundsResponse> Layers,
-    IReadOnlyList<ValidationIssue> Issues);
+    IReadOnlyList<ValidationIssue> Issues,
+    IReadOnlyList<LayerSkipResponse> Skipped);
 
 public sealed record ImageInfoResponse(int Width, int Height, string? Url);
 

@@ -329,11 +329,22 @@ export interface DiLayerBounds {
   pivotY: number;
 }
 
+/**
+ * A layer that produced nothing, and why. Mirrors `LayerSkipResponse`. A layer that draws
+ * nothing is absent from `layers`, so without this the designer has no way to say why the image
+ * is missing something.
+ */
+export interface DiLayerSkip {
+  key: string;
+  reason: string;
+}
+
 export interface DiLayout {
   canvasWidth: number;
   canvasHeight: number;
   layers: DiLayerBounds[];
   issues: DiValidationIssue[];
+  skipped: DiLayerSkip[];
 }
 
 // ---------------------------------------------------------------- health, jobs, usage

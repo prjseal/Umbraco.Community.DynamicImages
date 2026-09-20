@@ -18,10 +18,20 @@ public sealed class RectLayerRenderer : ILayerRenderer
 
     public Task<LayerBounds?> RenderAsync(Image image, LayerBase layer, LayerRenderContext context)
     {
-        if (layer is not RectLayer rect || !HasPaint(rect)) return Task.FromResult<LayerBounds?>(null);
+        if (layer is not RectLayer rect) return Task.FromResult<LayerBounds?>(null);
+
+        if (!HasPaint(rect))
+        {
+            context.Skip(rect.Key, "it has neither a fill nor a border");
+            return Task.FromResult<LayerBounds?>(null);
+        }
 
         var (x, y, width, height, pivot) = Layout(rect, context);
-        if (width <= 0 || height <= 0) return Task.FromResult<LayerBounds?>(null);
+        if (width <= 0 || height <= 0)
+        {
+            context.Skip(rect.Key, LayerSkipReasons.ZeroSize);
+            return Task.FromResult<LayerBounds?>(null);
+        }
 
         // Paths are built unrotated and turned about the pivot afterwards; the gradient's stops
         // go through the same matrix by hand, because filling a transformed region does not

@@ -57,7 +57,11 @@ public sealed class TextLayerRenderer(IFontRegistry fontRegistry, ILogger<TextLa
     private async Task<TextLayout?> LayoutAsync(TextLayer text, LayerRenderContext context)
     {
         var resolved = BuildText(text, context.Values);
-        if (string.IsNullOrWhiteSpace(resolved)) return null;
+        if (string.IsNullOrWhiteSpace(resolved))
+        {
+            context.Skip(text.Key, LayerSkipReasons.EmptyText);
+            return null;
+        }
 
         var font = await fontRegistry.GetFontAsync(
             text.Style.FontKey, text.Style.FontSize, text.Style.FontStyle, context.CancellationToken);
@@ -67,6 +71,7 @@ public sealed class TextLayerRenderer(IFontRegistry fontRegistry, ILogger<TextLa
             // A missing font is reported by the health check and surfaced in validation; a publish
             // should not fail over it, so the layer is skipped.
             logger.LogWarning("Dynamic Images: text layer '{Layer}' skipped - font {FontKey} is unavailable", text.Name, text.Style.FontKey);
+            context.Skip(text.Key, LayerSkipReasons.NoFont);
             return null;
         }
 

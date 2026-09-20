@@ -6,7 +6,7 @@ import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import { DI_SAMPLE_NODE_PICKER_MODAL } from "../../modals/tokens.js";
 import { fetchLayout, fetchPreview, regenerateDocument } from "../../api/dynamic-images-api.js";
-import type { DiLayerBounds, DiSampleContentItem, DiTemplate } from "../../api/types.js";
+import type { DiLayer, DiLayerBounds, DiLayerSkip, DiSampleContentItem, DiTemplate } from "../../api/types.js";
 
 /** The full-size server render, what each layer resolved to, and the way to regenerate one node. */
 @customElement("di-preview-view")
@@ -28,6 +28,10 @@ export class DiPreviewViewElement extends UmbLitElement {
 
   @state()
   private _bounds: DiLayerBounds[] = [];
+
+  /** The layers that produced nothing, with why - see DiLayerSkip. */
+  @state()
+  private _skipped: DiLayerSkip[] = [];
 
   @state()
   private _url?: string;
@@ -169,6 +173,7 @@ export class DiPreviewViewElement extends UmbLitElement {
       this.#objectUrl = URL.createObjectURL(blob);
       this._url = this.#objectUrl;
       this._bounds = layout.layers;
+      this._skipped = layout.skipped ?? [];
 
       this.#context.setServerBounds(layout.layers);
       this.#context.setIssues(layout.issues);
@@ -244,8 +249,8 @@ export class DiPreviewViewElement extends UmbLitElement {
         </uui-box>
 
         <uui-box headline="Resolved values">
-          ${this._bounds.length === 0
-            ? html`<p class="empty">Nothing was drawn. Check the layers are visible and have values.</p>`
+          ${this._template.layers.length === 0
+            ? html`<p class="empty">This template has no layers yet.</p>`
             : html`<uui-table>
                 <uui-table-head>
                   <uui-table-head-cell>Layer</uui-table-head-cell>
@@ -254,19 +259,12 @@ export class DiPreviewViewElement extends UmbLitElement {
                   <uui-table-head-cell>Size</uui-table-head-cell>
                 </uui-table-head>
                 ${repeat(
-                  this._bounds,
-                  (bounds) => bounds.key,
-                  (bounds) => html`
-                    <uui-table-row>
-                      <uui-table-cell>${this.#layerName(bounds.key)}</uui-table-cell>
-                      <uui-table-cell>
-                        ${bounds.resolvedText ?? html`<em>—</em>`}
-                        ${bounds.truncated ? html`<uui-tag color="warning" look="secondary">truncated</uui-tag>` : nothing}
-                      </uui-table-cell>
-                      <uui-table-cell>${Math.round(bounds.x)}, ${Math.round(bounds.y)}</uui-table-cell>
-                      <uui-table-cell>${Math.round(bounds.width)} × ${Math.round(bounds.height)}</uui-table-cell>
-                    </uui-table-row>
-                  `,
+                  // A row per *template layer*, not per bounds. A layer that resolved to nothing
+                  // used to be dropped from this table entirely - no row, no note, no reason -
+                  // which is exactly when an editor most needs telling.
+                  this._template.layers,
+                  (layer) => layer.key,
+                  (layer) => this.#renderLayerRow(layer),
                 )}
               </uui-table>`}
         </uui-box>
@@ -292,9 +290,34 @@ export class DiPreviewViewElement extends UmbLitElement {
     `;
   }
 
-  #layerName(key: string): string {
-    const layer = this._template?.layers.find((candidate) => candidate.key === key);
-    return layer?.name || layer?.type || key.slice(0, 8);
+  /** One row per layer: what it drew, or a muted note saying it did not and why. */
+  #renderLayerRow(layer: DiLayer) {
+    const bounds = this._bounds.find((candidate) => candidate.key === layer.key);
+
+    if (!bounds) {
+      const reason = this._skipped.find((skip) => skip.key === layer.key)?.reason;
+
+      return html`
+        <uui-table-row class="not-drawn">
+          <uui-table-cell>${layer.name || layer.type}</uui-table-cell>
+          <uui-table-cell colspan="3">
+            <span class="reason">not drawn${reason ? ` — ${reason}` : ""}</span>
+          </uui-table-cell>
+        </uui-table-row>
+      `;
+    }
+
+    return html`
+      <uui-table-row>
+        <uui-table-cell>${layer.name || layer.type}</uui-table-cell>
+        <uui-table-cell>
+          ${bounds.resolvedText ?? html`<em>—</em>`}
+          ${bounds.truncated ? html`<uui-tag color="warning" look="secondary">truncated</uui-tag>` : nothing}
+        </uui-table-cell>
+        <uui-table-cell>${Math.round(bounds.x)}, ${Math.round(bounds.y)}</uui-table-cell>
+        <uui-table-cell>${Math.round(bounds.width)} × ${Math.round(bounds.height)}</uui-table-cell>
+      </uui-table-row>
+    `;
   }
 
   static styles = css`
@@ -339,6 +362,14 @@ export class DiPreviewViewElement extends UmbLitElement {
     .empty {
       color: var(--uui-color-text-alt);
       margin: 0;
+    }
+
+    .not-drawn {
+      color: var(--uui-color-text-alt);
+    }
+
+    .reason {
+      font-style: italic;
     }
 
     code {
