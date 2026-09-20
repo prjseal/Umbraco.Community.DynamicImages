@@ -160,11 +160,11 @@
   not grant it, and a freshly installed site's Administrators group lists only the core sections.
   A migration now adds it to Administrators.
 
-## 2.0.0
+## 1.0.0
 
-Templates move from `appsettings.json` into the database and are designed in a new backoffice
-section. **This is a breaking change** - see "Migrating from v1" in the README. Your existing
-configuration is imported automatically on first start.
+The first release. Templates live in the database and are designed in a backoffice section
+rather than being written by hand in `appsettings.json`; an older `DynamicImages` configuration
+block is imported automatically on first start.
 
 ### Added
 

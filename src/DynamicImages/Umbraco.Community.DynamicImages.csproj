@@ -12,16 +12,28 @@
     <PackageId>Umbraco.Community.DynamicImages</PackageId>
     <Product>Umbraco.Community.DynamicImages</Product>
     <Title>Dynamic Images</Title>
-    <Version>2.0.0</Version>
+    <Version>1.0.0</Version>
     <Authors>Paul Seal</Authors>
     <Copyright>$([System.DateTime]::UtcNow.ToString(`yyyy`)) © Paul Seal</Copyright>
     <Description>Generates Open Graph / social share images from your content on publish, designed in a drag-and-drop backoffice section instead of hand-written configuration.</Description>
     <PackageTags>umbraco;umbraco-marketplace;opengraph;og-image;social;images;backoffice</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <!-- nuget.org and the Umbraco Marketplace both take the package logo from here; there is no
+         Marketplace field for it. PackageIconUrl is deprecated, so the file is embedded. -->
+    <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</PackageProjectUrl>
     <RepositoryUrl>https://github.com/prjseal/Umbraco.Community.DynamicImages</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+
+    <!-- A .snupkg alongside the package, so a consumer can step into this code from their own
+         debugger. SourceLink ships in the SDK, so these need no PackageReference. None of it
+         can be added to a version after the fact - only to the next one. -->
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.0.0" />
@@ -29,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
     <!-- Keep the npm workspace out of static web assets and the package -->
     <Content Remove="Client\**" />
     <None Include="Client\**" Pack="false" />

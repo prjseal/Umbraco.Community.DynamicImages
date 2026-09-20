@@ -8,7 +8,7 @@ over a base image, saves the result to the media library, and sets it on the pag
 all within the publish that is already running. What gets drawn is a **template**: a canvas and a
 stack of layers you build by dragging properties onto an artboard.
 
-![The Dynamic Images designer](https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/dev/v2/docs/screenshots/02-designer.png)
+![The Dynamic Images designer](https://raw.githubusercontent.com/prjseal/Umbraco.Community.DynamicImages/main/docs/screenshots/02-designer.png)
 
 ## Installing
 

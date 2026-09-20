@@ -1,34 +1,137 @@
 name: Release Package
 
-# Starts when a correctly formatted tag is pushed - either a release (e.g. 2.0.0)
-# or a prerelease (e.g. 2.0.0-rc1).
+# Publishes to NuGet when a GitHub Release is published. The release's tag is the single source
+# of truth for the package version - "2.0.1", or a prerelease "2.0.1-rc1", with an optional
+# leading "v".
+#
+# Pushing a tag on its own does not publish anything. Tag and draft freely; only "Publish
+# release" ships the package. That matters because a version on NuGet cannot be replaced once
+# it exists - it can only be deleted and burned - so the full CI suite runs again here, against
+# the tagged commit, before anything is pushed.
 
 on:
-  push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
-      - "[0-9]+.[0-9]+.[0-9]+-*"
+  release:
+    types: [published]
+  # For re-running a release whose push failed after the release itself was published.
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to pack and push, e.g. 2.0.1 or 2.0.1-rc1"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || inputs.version }}
+  cancel-in-progress: false
 
 jobs:
-  build:
 
+  # The .NET, client and committed-bundle checks from ci.yml, against the tagged commit. The
+  # bundle check is the one that earns its minutes here: there is no npm step below, so the
+  # package ships whatever is committed under wwwroot/App_Plugins, and a stale bundle would go
+  # out silently under a version number that can never be reused.
+  verify:
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Pack and push
+    needs: verify
     runs-on: ubuntu-latest
 
     steps:
 
-    - name: Checkout repository
-      uses: actions/checkout@v5
+      # Before the build, so a missing secret costs seconds rather than the whole suite. Add it
+      # under Settings > Secrets and variables > Actions as NUGET_API_KEY.
+      - name: The NuGet API key is configured
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          if [ -z "$NUGET_API_KEY" ]; then
+            echo "::error::The NUGET_API_KEY repository secret is not set."
+            exit 1
+          fi
 
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: 10.0.x
+      - name: Checkout repository
+        uses: actions/checkout@v5
 
-    # Only the package project - the test site must never end up in a release artifact.
-    # The backoffice client bundle is committed under wwwroot/App_Plugins, so there is no npm
-    # step here; rebuilding it is a source-time concern (src/DynamicImages/Client).
-    - name: Pack
-      run: dotnet pack src/DynamicImages/Umbraco.Community.DynamicImages.csproj --configuration Release --output ./artifacts
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
 
-    - name: Push to NuGet
-      run: dotnet nuget push "./artifacts/*.nupkg" --api-key ${{secrets.NUGET_API_KEY}} --source https://api.nuget.org/v3/index.json --skip-duplicate
+      # The tag drives the package version, and the versions committed in the repo have to agree
+      # with it. Packing with the csproj's own <Version> instead is the quiet failure this
+      # guards against: a 2.0.1 tag would publish another 2.0.0, and --skip-duplicate would
+      # swallow it without failing the run.
+      - name: Resolve and check the version
+        id: version
+        env:
+          TAG: ${{ github.event.release.tag_name || inputs.version }}
+        run: |
+          set -euo pipefail
+
+          version="${TAG#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::'$TAG' is not a version tag - expected 2.0.1, 2.0.1-rc1 or v2.0.1."
+            exit 1
+          fi
+
+          # A prerelease ships off the release it leads up to, so 1.0.0-rc01 is checked against a
+          # repo sitting at 1.0.0. Only the two versions that ship are checked: the csproj's,
+          # which becomes the NuGet version, and the manifest's, which the backoffice reads.
+          base="${version%%-*}"
+
+          # <VersionPrefix> when the csproj splits prefix from suffix, <Version> when it does not;
+          # either way the suffix is dropped, because the tag is what decides the suffix.
+          csproj_file=src/DynamicImages/Umbraco.Community.DynamicImages.csproj
+          csproj=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' "$csproj_file")
+          if [ -z "$csproj" ]; then
+            csproj=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$csproj_file")
+          fi
+          csproj="${csproj%%-*}"
+          manifest=$(jq -r .version \
+            src/DynamicImages/wwwroot/App_Plugins/DynamicImages/umbraco-package.json)
+
+          if [ "$csproj" != "$base" ]; then
+            echo "::error::The csproj is at $csproj but the tag is $version - bump it, commit, then re-tag."
+            exit 1
+          fi
+
+          if [ "$manifest" != "$base" ]; then
+            echo "::error::umbraco-package.json is at $manifest but the tag is $version - bump it, commit, then re-tag."
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing \`$version\` to NuGet." >> "$GITHUB_STEP_SUMMARY"
+
+      # Only the package project - the test sites must never end up in a release artifact. The
+      # client bundle is committed, so rebuilding it stays a source-time concern
+      # (src/DynamicImages/Client); verify above is what proves the committed copy is current.
+      - name: Pack
+        run: >
+          dotnet pack src/DynamicImages/Umbraco.Community.DynamicImages.csproj
+          --configuration Release
+          -p:Version=${{ steps.version.outputs.version }}
+          --output ./artifacts
+
+      # Keeps the exact bytes that went to NuGet attached to the run, for when a released
+      # version needs to be compared against what the repo says it is.
+      - name: Keep the packages with the run
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-${{ steps.version.outputs.version }}
+          path: ./artifacts/*
+          if-no-files-found: error
+
+      # dotnet nuget push sends the matching .snupkg alongside the .nupkg on its own.
+      # --skip-duplicate is what makes a re-run after a partial failure a no-op rather than an
+      # error; the version check above is what stops it from hiding a stale version.
+      - name: Push to NuGet
+        run: >
+          dotnet nuget push "./artifacts/*.nupkg"
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
