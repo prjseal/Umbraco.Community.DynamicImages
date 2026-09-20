@@ -68,6 +68,29 @@ export class DiFontsDashboardElement extends UmbLitElement {
 
   #getToken: TokenGetter = () => this.#authContext?.getLatestToken();
 
+  /**
+   * Puts the cursor in the newly added style's name. Awaiting updateComplete rather than hooking
+   * updated() is what makes this deterministic: the reload's re-render has to have happened
+   * before the new row exists to focus.
+   */
+  async #focusLastStyleName(): Promise<void> {
+    await this.updateComplete;
+    // One frame past the render: the row exists in the DOM at updateComplete, but uui-input has
+    // its own update to finish before its inner control can take focus.
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+
+    const names = this.renderRoot.querySelectorAll<HTMLElement>(".style-name");
+    const last = names[names.length - 1];
+    if (!last) return;
+
+    await (last as HTMLElement & { updateComplete?: Promise<unknown> }).updateComplete;
+
+    // The native input inside, not the uui-input host: focusing the host does not reach the
+    // control, and focus would stay on the Add button that was just clicked.
+    const input = last.shadowRoot?.querySelector<HTMLInputElement>("input");
+    (input ?? last).focus();
+  }
+
   async #load() {
     this._loading = true;
 
@@ -143,14 +166,30 @@ export class DiFontsDashboardElement extends UmbLitElement {
     }
   }
 
-  async #saveStyles(font: DiFont, familyName: string, styles: DiFontStyle[]) {
+  /**
+   * `keepOpen` is what adding and deleting a row pass. Both of those persist immediately, and
+   * closing the editor on them meant adding a style left you looking at a row called
+   * "New style" that you had to reopen the editor to name.
+   */
+  async #saveStyles(
+    font: DiFont,
+    familyName: string,
+    styles: DiFontStyle[],
+    options?: { keepOpen?: boolean; weight?: number; isItalic?: boolean },
+  ) {
     try {
-      await updateFont(font.key, familyName, styles, this.#getToken);
+      await updateFont(font.key, familyName, styles, this.#getToken, {
+        weight: options?.weight,
+        isItalic: options?.isItalic,
+      });
 
-      this._editingKey = undefined;
+      if (!options?.keepOpen) this._editingKey = undefined;
       this.#notify("positive", `'${familyName}' saved`);
 
       await this.#load();
+
+      // The reload replaces the rows, so focus has to be put back afterwards.
+      if (options?.keepOpen) await this.#focusLastStyleName();
     } catch (error) {
       this.#notify("danger", "The font could not be saved", error);
     }
@@ -171,7 +210,7 @@ export class DiFontsDashboardElement extends UmbLitElement {
                 <uui-icon name="icon-font"></uui-icon>
                 <h4>No fonts yet</h4>
                 <p>
-                  Text layers need a font. Upload a .ttf, .otf or .woff2, point at one already in wwwroot, or use a
+                  Text layers need a font. Upload a .ttf, .otf, .woff2 or .woff, point at one already in wwwroot, or use a
                   Google or Bunny web font.
                 </p>
                 <uui-button look="primary" color="positive" label="Add your first font" @click=${this.#addFont}>
@@ -251,11 +290,34 @@ export class DiFontsDashboardElement extends UmbLitElement {
 
     return html`
       <div class="editor">
-        <uui-input
-          label="Family name"
-          .value=${font.familyName}
-          id="family-${font.key}">
-        </uui-input>
+        <div class="identity">
+          <uui-input label="Family name" .value=${font.familyName} id="family-${font.key}"></uui-input>
+
+          <uui-input
+            type="number"
+            label="Weight"
+            min="1"
+            max="1000"
+            step="100"
+            .value=${String(font.weight)}
+            id="weight-${font.key}">
+          </uui-input>
+
+          <uui-toggle
+            label="Italic"
+            id="italic-${font.key}"
+            ?checked=${font.isItalic}>
+            Italic
+          </uui-toggle>
+        </div>
+
+        <!-- The weight is read out of the font file's own names, which is a guess: a family that
+             puts its weight nowhere a name can carry it cannot be detected. Correct it here. -->
+        <small class="hint">
+          Weight and slant are detected from the font file. Correct them here if they are wrong -
+          a named style below chooses the <em>face</em> (Regular, Bold, Italic, BoldItalic), while
+          this is the family's numeric weight.
+        </small>
 
         <uui-table>
           <uui-table-head>
@@ -271,6 +333,8 @@ export class DiFontsDashboardElement extends UmbLitElement {
               <uui-table-row>
                 <uui-table-cell>
                   <uui-input
+                    class="style-name"
+                    label="Style name"
                     .value=${style.name}
                     @change=${(event: Event) => {
                       styles[index] = { ...style, name: (event.target as HTMLInputElement).value };
@@ -302,7 +366,7 @@ export class DiFontsDashboardElement extends UmbLitElement {
                     label="Remove ${style.name}"
                     @click=${() => {
                       styles.splice(index, 1);
-                      void this.#saveStyles(font, font.familyName, styles);
+                      void this.#saveStyles(font, font.familyName, styles, { keepOpen: true });
                     }}>
                     <uui-icon name="icon-trash"></uui-icon>
                   </uui-button>
@@ -318,7 +382,7 @@ export class DiFontsDashboardElement extends UmbLitElement {
             label="Add a named style"
             @click=${() => {
               styles.push({ name: "New style", size: 32, fontStyle: "Regular" });
-              void this.#saveStyles(font, font.familyName, styles);
+              void this.#saveStyles(font, font.familyName, styles, { keepOpen: true });
             }}>
             Add a style
           </uui-button>
@@ -328,7 +392,13 @@ export class DiFontsDashboardElement extends UmbLitElement {
             label="Save the styles for ${font.familyName}"
             @click=${() => {
               const input = this.renderRoot.querySelector<HTMLInputElement>(`#family-${font.key}`);
-              void this.#saveStyles(font, input?.value || font.familyName, styles);
+              const weight = this.renderRoot.querySelector<HTMLInputElement>(`#weight-${font.key}`);
+              const italic = this.renderRoot.querySelector<HTMLInputElement>(`#italic-${font.key}`);
+
+              void this.#saveStyles(font, input?.value || font.familyName, styles, {
+                weight: weight?.value ? Number(weight.value) : undefined,
+                isItalic: italic ? italic.checked : undefined,
+              });
             }}>
             Save
           </uui-button>
@@ -346,6 +416,20 @@ export class DiFontsDashboardElement extends UmbLitElement {
       display: flex;
       justify-content: center;
       padding: var(--uui-size-layout-3);
+    }
+
+    .identity {
+      display: flex;
+      gap: var(--uui-size-space-3);
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .hint {
+      display: block;
+      margin: var(--uui-size-space-2) 0 var(--uui-size-space-4);
+      color: var(--uui-color-text-alt);
+      font-size: 12px;
     }
 
     .font {

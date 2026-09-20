@@ -85,7 +85,17 @@ public sealed record RegisterWebFontRequest(
 /// <summary>The rows created, and one message per variant that was not.</summary>
 public sealed record RegisterWebFontResponse(IReadOnlyList<FontResponse> Fonts, IReadOnlyList<string> Errors);
 
-public sealed record UpdateFontRequest(string FamilyName, List<FontStyleDefinition> Styles);
+/// <summary>
+/// Weight and IsItalic are here because a detected weight is a guess - the file's own names are
+/// the only source, and a family that puts its weight nowhere a name can carry it is not
+/// recoverable automatically. An editor has to be able to overrule it. Null leaves the stored
+/// value alone.
+/// </summary>
+public sealed record UpdateFontRequest(
+    string FamilyName,
+    List<FontStyleDefinition> Styles,
+    int? Weight = null,
+    bool? IsItalic = null);
 
 // ---------------------------------------------------------------- document types
 
@@ -146,11 +156,19 @@ public sealed record LayerBoundsResponse(
     float PivotX,
     float PivotY);
 
+/// <summary>
+/// A layer that produced nothing, and why. A layer that draws nothing is simply absent from
+/// <see cref="LayoutResponse.Layers"/>, which is precisely the case where an editor most needs
+/// telling - the image is missing something and the resolved-values panel was silent about it.
+/// </summary>
+public sealed record LayerSkipResponse(Guid Key, string Reason);
+
 public sealed record LayoutResponse(
     int CanvasWidth,
     int CanvasHeight,
     IReadOnlyList<LayerBoundsResponse> Layers,
-    IReadOnlyList<ValidationIssue> Issues);
+    IReadOnlyList<ValidationIssue> Issues,
+    IReadOnlyList<LayerSkipResponse> Skipped);
 
 public sealed record ImageInfoResponse(int Width, int Height, string? Url);
 

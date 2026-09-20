@@ -357,4 +357,13 @@ src/.idea
 /src/DynamicImages.TestSite/umbraco/Data
 /src/DynamicImages.TestSite/uSync/v9/Media
 /src/DynamicImages.TestSite/uSync/v9/Content/generating-dynaimic-images-for-the-package-jam-at-umbraco-spark.config
-/src/DynamicImages.TestSite/uSync/v9/Content/generating-dynaimic-images-for-the-package-jam-at-umbraco-spark.config
+
+# Running the Clean test site writes a uSync config for every media item Dynamic Images
+# generates. Following the v9 precedent above, the whole folder is ignored rather than trying to
+# single those out - a rule cannot: .gitignore matches paths, never file contents, and the
+# discriminator lives inside the XML at <Media><Info><Path>. The folder is flat and named after
+# the media node with no parent prefix, so a generated image collides by name with a starter-kit
+# file and uSync disambiguates with an opaque _<hash> suffix carrying no folder information.
+# Ignore rules do not affect already-tracked files, so the 37 committed Clean configs keep
+# diffing normally; only new ones are ignored, which is exactly the generated case.
+/src/DynamicImages.TestSite.Clean/uSync/v17/Media/

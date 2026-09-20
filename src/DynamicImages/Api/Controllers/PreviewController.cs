@@ -83,16 +83,17 @@ public class PreviewController(
             using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
             var values = ResolveValues(request, contextRef);
 
-            var bounds = await renderer.MeasureAsync(request.Template, values, cancellationToken);
+            var layout = await renderer.MeasureLayoutAsync(request.Template, values, cancellationToken);
             var validation = await validator.ValidateAsync(request.Template, cancellationToken);
 
             return Ok(new LayoutResponse(
                 request.Template.Canvas.Width,
                 request.Template.Canvas.Height,
-                bounds.Select(b => new LayerBoundsResponse(
+                layout.Bounds.Select(b => new LayerBoundsResponse(
                     b.LayerKey, b.X, b.Y, b.Width, b.Height, b.Lines, b.Truncated, b.ResolvedText,
                     b.Rotation, b.PivotX, b.PivotY)).ToList(),
-                validation.Issues));
+                validation.Issues,
+                layout.Skips.Select(s => new LayerSkipResponse(s.LayerKey, s.Reason)).ToList()));
         }
         catch (OperationCanceledException)
         {

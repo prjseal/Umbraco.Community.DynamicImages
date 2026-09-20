@@ -16,9 +16,39 @@ Shell state does not persist between commands, so prefix each `dotnet` command w
 
 - `dotnet build src/DynamicImages.sln`
 - `dotnet test test/DynamicImages.Tests`
-- Client: `cd src/DynamicImages/Client && npm ci && npm run typecheck && npm test && npm run build`
-  (the built bundle under `wwwroot/App_Plugins/DynamicImages/` is committed; the release
-  workflow has no npm step).
+- Client: `cd src/DynamicImages/Client && npm ci && npm run typecheck && npm test &&
+  npm run test:browser && npm run build` (the built bundle under
+  `wwwroot/App_Plugins/DynamicImages/` is committed; the release workflow has no npm step, and
+  `ci.yml` fails if the committed bundle does not match its source).
+
+`npm test` is the fast node project. `npm run test:browser` is the vitest **browser-mode** project:
+real Chromium through Playwright, for anything that needs layout — jsdom does none, so a
+`getBoundingClientRect()` assertion means nothing there. Specs are named `*.browser.test.ts`.
+
+## End-to-end tests
+
+`npm run test:e2e` (`src/DynamicImages/Client/e2e/`, driven by `Client/playwright.config.ts`)
+runs against a booted `src/DynamicImages.TestSite.Clean`. Not part of `npm test` or of `ci.yml`:
+the site's first boot imports ~192 uSync items, so it is minutes rather than seconds. CI runs it
+from `.github/workflows/e2e.yml` behind `workflow_dispatch`.
+
+Leaving `E2E_BASE_URL` unset makes the config boot the site itself. Against a site you already
+have running:
+
+```bash
+cd src/DynamicImages/Client
+E2E_BASE_URL=https://localhost:44344 npm run test:e2e
+```
+
+Three things to know before trying to boot that site by hand, each of which costs an hour to
+rediscover — `plans/ui-review-method.md` §6 has the full list:
+
+- **It has to be HTTPS.** The backoffice's OpenIddict endpoint rejects plain HTTP before rendering
+  a login form, and the symptom is a blank page with no inputs, which looks like a mounting
+  problem. `dotnet dev-certs https`, and `ignoreHTTPSErrors` handles trust.
+- **`appsettings.Local.json` is `#if DEBUG` only**, so a Release build needs
+  `Umbraco__CMS__Unattended__*` environment variables.
+- **Probe `/umbraco`, never `/`** — the Clean.Core front end 500s by design.
 
 ## Plans
 

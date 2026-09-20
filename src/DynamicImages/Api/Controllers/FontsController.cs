@@ -93,7 +93,7 @@ public class FontsController(IFontService fontService) : DynamicImagesController
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult Update(Guid key, [FromBody] UpdateFontRequest request)
     {
-        var font = fontService.Update(key, request.FamilyName, request.Styles);
+        var font = fontService.Update(key, request.FamilyName, request.Styles, request.Weight, request.IsItalic);
 
         return font is null
             ? FontNotFound(key)

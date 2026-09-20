@@ -2,11 +2,13 @@ import { css, customElement, html, nothing, state } from "@umbraco-cms/backoffic
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
 import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
+import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { UMB_MEDIA_PICKER_MODAL } from "@umbraco-cms/backoffice/media";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import type { DiFont, DiLayer, DiLayerBounds, DiPosition, DiProperty, DiTemplate } from "../../api/types.js";
 import { detach, isTracked, type Axis } from "../../models/relative-layout.js";
 import type { DiDesignerCanvasElement } from "../../designer/di-designer-canvas.element.js";
+import type { DiPreviewStripElement } from "./di-preview-strip.element.js";
 import { fetchImageInfo, fetchLayout } from "../../api/dynamic-images-api.js";
 import {
   createBadgesLayer, createImageLayer, createLayerForProperty, createRectLayer, createTextLayer,
@@ -34,6 +36,7 @@ export class DiDesignViewElement extends UmbLitElement {
 
   #context?: DiTemplateWorkspaceContext;
   #modalContext?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
+  #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
   #layoutTimer?: number;
   #layoutAbort?: AbortController;
 
@@ -58,6 +61,14 @@ export class DiDesignViewElement extends UmbLitElement {
   @state()
   private _zoom?: number;
 
+  /** What the canvas is actually drawing at - see `di-scale-change` on di-designer-canvas. */
+  @state()
+  private _effectiveScale = 1;
+
+  /** Whether the preview strip has a render in flight, so the toolbar button can show it. */
+  @state()
+  private _previewing = false;
+
   @state()
   private _snapEnabled = true;
 
@@ -81,6 +92,9 @@ export class DiDesignViewElement extends UmbLitElement {
 
     this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (context) => {
       this.#modalContext = context;
+    });
+    this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => {
+      this.#notificationContext = context;
     });
 
     this.consumeContext(DI_TEMPLATE_WORKSPACE_CONTEXT, (context) => {
@@ -135,6 +149,10 @@ export class DiDesignViewElement extends UmbLitElement {
   /** The canvas holds the resolved positions, because it is what measures the rendered boxes. */
   get #canvas(): DiDesignerCanvasElement | null {
     return this.renderRoot.querySelector("di-designer-canvas");
+  }
+
+  get #strip(): DiPreviewStripElement | null {
+    return this.renderRoot.querySelector("di-preview-strip");
   }
 
   /**
@@ -228,7 +246,7 @@ export class DiDesignViewElement extends UmbLitElement {
 
   // ------------------------------------------------------------------ palette
 
-  #addFromPayload(payload: PalettePayload, x?: number, y?: number) {
+  #addFromPayload(payload: PalettePayload, x?: number, y?: number, targetKey?: string) {
     const template = this._template;
     if (!template || !this.#context) return;
 
@@ -236,18 +254,58 @@ export class DiDesignViewElement extends UmbLitElement {
     // straight away rather than defaulting to nothing.
     const context = { template, x, y, defaultFontKey: this.#defaultFontKey() };
 
+    if (payload.kind === "property") {
+      const drop = createLayerForProperty(payload.property, context);
+
+      if (drop.kind === "condition") {
+        this.#applyVisibilityCondition(drop.propertyAlias, drop.propertyName, targetKey);
+        return;
+      }
+
+      this.#context.addLayer(drop.layer);
+      return;
+    }
+
     const layer =
-      payload.kind === "property"
-        ? createLayerForProperty(payload.property, context)
-        : payload.layerType === "image"
-          ? createImageLayer(context, "Image")
-          : payload.layerType === "badges"
-            ? createBadgesLayer(context, "Badges", "")
-            : payload.layerType === "rect"
-              ? createRectLayer(context, "Shape", payload.shape)
-              : createTextLayer(context, "Text", { kind: "static", text: "Text" });
+      payload.layerType === "image"
+        ? createImageLayer(context, "Image")
+        : payload.layerType === "badges"
+          ? createBadgesLayer(context, "Badges", "")
+          : payload.layerType === "rect"
+            ? createRectLayer(context, "Shape", payload.shape)
+            : createTextLayer(context, "Text", { kind: "static", text: "Text" });
 
     this.#context.addLayer(layer);
+  }
+
+  /**
+   * A dropped Yes/No property controls when a layer is shown rather than drawing "True" onto the
+   * image. The target is whatever it was dropped on, falling back to the selection - and if
+   * there is neither, say so rather than silently doing nothing.
+   */
+  #applyVisibilityCondition(propertyAlias: string, propertyName: string, targetKey?: string) {
+    const key = targetKey ?? this._selectedKey;
+    const layer = this._template?.layers.find((candidate) => candidate.key === key);
+
+    if (!layer) {
+      this.#notificationContext?.peek("warning", {
+        data: {
+          headline: "Nothing to apply that to",
+          message:
+            `Drop a Yes/No property onto a layer, or select one first - it controls when that ` +
+            `layer is shown.`,
+        },
+      });
+      return;
+    }
+
+    this.#context?.updateLayer(layer.key, {
+      visibility: { rule: "whenPropertyTruthy", propertyAlias },
+    } as Partial<DiLayer>);
+
+    this.#notificationContext?.peek("positive", {
+      data: { message: `'${layer.name}' now shows only when '${propertyName}' is ticked.` },
+    });
   }
 
   #defaultFontKey(): string | undefined {
@@ -388,10 +446,17 @@ export class DiDesignViewElement extends UmbLitElement {
         @di-transaction-end=${(event: CustomEvent) => this.#context?.endTransaction(event.detail?.moved ?? true)}
         @di-palette-add=${(event: CustomEvent) => this.#addFromPayload(event.detail.payload)}
         @di-palette-drop=${(event: CustomEvent) =>
-          this.#addFromPayload(event.detail.payload, event.detail.x, event.detail.y)}
+          this.#addFromPayload(event.detail.payload, event.detail.x, event.detail.y, event.detail.targetKey)}
         @di-pick-base-image=${this.#pickBaseImage}
         @di-pick-layer-image=${(event: CustomEvent) => this.#pickLayerImage(event.detail.key)}
         @di-use-image-size=${this.#useImageSize}
+        @di-request-preview=${() => this.#strip?.refresh()}
+        @di-preview-state=${(event: CustomEvent) => {
+          this._previewing = event.detail.busy;
+        }}
+        @di-scale-change=${(event: CustomEvent) => {
+          this._effectiveScale = event.detail.scale;
+        }}
         @di-zoom-change=${(event: CustomEvent) => {
           this._zoom = Math.max(0.1, Math.min(4, event.detail.zoom));
         }}
@@ -416,13 +481,14 @@ export class DiDesignViewElement extends UmbLitElement {
 
         <div class="centre">
           <di-canvas-toolbar
-            .zoom=${this._zoom ?? 1}
+            .effectiveScale=${this._effectiveScale}
             .snapEnabled=${this._snapEnabled}
             .showRulers=${this._showRulers}
             .showSafeArea=${this._showSafeArea}
             .showMeasured=${this._showMeasured}
             .canUndo=${this._canUndo}
-            .canRedo=${this._canRedo}>
+            .canRedo=${this._canRedo}
+            .previewing=${this._previewing}>
           </di-canvas-toolbar>
 
           <di-designer-canvas
@@ -474,11 +540,17 @@ export class DiDesignViewElement extends UmbLitElement {
       min-height: 0;
     }
 
+    /* The canvas row has a floor. It used to be the only flexible row in the column, so it
+       absorbed every shortfall: at a 1150x666 viewport the toolbar (91px) and preview strip
+       (160px) left it 141px of column and it measured 650x0 - no stage at all, and no scrollbar
+       to reveal one. With a floor the column scrolls instead, which is a far better failure mode
+       than a crushed stage. */
     .centre {
       display: grid;
-      grid-template-rows: auto 1fr auto;
+      grid-template-rows: auto minmax(240px, 1fr) auto;
       min-width: 0;
       min-height: 0;
+      overflow: auto;
     }
 
     .side {
@@ -492,14 +564,25 @@ export class DiDesignViewElement extends UmbLitElement {
     @media (max-width: 1280px) {
       .layout {
         grid-template-columns: 200px 1fr;
-        grid-template-rows: 1fr auto;
+        /* The canvas row is guaranteed its share before the side block takes any. */
+        grid-template-rows: minmax(320px, 1fr) auto;
       }
 
       .side {
         grid-column: 1 / -1;
         grid-template-rows: auto auto;
-        max-height: 45vh;
+        max-height: 40vh;
         overflow: auto;
+      }
+    }
+
+    /* On a short window the preview strip's reserved space is what the canvas is short of, so
+       give it back automatically rather than making the editor collapse the strip by hand -
+       which the review measured as recovering the canvas to only 17px anyway. */
+    @media (max-height: 720px) {
+      di-preview-strip {
+        --di-preview-strip-body-min-height: 0px;
+        --di-preview-strip-image-max-height: 72px;
       }
     }
 

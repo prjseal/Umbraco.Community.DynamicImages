@@ -10,6 +10,7 @@ import { normalise } from "../models/rotation.js";
 import { MAX_INNER_RATIO, MAX_SIDES, MIN_INNER_RATIO, MIN_SIDES } from "../models/shape-geometry.js";
 import "../inputs/di-colour-input.element.js";
 import "../inputs/di-anchor-picker.element.js";
+import { INSPECTOR_BOUNDS } from "../inputs/number-bounds.js";
 import "../inputs/di-number-field.element.js";
 
 /**
@@ -61,11 +62,15 @@ export class DiLayerInspectorElement extends UmbLitElement {
       <uui-box headline="Canvas">
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.width.min}
+            .max=${INSPECTOR_BOUNDS.width.max}
             label="Width"
             .value=${canvas.width}
             @change=${(event: CustomEvent) => this.#canvas({ width: event.detail.value ?? 1200 })}>
           </di-number-field>
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.height.min}
+            .max=${INSPECTOR_BOUNDS.height.max}
             label="Height"
             .value=${canvas.height}
             @change=${(event: CustomEvent) => this.#canvas({ height: event.detail.value ?? 630 })}>
@@ -279,6 +284,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.fontSize.min}
+            .max=${INSPECTOR_BOUNDS.fontSize.max}
             label="Size"
             .value=${style.fontSize}
             @change=${(event: CustomEvent) => patchStyle({ fontSize: event.detail.value ?? style.fontSize })}>
@@ -313,6 +320,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.lineSpacing.min}
+            .max=${INSPECTOR_BOUNDS.lineSpacing.max}
             label="Line spacing"
             suffix="×"
             step="0.05"
@@ -320,6 +329,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
             @change=${(event: CustomEvent) => patchStyle({ lineSpacing: event.detail.value ?? 1 })}>
           </di-number-field>
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.letterSpacing.min}
+            .max=${INSPECTOR_BOUNDS.letterSpacing.max}
             label="Letter spacing"
             .value=${style.letterSpacing}
             @change=${(event: CustomEvent) => patchStyle({ letterSpacing: event.detail.value ?? 0 })}>
@@ -328,6 +339,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.maxLines.min}
+            .max=${INSPECTOR_BOUNDS.maxLines.max}
             label="Max lines"
             suffix=""
             placeholder="No limit"
@@ -424,6 +437,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
         </label>
 
         <di-number-field
+          .min=${INSPECTOR_BOUNDS.cornerRadius.min}
+          .max=${INSPECTOR_BOUNDS.cornerRadius.max}
           label="Corner radius"
           .value=${layer.cornerRadius}
           @change=${(event: CustomEvent) => this.#patch({ cornerRadius: event.detail.value ?? 0 } as Partial<DiLayer>)}>
@@ -433,6 +448,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
           <span>Border</span>
           <div class="row">
             <di-number-field
+              .min=${INSPECTOR_BOUNDS.borderWidth.min}
+              .max=${INSPECTOR_BOUNDS.borderWidth.max}
               label="Width"
               .value=${layer.border?.width ?? 0}
               @change=${(event: CustomEvent) => {
@@ -474,12 +491,16 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.maxItems.min}
+            .max=${INSPECTOR_BOUNDS.maxItems.max}
             label="Max items"
             suffix=""
             .value=${layer.maxItems}
             @change=${(event: CustomEvent) => this.#patch({ maxItems: event.detail.value ?? 2 } as Partial<DiLayer>)}>
           </di-number-field>
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.gap.min}
+            .max=${INSPECTOR_BOUNDS.gap.max}
             label="Gap"
             .value=${layer.gap}
             @change=${(event: CustomEvent) => this.#patch({ gap: event.detail.value ?? 40 } as Partial<DiLayer>)}>
@@ -510,6 +531,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
               ${layer.wrap
                 ? html`
                     <di-number-field
+                      .min=${INSPECTOR_BOUNDS.rowGap.min}
+                      .max=${INSPECTOR_BOUNDS.rowGap.max}
                       label="Row gap"
                       .value=${layer.rowGap}
                       @change=${(event: CustomEvent) => this.#patch({ rowGap: event.detail.value ?? 20 } as Partial<DiLayer>)}>
@@ -522,11 +545,15 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.circleSize.min}
+            .max=${INSPECTOR_BOUNDS.circleSize.max}
             label="Circle size"
             .value=${layer.badge.size}
             @change=${(event: CustomEvent) => patchBadge({ size: event.detail.value ?? 88 })}>
           </di-number-field>
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.iconSize.min}
+            .max=${INSPECTOR_BOUNDS.iconSize.max}
             label="Icon size"
             .value=${layer.badge.innerSize}
             @change=${(event: CustomEvent) => patchBadge({ innerSize: event.detail.value ?? 44 })}>
@@ -551,6 +578,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
               @change=${(event: CustomEvent) => patchBadge({ borderColour: event.detail.value })}>
             </di-colour-input>
             <di-number-field
+              .min=${INSPECTOR_BOUNDS.borderWidth.min}
+              .max=${INSPECTOR_BOUNDS.borderWidth.max}
               label="Width"
               step="0.5"
               .value=${layer.badge.borderWidth}
@@ -599,11 +628,15 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
               <div class="pair">
                 <di-number-field
+                  .min=${INSPECTOR_BOUNDS.labelSize.min}
+                  .max=${INSPECTOR_BOUNDS.labelSize.max}
                   label="Label size"
                   .value=${layer.label.fontSize}
                   @change=${(event: CustomEvent) => patchLabel({ fontSize: event.detail.value ?? 22 })}>
                 </di-number-field>
                 <di-number-field
+                  .min=${INSPECTOR_BOUNDS.labelGap.min}
+                  .max=${INSPECTOR_BOUNDS.labelGap.max}
                   label="Label gap"
                   .value=${layer.label.gap}
                   @change=${(event: CustomEvent) => patchLabel({ gap: event.detail.value ?? 10 })}>
@@ -655,8 +688,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 <di-number-field
                   label=${shape === "star" ? "Points" : "Sides"}
                   suffix=""
-                  min=${MIN_SIDES}
-                  max=${MAX_SIDES}
+                  .min=${INSPECTOR_BOUNDS.sides.min}
+                  .max=${INSPECTOR_BOUNDS.sides.max}
                   .value=${layer.sides ?? 5}
                   @change=${(event: CustomEvent) =>
                     this.#patch({ sides: Math.round(event.detail.value ?? 5) } as Partial<DiLayer>)}>
@@ -666,8 +699,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
                       label="Inner ratio"
                       suffix=""
                       step="0.05"
-                      min=${MIN_INNER_RATIO}
-                      max=${MAX_INNER_RATIO}
+                      .min=${INSPECTOR_BOUNDS.innerRatio.min}
+                      .max=${INSPECTOR_BOUNDS.innerRatio.max}
                       .value=${layer.innerRatio ?? 0.5}
                       @change=${(event: CustomEvent) =>
                         this.#patch({ innerRatio: event.detail.value ?? 0.5 } as Partial<DiLayer>)}>
@@ -727,6 +760,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 </di-colour-input>
               </div>
               <di-number-field
+                .min=${INSPECTOR_BOUNDS.gradientAngle.min}
+                .max=${INSPECTOR_BOUNDS.gradientAngle.max}
                 label="Angle"
                 suffix="°"
                 .value=${layer.gradient.angle}
@@ -738,6 +773,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         ${shape === "rectangle"
           ? html`<di-number-field
+            .min=${INSPECTOR_BOUNDS.cornerRadius.min}
+            .max=${INSPECTOR_BOUNDS.cornerRadius.max}
               label="Corner radius"
               .value=${layer.cornerRadius}
               @change=${(event: CustomEvent) => this.#patch({ cornerRadius: event.detail.value ?? 0 } as Partial<DiLayer>)}>
@@ -748,6 +785,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
           <span>Border</span>
           <div class="row">
             <di-number-field
+              .min=${INSPECTOR_BOUNDS.borderWidth.min}
+              .max=${INSPECTOR_BOUNDS.borderWidth.max}
               label="Width"
               .value=${layer.border?.width ?? 0}
               @change=${(event: CustomEvent) => {
@@ -813,6 +852,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         <div class="pair">
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.width.min}
+            .max=${INSPECTOR_BOUNDS.width.max}
             label="Width"
             placeholder="Auto"
             .value=${layer.size.width ?? null}
@@ -820,6 +861,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
               this.#patch({ size: { ...layer.size, width: event.detail.value } } as Partial<DiLayer>)}>
           </di-number-field>
           <di-number-field
+            .min=${INSPECTOR_BOUNDS.height.min}
+            .max=${INSPECTOR_BOUNDS.height.max}
             label="Height"
             placeholder="Auto"
             .value=${layer.size.height ?? null}
@@ -889,6 +932,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
               </label>
 
               <di-number-field
+                .min=${INSPECTOR_BOUNDS.referenceGap.min}
+                .max=${INSPECTOR_BOUNDS.referenceGap.max}
                 label="Gap"
                 .value=${reference.gap}
                 @change=${(event: CustomEvent) => this.#patchReference(layer, axis, { gap: event.detail.value ?? 0 })}>
@@ -896,6 +941,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
             `
           : html`
               <di-number-field
+                .min=${axis === "x" ? INSPECTOR_BOUNDS.x.min : INSPECTOR_BOUNDS.y.min}
+                .max=${axis === "x" ? INSPECTOR_BOUNDS.x.max : INSPECTOR_BOUNDS.y.max}
                 label=${axis === "x" ? "X" : "Y"}
                 .value=${axis === "x" ? layer.position.x : layer.position.y}
                 @change=${(event: CustomEvent) =>
@@ -986,8 +1033,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
           label="Opacity"
           suffix=""
           step="0.05"
-          min="0"
-          max="1"
+          .min=${INSPECTOR_BOUNDS.opacity.min}
+          .max=${INSPECTOR_BOUNDS.opacity.max}
           .value=${layer.opacity}
           @change=${(event: CustomEvent) => this.#patch({ opacity: event.detail.value ?? 1 } as Partial<DiLayer>)}>
         </di-number-field>

@@ -23,7 +23,33 @@ export default defineConfig({
     },
   },
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"],
+    // Two projects, because the two kinds of spec cost wildly different amounts. The node project
+    // is the fast one that runs on every save; the browser project pays for a real Chromium so
+    // that `getBoundingClientRect()` means something. jsdom does no layout at all, so the layout
+    // defects this suite exists to pin cannot be expressed there.
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "node",
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+          exclude: ["src/**/*.browser.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "browser",
+          include: ["src/**/*.browser.test.ts"],
+          browser: {
+            enabled: true,
+            provider: "playwright",
+            headless: true,
+            instances: [{ browser: "chromium" }],
+          },
+        },
+      },
+    ],
   },
 });

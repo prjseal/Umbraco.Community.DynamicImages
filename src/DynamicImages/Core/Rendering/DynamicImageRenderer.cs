@@ -37,12 +37,18 @@ public sealed class DynamicImageRenderer(
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (!ShouldDraw(layer, values)) continue;
+                var blocked = NotDrawnReason(layer, values);
+                if (blocked is not null)
+                {
+                    context.Skip(layer.Key, blocked);
+                    continue;
+                }
 
                 var renderer = renderers.For(layer);
                 if (renderer is null)
                 {
                     logger.LogWarning("Dynamic Images: no renderer is registered for layer type '{Type}'", layer.TypeAlias);
+                    context.Skip(layer.Key, LayerSkipReasons.NoRenderer);
                     continue;
                 }
 
@@ -55,6 +61,12 @@ public sealed class DynamicImageRenderer(
                         // Later layers that track this one use the drawn result, not the measurement.
                         context.Set(layerBounds);
                     }
+                    else
+                    {
+                        // The renderer usually knows better and has already said so; this is the
+                        // fallback for one that returned null without a reason.
+                        context.Skip(layer.Key, LayerSkipReasons.ProducedNothing);
+                    }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -62,10 +74,12 @@ public sealed class DynamicImageRenderer(
                     // depends on this call.
                     logger.LogError(ex, "Dynamic Images: layer '{Layer}' ({Type}) failed to render in template '{Template}'",
                         layer.Name, layer.TypeAlias, template.Alias);
+
+                    context.Skip(layer.Key, LayerSkipReasons.Failed);
                 }
             }
 
-            return new RenderResult(image, bounds);
+            return new RenderResult(image, bounds, context.Skips);
         }
         catch
         {
@@ -75,12 +89,15 @@ public sealed class DynamicImageRenderer(
     }
 
     public async Task<IReadOnlyList<LayerBounds>> MeasureAsync(Template template, IRenderValueSource values, CancellationToken cancellationToken = default)
+        => (await MeasureLayoutAsync(template, values, cancellationToken)).Bounds;
+
+    public async Task<LayoutResult> MeasureLayoutAsync(Template template, IRenderValueSource values, CancellationToken cancellationToken = default)
     {
         // Measuring means laying out, and layout is what the renderers do - so this renders into a
         // throwaway surface and keeps only the bounds. Cheap enough at OG sizes, and it cannot
         // drift from what a real render produces.
         using var result = await RenderAsync(template, values, cancellationToken);
-        return result.Bounds;
+        return new LayoutResult(result.Bounds, result.Skips);
     }
 
     /// <summary>
@@ -134,17 +151,27 @@ public sealed class DynamicImageRenderer(
     }
 
     private static bool ShouldDraw(LayerBase layer, IRenderValueSource values)
+        => NotDrawnReason(layer, values) is null;
+
+    /// <summary>
+    /// Why this layer will not be drawn at all, or null when it will be attempted. Returning the
+    /// reason rather than a bool is what lets the designer explain a missing layer instead of
+    /// silently omitting its row.
+    /// </summary>
+    private static string? NotDrawnReason(LayerBase layer, IRenderValueSource values)
     {
-        if (!layer.IsVisible || layer.Opacity <= 0) return false;
+        if (!layer.IsVisible) return LayerSkipReasons.Hidden;
+        if (layer.Opacity <= 0) return LayerSkipReasons.Transparent;
 
         return layer.Visibility.Rule switch
         {
             // WhenNotEmpty needs no check here: every renderer already returns null for an empty
             // value, so the rule is about being explicit in the UI rather than a second code path.
-            VisibilityRuleKind.WhenPropertyTruthy =>
-                !string.IsNullOrWhiteSpace(layer.Visibility.PropertyAlias) && values.IsTruthy(layer.Visibility.PropertyAlias),
+            VisibilityRuleKind.WhenPropertyTruthy when
+                string.IsNullOrWhiteSpace(layer.Visibility.PropertyAlias) || !values.IsTruthy(layer.Visibility.PropertyAlias)
+                => LayerSkipReasons.VisibilityRule,
 
-            _ => true
+            _ => null
         };
     }
 }

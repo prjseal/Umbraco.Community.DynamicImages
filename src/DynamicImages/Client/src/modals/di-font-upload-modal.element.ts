@@ -4,6 +4,9 @@ import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { registerFontPath, registerWebFont, uploadFont, type TokenGetter } from "../api/dynamic-images-api.js";
 import type { DiWebFontProvider } from "../api/types.js";
 import type { FontUploadValue } from "./tokens.js";
+// uui-file-dropzone is less universally already-registered than uui-button, so say so
+// explicitly. The whole @umbraco namespace is external to the build, so this costs no bundle.
+import "@umbraco-cms/backoffice/external/uui";
 
 const WEIGHTS = [100, 200, 300, 400, 500, 600, 700, 800, 900];
 
@@ -56,15 +59,19 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
 
   #getToken: TokenGetter = () => this.#authContext?.getLatestToken();
 
-  async #onFiles(event: Event) {
-    const files = (event.target as HTMLInputElement).files;
-    if (!files || files.length === 0) return;
+  #onDropzoneFiles(event: Event) {
+    const files = (event as CustomEvent<{ files: File[] }>).detail?.files ?? [];
+    void this.#upload(files);
+  }
+
+  async #upload(files: readonly File[]) {
+    if (files.length === 0) return;
 
     this._busy = true;
     this._error = undefined;
 
     try {
-      for (const file of Array.from(files)) {
+      for (const file of files) {
         await uploadFont(file, this.#getToken);
       }
 
@@ -147,16 +154,20 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
     return html`
       <umb-body-layout headline="Add a font">
         <uui-box headline="Upload a file">
-          <input
-            type="file"
+          <!-- uui-file-dropzone rather than a raw <input type="file">: the native
+               "Choose files | No file chosen" control looked out of place beside the uui-styled
+               inputs in the same dialog. It is what umb-input-dropzone is built on in core, so
+               this borrows the control without core's media upload manager. -->
+          <uui-file-dropzone
             accept=".ttf,.otf,.woff2,.woff"
             multiple
-            aria-label="Font files"
+            label="Drop font files here, or click to browse"
             ?disabled=${this._busy}
-            @change=${this.#onFiles} />
+            @change=${this.#onDropzoneFiles}>
+          </uui-file-dropzone>
           <p class="hint">
-            .ttf, .otf or .woff2. The family name and weight are read from the file. Uploads are stored in the media
-            library, so they work on Umbraco Cloud and transfer with Deploy.
+            .ttf, .otf, .woff2 or .woff. The family name and weight are read from the file. Uploads are stored in the
+            media library, so they work on Umbraco Cloud and transfer with Deploy.
           </p>
         </uui-box>
 

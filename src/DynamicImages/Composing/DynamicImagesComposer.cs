@@ -31,7 +31,16 @@ public class DynamicImagesComposer : IComposer
         // registration entirely, which is why nothing could be configured without a restart - and
         // why the backoffice section could not exist at all until the site was already working.
         builder.Components().Append<DynamicImagesMigrationComponent>();
-        builder.Components().Append<DynamicImagesStartupComponent>();
+
+        // The v1 import is deliberately NOT a component. Components initialise before the rest
+        // of the boot sequence, which on a first boot put the import ahead of uSync creating the
+        // document types and made the package's very first log line a warning that its target
+        // document type does not exist. UmbracoApplicationStarted runs after every component.
+        builder.AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, DynamicImagesStartupHandler>();
+
+        // Left registered permanently; it does nothing unless the import above armed it.
+        builder.Services.AddSingleton<LegacyImportRetryState>();
+        builder.AddNotificationAsyncHandler<ContentTypeSavedNotification, LegacyImportRetryHandler>();
 
         RegisterPersistence(builder);
         RegisterRendering(builder);

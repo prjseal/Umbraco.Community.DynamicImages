@@ -7,9 +7,12 @@ Every item below was found by driving the real backoffice in Chrome. Each one sa
 **confirmed in the browser** or **read in the source only**. Line references are to
 `src/DynamicImages/Client/src/`.
 
-**Triage is complete.** Each issue carries a **Decision** line: 17 to fix, one discarded. Those
-decisions are the scope for the implementation plan — an agent writing that plan should treat them
-as settled rather than re-litigating them.
+**Triage is complete, and the work is done.** Each issue carries a **Decision** line: 17 to fix,
+one discarded. Those decisions were the scope for
+[`plans/ui-review-fixes-plan.md`](./ui-review-fixes-plan.md), and every one of the 17 now carries a
+**Fixed** line naming the commit. Each fix was re-verified against a freshly booted
+`src/DynamicImages.TestSite.Clean` using the same measurements the finding was raised with, so the
+numbers quoted in the Fixed lines are comparable with the ones above them.
 
 Two are not simply "fix as described", so read their Decision lines in full before planning:
 **A2** (remove the presets rather than implement them, leaning on A3 instead) and **C3** (reframed —
@@ -65,6 +68,17 @@ busy state.
 **Decision: fix.** Either wire the button up to trigger a render or remove it; a dead control in
 the primary toolbar is not acceptable either way.
 
+**Fixed** in `05f9bb6` (wired up) and `aa6bf95` (guarded as a class of bug). `di-preview-strip`
+gained a public `refresh()` that renders immediately, bypassing the debounce, and expands the strip
+if collapsed; `di-design-view` handles `di-request-preview` alongside the ~20 other `di-*` events on
+`.layout`. The strip now also emits `di-preview-state`, which finally drives the toolbar's
+`previewing` property - it had existed all along with nothing setting it.
+
+The general case is guarded by `Client/src/event-contract.test.ts`, which collects every `di-*`
+event this client emits and every `@di-…=` binding and asserts the first set is a subset of the
+second. Deleting the new handler makes it report
+`di-request-preview (emitted in designer/di-canvas-toolbar.element.ts)`.
+
 ---
 
 ### A2. The title-length presets in "Preview & test" do nothing
@@ -79,27 +93,43 @@ Cause: the handler calls `#render(title)` at `workspace/views/di-preview-view.el
 the method signature is `async #render(_sampleTitle?: string)` (`:148`) and the argument is never
 used. All three buttons produce an identical image from the server's own sample data.
 
-**Replicate** — recipe *"No-op button"*.
-1. Open **Preview & test** and wait for the first render to finish.
-2. Click a preset, wait ~7 seconds, then dump the table. Repeat for a different preset:
+**Replicate** — *rewritten after the fix; the original recipe drove buttons that no longer exist.*
+
+The presets are gone, so what is checkable now is that they are gone and that the path replacing
+them is discoverable. **Preview & test** should contain the picker, the render, the Resolved values
+table, and - where the three preset buttons used to sit - a single hint line.
+
+1. Open **Preview & test** and wait for the first render.
+2. Dump the view's text (it is several shadow roots deep, so walk them rather than using
+   `innerText`, which returns nothing):
    ```js
-   (() => { const v = __find('di-preview-view');
-     [...v.shadowRoot.querySelectorAll('uui-button')]
-       .find(x => (x.textContent || '').trim() === 'Very long').click(); return 'clicked'; })()
+   (() => { const walk = (r, n) => { for (const e of r.querySelectorAll("*")) {
+       if (e.tagName.toLowerCase() === n) return e;
+       if (e.shadowRoot) { const f = walk(e.shadowRoot, n); if (f) return f; } } return null; };
+     const host = walk(document, "di-preview-view");
+     const text = (n, out = []) => { for (const c of n.childNodes) {
+         if (c.nodeType === 3) { const t = c.textContent.trim(); if (t) out.push(t); }
+         else if (c.nodeType === 1) { if (c.shadowRoot) text(c.shadowRoot, out); text(c, out); } }
+       return out; };
+     return text(host.shadowRoot).join(" | "); })()
    ```
-   ```js
-   (() => { const v = __find('di-preview-view'); const h = v.shadowRoot.innerHTML;
-     const i = h.indexOf('Resolved values');
-     return h.slice(i, i + 1100).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '); })()
-   ```
-3. Compare the Title **value and position** across **Short** and **Very long**. Identical output
-   (`Designing social share images that actually get clicked` at `64, 210`) is the finding. Read the
-   table from raw HTML as shown, not via `__txt`, which would collapse repeated numbers.
+3. Assert on the absence and the replacement together — absence alone would also pass if the view
+   failed to render:
+   - `/Try a title length|Very long/` does **not** match.
+   - `/Choose a content item above/` **does** match.
+
+   Both were confirmed on the live site after the fix.
+4. The positive half of the story is A3: pick a node with the **Sample data** button and check the
+   render and the Resolved values table change. That is the supported way to test a real title now,
+   and it is what `Client/e2e/preview-surfaces.spec.ts` exercises.
 
 **Decision: replace, do not wire up.** Remove the three preset buttons. Previewing against a real
 content item is the supported path instead — see A3, which makes the chosen node apply to the
 designer's own preview. Revisit synthetic sample overrides only if choosing a node proves
 insufficient in practice.
+
+**Fixed** in `05f9bb6` — removed, as decided. No server change was needed; `PreviewRequest` never
+had a `SampleTitle`.
 
 ---
 
@@ -141,10 +171,48 @@ This tripped me up first time round. Switch views **in-app** with `__goto`.
    It should read the node name, and the view should render that article.
 3. `__goto(0)` to switch to Design in-app, wait ~10 seconds, screenshot the strip. Showing the
    sample title and no photo is the finding.
+4. **The cold-load case, added after the fix.** With a node chosen, reload the page and open
+   **Design** again. The strip must still render that node. This is a *different* defect from the
+   in-app one: the remembered node reached the picker but never the workspace context, so the strip
+   fell back to sample data. Both halves have to be checked, because fixing either one alone leaves
+   the other broken.
+
+   Rather than eyeballing the image, assert on what is sent - the whole defect was in the request
+   body. Record it before switching views:
+   ```js
+   window.__previews = [];
+   const original = window.fetch;
+   window.fetch = (input, init) => {
+     const url = String(typeof input === "string" ? input : input.url);
+     if (url.includes("/dynamic-images/preview") && !url.endsWith("/layout")) {
+       try { window.__previews.push(JSON.parse(init.body)); } catch {}
+     }
+     return original(input, init);
+   };
+   "recording"
+   ```
+   Then read `JSON.stringify(window.__previews.at(-1))` in a second call: `contentKey` must be the
+   chosen node's key and `useSampleData` must be `false`.
 
 **Decision: fix.** Pass the chosen node's key through to the strip. Given the A2 decision this
 becomes the primary way to preview against real content, so it carries more weight than its
 medium severity suggests.
+
+**Fixed** in `05f9bb6`. The strip now tracks both `sampleContentKey` and `useSampleData` from the
+context and sends them.
+
+Two further parts, neither of which this finding could see:
+
+1. `di-preview-view` restored the remembered node into its own state but never told the context, so
+   after a full page load the strip showed sample data while the picker already read the right
+   node's name.
+2. That restore could not stay in `connectedCallback` at all: the `localStorage` key is derived from
+   the template, and `_template` comes from the context observable, which has not resolved that
+   early - so it was reading a `di:sample-node:new` key and could never find what the picker wrote
+   under the template's own key. It moved into the template observer.
+
+Both cases are covered by `Client/e2e/preview-surfaces.spec.ts`, which asserts on the intercepted
+`POST …/preview` body rather than on pixels.
 
 ---
 
@@ -187,6 +255,22 @@ which case a missing prompt proves nothing — I made exactly that mistake and h
 4. Reopen the template and confirm the edit is gone.
 
 **Decision: fix.** Highest priority of the whole set.
+
+**Fixed** in `e6bc88a`, with a second defect found and fixed in `ffb43e2`.
+
+The cause was not what this finding guessed. `UmbSubmittableWorkspaceContextBase` has no dirty
+tracking to inherit - it carries a commented-out `#isDirty` and a note that the team chose not to
+implement it; the guard lives one level up in `UmbEntityDetailWorkspaceContextBase`, which needs a
+detail repository this package does not have. So the machinery was never inherited, and the doc
+comment that claimed otherwise was corrected as part of the fix. Template state moved onto core's
+exported `UmbEntityWorkspaceDataManager`, and the `willchangestate` guard was assembled from core's
+own pieces.
+
+**The first attempt silently did nothing on real navigations**, and only the E2E suite caught it:
+`event.detail.url` is a `URL` *object* on an in-app navigation and a string only when the event is
+dispatched by hand, so `.includes` threw and - the handler being async - the rejection was
+swallowed. Core's own check has an `instanceof URL` branch; inlining it had dropped that line.
+`Client/src/workspace/navigation-guard.browser.test.ts` now asserts both shapes.
 
 ---
 
@@ -235,6 +319,16 @@ absurd values are accepted.
 
 **Decision: fix.** Clamp typed values in `di-number-field`, and give the other numeric fields
 sensible bounds.
+
+**Fixed** in `a570b64`. `inputs/number-bounds.ts` is the single source of truth: `clampNumber` plus
+an `INSPECTOR_BOUNDS` table. `di-number-field` clamps in `#onChange` and writes the clamped value
+back into the input - without that the field goes on showing `5` while the model holds `1`.
+
+Re-measured on the live site with a text layer selected, the `__all(…DI-NUMBER-FIELD…)` survey now
+reads: Size 1–800, Line spacing 0.5–4, Letter spacing −20–100, Max lines 1–20, X and Y ±5000, Width
+and Height 1–5000, Opacity 0–1. **Rotation is the only field still reporting no bounds, and
+deliberately so** - it normalises at the call site, and `999 → -81` is correct for an angle.
+`number-clamp.test.ts` scans the inspector source and fails if any *other* field loses its bounds.
 
 ---
 
@@ -288,6 +382,24 @@ and let `navigate` open a fresh window, or size the browser by hand.
 
 **Decision: fix.**
 
+**Fixed** in `8c71db4`. `.centre` became `grid-template-rows: auto minmax(240px, 1fr) auto` with
+`overflow: auto`, so a column that genuinely cannot fit its rows scrolls instead of crushing the
+only flexible one. Under 1280px `.layout` became `minmax(320px, 1fr) auto` so the canvas is served
+before the side block, and `.side` tightened from 45vh to 40vh. The preview strip's reserved space
+now collapses on a short window through two custom properties - the rules live inside the strip's
+shadow root, which a parent stylesheet cannot reach.
+
+**Re-measured at the same 1150×666 viewport**, so it is comparable with the number above:
+`di-designer-canvas` is **650×240**, against the **650×0** this finding was raised with. The floor
+is now 240px by construction.
+
+`Client/src/workspace/views/design-view-layout.browser.test.ts` pins it at 1150×666, 1280×800 and
+1536×900. It drives `page.viewport()` rather than a fixed-size container, because the defect runs
+through `@media (max-width: 1280px)` and a container does not answer a media query; and it
+constrains the view to the height a workspace actually leaves it, because at `100vh` the canvas
+clears the floor on the *old* CSS too and the spec would prove nothing. Run against the pre-fix
+CSS it fails at 40px and 31px.
+
 ---
 
 ### B2. The Layers panel is capped at 40% of its own space and clips its list
@@ -325,6 +437,14 @@ onto the canvas." is clipped mid-sentence.
 
 **Decision: fix.** Address together with B1 as a single layout change rather than two patches.
 
+**Fixed** in `8c71db4`, together with B1 as decided. `max-height: 40%` became
+`max-height: min(50vh, 100%)` with `min-height: 0`, and the scroll moved to `.panel` so the host can
+size to the `auto` grid row it is given.
+
+**Re-measured at 1536×900**: the side column's rows are `487px 229px` and the panel is **229px** -
+it fills its row exactly, with **0px** of empty grey beneath it, against the 92px-of-228.8px and
+137px gap this finding recorded. All five rows are inside the panel and nothing is clipped.
+
 ---
 
 ### B3. The zoom readout shows 100% when the canvas is scaled to fit
@@ -353,6 +473,15 @@ looking at, and "Fit" appears to do nothing because the number doesn't move.
 3. Click **Fit** and re-run; the readout should change and does not.
 
 **Decision: fix.**
+
+**Fixed** in `8c71db4`. `di-designer-canvas` now emits `di-scale-change` with its effective scale -
+from `#recomputeFit()`, where the change is already detected, and from `updated()` when `zoom`
+changes - and the toolbar renders that instead of `zoom ?? 1`. Its zoom buttons step the *effective*
+scale too, so stepping up out of Fit lands one step above what is on screen rather than jumping to
+125%.
+
+**Re-measured on a 1200×630 template**: the stage is 328×172 and the readout reads **27%**, which
+is exactly `328 / 1200`. The finding recorded 100% against a 326×171 stage.
 
 ---
 
@@ -387,6 +516,17 @@ rather than lost, so this is an annoyance rather than data loss.
    the dashboard reading exactly as it did before.
 
 **Decision: fix.** Keep the editor open after adding or deleting a row so the new style can be
+
+**Fixed** in `a3018a9`, with the focus half fixed in `ffb43e2`. `#saveStyles` gained a `keepOpen`
+option that add and delete pass and the explicit **Save** does not.
+
+The focus took two attempts, and both failures are worth recording because neither is obvious:
+focusing at `updateComplete` is too early - `uui-input` has its own update to finish - and calling
+`focus()` on the `uui-input` host does not reach the control, so focus stayed on the Add button. It
+now waits a frame and focuses the native input inside.
+
+Verified on the live site: adding a style takes the row count 5 → 6 with the editor still open, and
+`Client/e2e/fonts-and-title.spec.ts` asserts both, restoring the row afterwards.
 filled in place.
 
 ---
@@ -421,6 +561,26 @@ too — it shows the specimens rendering at the correct weight, which proves onl
 
 **Decision: fix.**
 
+**Fixed** in `a3018a9`. The cause was the *input*, not the weight table: `WeightOf` read only
+`FontSubFamilyNameInvariantCulture` - OpenType name ID 2, which the spec restricts to
+Regular/Bold/Italic/BoldItalic - so a SemiBold face reporting subfamily "Regular" came back as 400.
+It now searches the typographic subfamily (ID 17, which is not so restricted), then ID 2, the full
+font name, the PostScript name and finally the family name.
+
+**Re-read from the live dashboard**, against the table above:
+
+| Family | File | Was | Now |
+|---|---|---|---|
+| BricolageDisplay | `BricolageGrotesque-ExtraBold.woff2` | weight 400 | **weight 800** |
+| HankenMeta | `HankenGrotesk-SemiBold.woff2` | weight 400 | **weight 600** |
+| HankenBody | `HankenGrotesk-Regular.woff2` | weight 400 | weight 400 (correct) |
+
+A detected weight is still a guess, so `UpdateFontRequest` gained `Weight` and `IsItalic` and the
+dashboard's editor gained the fields: an editor can overrule it. The related confusion this finding
+notes - an ExtraBold family carrying a named style called "Regular" - is now explained in the
+README: a named style names the *face* (the four-member enum SixLabors takes), while the weight is
+the family's own number.
+
 ---
 
 ### C3. The palette offers properties that make no sense on an image
@@ -442,6 +602,22 @@ properties under **SEO** and **Visibility**. To see what a drop produces, click 
 inspect the created layer's `type`.
 
 **Decision: fix, reframed.** Booleans stay listed and draggable — they are wanted for conditional
+
+**Fixed** in `938f56a`, reframed as decided. `createLayerForProperty` returns a discriminated
+`PaletteDrop`: a boolean produces a `condition`, everything else is unchanged. The canvas adds the
+layer under the pointer to the drop event - a free hit-test off the event's own composed path - and
+`di-design-view` resolves the target as the dropped-on layer, else the selected one, with a warning
+naming what to do when there is neither.
+
+Verified on the live site: with a layer selected, the boolean chip's `+` button set that layer's
+visibility to `whenPropertyTruthy` / `isFollowable` and the template still had **4 layers** - no
+text layer was created. The palette also gives boolean chips a dashed left border of their own and
+an action label reading *"Use Is Followable as a show/hide condition"*, so the chip says what will
+happen before it is dragged.
+
+**A trap for anyone re-testing this:** a `.row` filter of `"Title"` also matches **"Subtitle"**, and
+the layers panel lists the stack reversed - so an unanchored match silently selects the wrong layer
+and the check appears to fail. Match the row text exactly.
 display, and the layer visibility rule already has a "Controlled by" property picker pointed at
 exactly this kind of property. What changes is what dropping one *produces*: offer it as a layer
 visibility condition rather than defaulting to a text layer that draws `True` / `False`. Treat this
@@ -470,6 +646,13 @@ Returns `| Design | Umbraco`. Check the create route too, and compare against an
 `name` observable is exposed.
 
 **Decision: fix.**
+
+**Fixed** in `aa6bf95`. Two lines: observe the name off the data manager and call `view.setTitle`,
+falling back to "New template" so the create route reads properly too. `view` was already there on
+`UmbSubmittableWorkspaceContextBase`.
+
+**Re-read on the live site**: `document.title` is now
+`Article OG image | Preview & test | Umbraco`, against the `| Design | Umbraco` above.
 
 ---
 
@@ -500,6 +683,29 @@ far more useful for debugging.
 
 **Decision: fix.** Render a row for every layer, with a reason when it did not draw.
 
+**Fixed** in `f47679c`. The `Task<LayerBounds?>` contract is untouched - relative layout depends on
+"no bounds means did not draw" - so the reason travels beside it: `LayerRenderContext.Skip(key,
+reason)`, collected into `RenderResult.Skips` and surfaced as `LayoutResponse.Skipped`. The
+renderers that already knew why they were returning null now say so, and `DynamicImageRenderer`
+records its own cases (hidden, opacity 0, an unmet visibility rule, no registered renderer, an
+exception) plus a generic fallback. `di-preview-view` renders a row per **template layer** rather
+than per bounds.
+
+**Re-read against sample data**, which is the exact state this finding was raised in - the Image
+layer resolving to nothing:
+
+```
+Resolved values | Layer | Value | Position | Size
+Image       | not drawn — the image could not be loaded
+Title       | Designing social share images that actually get clicked | 64, 210 | 620 × 200
+Subtitle    | A short standfirst that sits under the headline        | 64, 456 | 605 × 30
+ArticleDate | 20 September 2026                                      | 64, 560 | 212 × 24
+```
+
+Four rows for four layers, where the finding recorded three. `LayerSkipTests` pins the property the
+panel depends on: bounds and skips together account for every layer, so a row can always be
+rendered with something in it.
+
 ---
 
 ### C6. Font upload help text doesn't match what's accepted
@@ -523,6 +729,9 @@ the button sits below the fold, which is why the call above lists the buttons.
 
 **Decision: fix.**
 
+**Fixed** in `a3018a9`. All three places now read ".ttf, .otf, .woff2 or .woff" - the modal hint,
+the dashboard empty state, and the server's own rejection message in `FontService`.
+
 ---
 
 ### C7. The font upload control is a raw browser file input
@@ -536,6 +745,12 @@ sits in the first box, above the uui-styled path input and provider select. The 
 `input[type=file]` query as C6 confirms it is a raw input rather than a wrapped component.
 
 **Decision: fix.**
+
+**Fixed** in `a3018a9`. The raw `<input type="file">` became `uui-file-dropzone`, which is what
+`umb-input-dropzone` is built on in core, so it matches the chrome around it; our handler still
+posts to the fonts endpoint. Verified present in the modal on the live site. (A shadow-piercing
+query still finds an `input[type=file]` - that is the dropzone's own internal control, not the bare
+one this finding is about.)
 
 ---
 
@@ -558,6 +773,30 @@ mounted", which looks like a routing bug and is not one. Always wait and re-chec
 a view failed to load.
 
 **Decision: fix.** Add a loading affordance, and check separately whether the delay itself is
+
+**Fixed** in `21189ea`, and **measured** as this finding asked.
+
+Most of the blank period is the host fetching our ~250 KB entry point before anything of ours
+exists to render a spinner in, which no code inside that bundle can help with. What we control is
+what Umbraco can register *without* it: `umbraco-package.json` is read first, so the
+`sectionSidebarApp`, the menu and the two link-kind menu items (Fonts and Health, neither of which
+has an element) moved there. Element-bearing extensions stayed in `manifests.ts` for the
+compile-time safety that file argues for.
+
+**Measured on a Release build**, cold-loading
+`/umbraco/section/dynamic-images/dashboard/overview` three times and timing until the sidebar's
+Templates item is present:
+
+| | sidebar painted | dashboard painted |
+|---|---|---|
+| 1 | 1340 ms | 1343 ms |
+| 2 | 1868 ms | 1872 ms |
+| 3 | 906 ms | 926 ms |
+
+So **roughly 0.9–1.9 seconds on Release, against the 5–10 seconds observed on the dev build** - the
+finding's suspicion that much of it was dev-mode cost is confirmed. An in-app section switch, with
+the bundle already loaded, paints in 118 ms. `di-templates-menu-item` also gained
+`uui-menu-item`'s `loading` indicator alongside the loader it already showed when expanded.
 avoidable on a release build.
 
 ---
@@ -611,6 +850,32 @@ show it.
 
 **Decision: fix.**
 
+**Fixed** in `f0bcf14`. The cause is `IAsyncComponent`: components initialise before the rest of the
+boot sequence, and uSync's first boot runs after them. The work moved to an
+`INotificationAsyncHandler<UmbracoApplicationStartedNotification>`, which runs after every component
+has initialised. The `ServerRole.Subscriber` guard and the deliberate `ServerRole.Unknown` allowance
+were carried over unchanged.
+
+**Verified exactly as this finding's Replicate block specifies** - `umbraco/Data` deleted, cold
+boot, twice:
+
+```
+before   12:24:13  Dynamic Images: imported 1 template(s) from the v1 configuration (1 warning(s))
+         12:24:13  Dynamic Images: Article OG image: There is no document type with the alias 'article'.
+         12:24:25  uSync First boot complete
+
+after    12:27:50  uSync First boot complete
+         12:27:51  Dynamic Images: imported 1 template(s) from the v1 configuration (0 warning(s))
+```
+
+The warning is gone, and the ordering is the right way round.
+
+As a safety net for a site where the document type genuinely is not there yet, `ImportReport` now
+carries the validation codes behind its warnings (the message loses them). A report whose warnings
+are *all* `DocTypeUnknown`/`PropertyUnknown` is logged at Information saying it will be re-checked,
+and arms a `ContentTypeSaved` handler that re-checks once. A mixed report is not deferred - one
+missing font must not be hidden behind a document type that fixes itself.
+
 ---
 
 ## E. Verified working
@@ -641,17 +906,31 @@ Worth recording so we don't re-test these:
 
 ## F. Not covered by this review
 
-Flagging these so we know what's untested rather than assumed fine:
+Flagging these so we know what's untested rather than assumed fine.
+
+**What the fixes added coverage for** is a different axis from this list, and does not shorten it:
+`Client/e2e/` now covers A4 (all four cases), A3 (in-app switch *and* cold load), A1, C5, C4 and
+C1 against a real booted site, and `Client/src/**/*.browser.test.ts` covers B1, B2, B3, A5 and the
+navigation guard in a real Chromium. None of those touch anything below.
+
+Still untested, and still worth someone's afternoon:
 
 - **Canvas gestures** — dragging, the 8 resize handles, the rotation handle, Shift/Alt modifiers,
-  snapping and guides. The browser window available to me was too small to use the canvas (see B1).
+  snapping and guides. *The reason given at review time no longer holds:* the window was too small
+  to use the canvas because of B1, which is fixed - at 1150×666 the canvas is now 650×240 rather
+  than 650×0. This is now simply untested, not untestable.
 - **Drag and drop from the palette**, and the keyboard shortcuts (undo/redo, duplicate, delete,
-  nudge, z-order).
+  nudge, z-order). C3's new behaviour was verified through the chip's `+` button, which takes the
+  same code path as a drop once the target is resolved; the HTML5 drag itself is still unexercised.
 - **Shape layers** — the ellipse / polygon / star inspector controls, sides, inner ratio, gradients.
 - **Badges layers.**
 - **Adding a web font** (Google / Bunny / direct URL), uploading a font file, and refreshing one.
+  C6/C7 changed the upload *control* and its wording, both verified, but no file has been pushed
+  through it end to end.
 - **Import / export JSON**, and the Health dashboard's export-to-disk / import-from-disk.
-- **Regenerate all** (the bulk job) and job progress.
+- **Regenerate all** (the bulk job) and job progress. The single-node **Regenerate OG image** path
+  was verified manually at review time (see section E) but has no E2E spec: the plan listed one and
+  it was not written.
 
 ---
 

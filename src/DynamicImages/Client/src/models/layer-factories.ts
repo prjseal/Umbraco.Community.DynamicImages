@@ -151,22 +151,39 @@ export function layerTypeFor(classification: PropertyClassification): DiLayer["t
     case "content":
     case "list":
       return "badges";
+    // Spelled out rather than left to the default, because a boolean does not produce a layer at
+    // all - see createLayerForProperty. This is what it *would* be if it did.
+    case "boolean":
+      return "text";
     default:
       return "text";
   }
 }
 
-/** Builds the layer a dropped palette chip becomes. */
-export function createLayerForProperty(property: DiProperty, context: NewLayerContext): DiLayer {
+/**
+ * What dropping a palette chip produces. A Yes/No property is not a thing to draw - drawing it
+ * put the literal word "True" or "False" on the image - it is a thing to draw *by*, so it
+ * becomes a visibility condition on a layer instead.
+ */
+export type PaletteDrop =
+  | { kind: "layer"; layer: DiLayer }
+  | { kind: "condition"; propertyAlias: string; propertyName: string };
+
+/** Builds what a dropped palette chip becomes. */
+export function createLayerForProperty(property: DiProperty, context: NewLayerContext): PaletteDrop {
+  if (property.classification === "boolean") {
+    return { kind: "condition", propertyAlias: property.alias, propertyName: property.name };
+  }
+
   switch (layerTypeFor(property.classification)) {
     case "image":
-      return createImageLayer(context, property.name, property.alias);
+      return { kind: "layer", layer: createImageLayer(context, property.name, property.alias) };
 
     case "badges":
-      return createBadgesLayer(context, property.name, property.alias);
+      return { kind: "layer", layer: createBadgesLayer(context, property.name, property.alias) };
 
     default:
-      return createTextLayer(context, property.name, bindingFor(property));
+      return { kind: "layer", layer: createTextLayer(context, property.name, bindingFor(property)) };
   }
 }
 

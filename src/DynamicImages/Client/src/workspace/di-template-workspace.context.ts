@@ -1,7 +1,8 @@
-import { UmbSubmittableWorkspaceContextBase } from "@umbraco-cms/backoffice/workspace";
+import { UmbEntityWorkspaceDataManager, UmbSubmittableWorkspaceContextBase } from "@umbraco-cms/backoffice/workspace";
 import { UmbContextToken } from "@umbraco-cms/backoffice/context-api";
-import { UmbObjectState, UmbArrayState, UmbBooleanState, UmbStringState, UmbNumberState } from "@umbraco-cms/backoffice/observable-api";
+import { UmbArrayState, UmbBooleanState, UmbStringState, UmbNumberState } from "@umbraco-cms/backoffice/observable-api";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
+import { UMB_DISCARD_CHANGES_MODAL, umbOpenModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 import {
@@ -18,13 +19,24 @@ import { History } from "../designer/history.js";
 export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
 
 /**
- * One immutable template document, plus everything the designer derives from it. Extending
- * Umbraco's submittable workspace base is what buys Save, dirty tracking and the
- * unsaved-changes prompt for free rather than reimplementing them.
+ * One immutable template document, plus everything the designer derives from it.
+ *
+ * Extending Umbraco's submittable workspace base buys Save and the `isNew` flag, and nothing
+ * else: it carries a commented-out `#isDirty` and no dirty tracking at all. The unsaved-changes
+ * guard lives one level up, in `UmbEntityDetailWorkspaceContextBase`, which we cannot inherit
+ * because it requires a detail repository, an entity context and action-event reload events that
+ * this package's bespoke fetch layer does not have. So the two halves are assembled here from
+ * core's own exported pieces: `UmbEntityWorkspaceDataManager` holds the persisted/current pair
+ * that answers "is this dirty", and the `willchangestate` listener below is core's own guard,
+ * inlined.
  */
 export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBase<DiTemplate> {
-  #template = new UmbObjectState<DiTemplate | undefined>(undefined);
-  readonly template = this.#template.asObservable();
+  /**
+   * The persisted/current pair. `getHasUnpersistedChanges()` is a JSON comparison of the two, so
+   * every path that reaches a saved state must set both from the *same* object.
+   */
+  protected readonly _data = new UmbEntityWorkspaceDataManager<DiTemplate>(this);
+  readonly template = this._data.current;
 
   #layers = new UmbArrayState<DiLayer>([], (layer) => layer.key);
   readonly layers = this.#layers.asObservable();
@@ -58,7 +70,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   readonly loading = this.#loading.asObservable();
 
   /** Required by the base class; the workspace's unique is the template key. */
-  readonly unique = this.#template.asObservablePart((template) => template?.key);
+  readonly unique = this._data.createObservablePartOfCurrent((template) => template?.key);
 
   #canUndo = new UmbBooleanState(false);
   readonly canUndo = this.#canUndo.asObservable();
@@ -70,6 +82,13 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   #authContext?: typeof UMB_AUTH_CONTEXT.TYPE;
   #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
   #isNew = false;
+
+  /**
+   * Set while we are deliberately re-entering navigation after the editor chose to discard.
+   * The `history.pushState` below fires `willchangestate` a second time, and without this the
+   * guard would prompt in a loop. Core does exactly the same thing, for the same reason.
+   */
+  #allowNavigateAway = false;
 
   constructor(host: UmbControllerHost) {
     super(host, DI_TEMPLATE_WORKSPACE_ALIAS);
@@ -83,9 +102,11 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
         setup: () => this.createScaffold(),
       },
       {
-        path: "edit/:key",
+        // `:unique` rather than `:key` so this workspace's route reads like every other one in
+        // the backoffice, and so anything matching on the conventional param name finds it.
+        path: "edit/:unique",
         component: () => import("./di-template-editor.element.js"),
-        setup: (_component, info) => this.load(info.match.params.key),
+        setup: (_component, info) => this.load(info.match.params.unique),
       },
       {
         path: "",
@@ -99,15 +120,78 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     this.consumeContext(UMB_NOTIFICATION_CONTEXT, (instance) => {
       this.#notificationContext = instance;
     });
+
+    window.addEventListener("willchangestate", this.#onWillNavigate);
+    window.addEventListener("beforeunload", this.#onBeforeUnload);
+
+    // Without this the browser tab reads "| Design | Umbraco" - a leading empty segment, which
+    // is exactly what the host's #computeTitle() produces when the view's title is undefined.
+    // `view` comes from the base class; it is an UmbViewContext, which has setTitle.
+    this.observe(this._data.createObservablePartOfCurrent((template) => template?.name), (name) => {
+      this.view.setTitle(name || "New template");
+    });
   }
+
+  // ------------------------------------------------------------------ the unsaved-changes guard
+
+  getHasUnpersistedChanges = (): boolean => this._data.getHasUnpersistedChanges();
+
+  /**
+   * True when the new URL leaves this workspace. Switching between the four workspace views keeps
+   * the workspace's own path as a prefix (`…/edit/<key>/view/<pathname>`), so this is false for
+   * those and the editor is never prompted for moving between Design and Preview & test.
+   *
+   * Core has the same check as a protected method on `UmbEntityDetailWorkspaceContextBase`.
+   * There is no exported helper for it, so it is inlined rather than reached for.
+   *
+   * The `URL` branch is not defensive padding: a real in-app navigation puts a `URL` **object**
+   * in `event.detail.url`, and only a synthetic event carries a string. Without it `.includes`
+   * throws, and because the handler is async the rejection is swallowed - so the guard silently
+   * did nothing on exactly the navigations it exists for, while passing every test that
+   * dispatched the event by hand.
+   */
+  #willNavigateAway(newUrl: string | URL): boolean {
+    const url = newUrl instanceof URL ? newUrl.href : newUrl;
+
+    return !url.includes(this.routes.getActiveLocalPath());
+  }
+
+  #onWillNavigate = async (event: Event): Promise<boolean> => {
+    const detail = (event as CustomEvent<{ url: string | URL }>).detail;
+
+    if (this.#allowNavigateAway) return true;
+    if (!detail?.url || !this.#willNavigateAway(detail.url)) return true;
+    if (!this.getHasUnpersistedChanges()) return true;
+
+    // Modals are async and the event is not, so the navigation has to be cancelled up front and
+    // replayed once the editor has answered.
+    event.preventDefault();
+
+    try {
+      await umbOpenModal(this, UMB_DISCARD_CHANGES_MODAL);
+      this.#allowNavigateAway = true;
+      window.history.pushState({}, "", detail.url instanceof URL ? detail.url.href : detail.url);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  /** A full page unload cannot be prompted with our own modal; the browser's own will do. */
+  #onBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (!this.getHasUnpersistedChanges()) return;
+
+    event.preventDefault();
+    event.returnValue = "";
+  };
 
   getToken = () => this.#authContext?.getLatestToken();
 
   getEntityType = () => "di-template";
 
-  getUnique = () => this.#template.getValue()?.key;
+  getUnique = () => this._data.getCurrent()?.key;
 
-  getData = () => this.#template.getValue();
+  getData = () => this._data.getCurrent();
 
   /** True until the first successful save. `isNew` itself is an observable on the base class. */
   get isUnsaved(): boolean {
@@ -122,7 +206,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
     try {
       const template = await fetchTemplate(key, this.getToken);
-      this.#setTemplate(template, { resetHistory: true });
+      this.#setTemplate(template, { resetHistory: true, persist: true });
       this.setIsNew(false);
       await this.#loadSupportingData(template);
     } catch (error) {
@@ -136,9 +220,11 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     this.#loading.setValue(true);
     this.#isNew = true;
 
-    this.#setTemplate(createTemplate(name), { resetHistory: true });
+    // The scaffold is persisted as well as current, so opening Create and navigating straight
+    // back out does not prompt over changes nobody made.
+    this.#setTemplate(createTemplate(name), { resetHistory: true, persist: true });
     this.setIsNew(true);
-    await this.#loadSupportingData(this.#template.getValue()!);
+    await this.#loadSupportingData(this._data.getCurrent()!);
 
     this.#loading.setValue(false);
   }
@@ -174,7 +260,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   }
 
   async reloadProperties(): Promise<void> {
-    const template = this.#template.getValue();
+    const template = this._data.getCurrent();
     if (!template) return;
 
     this.#properties.setValue(await this.#loadProperties(template.docTypeAliases));
@@ -191,7 +277,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
    * the undo stack, the dirty flag and the derived observables consistent by construction.
    */
   #update(mutate: (template: DiTemplate) => DiTemplate, recordHistory = true): void {
-    const current = this.#template.getValue();
+    const current = this._data.getCurrent();
     if (!current) return;
 
     if (recordHistory) this.#history.push(current);
@@ -200,10 +286,16 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     this.#setTemplate(next);
   }
 
-  #setTemplate(template: DiTemplate, options?: { resetHistory?: boolean }): void {
+  /**
+   * `persist` marks this template as the saved state too. Both halves get the *same* object, so
+   * the JSON comparison behind `getHasUnpersistedChanges()` cannot report a false positive.
+   */
+  #setTemplate(template: DiTemplate, options?: { resetHistory?: boolean; persist?: boolean }): void {
     if (options?.resetHistory) this.#history.clear();
 
-    this.#template.setValue(template);
+    this._data.setCurrent(template);
+    if (options?.persist) this._data.setPersisted(template);
+
     this.#layers.setValue(template.layers);
     this.#refreshHistoryFlags();
   }
@@ -266,7 +358,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   }
 
   duplicateLayer(key: string): void {
-    const source = this.#template.getValue()?.layers.find((layer) => layer.key === key);
+    const source = this._data.getCurrent()?.layers.find((layer) => layer.key === key);
     if (!source) return;
 
     const copy: DiLayer = {
@@ -308,14 +400,14 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
   getSelectedLayer(): DiLayer | undefined {
     const key = this.#selectedLayerKey.getValue();
-    return key ? this.#template.getValue()?.layers.find((layer) => layer.key === key) : undefined;
+    return key ? this._data.getCurrent()?.layers.find((layer) => layer.key === key) : undefined;
   }
 
   // ------------------------------------------------------------------ transactions and history
 
   /** Opens a coalesced change - a whole drag becomes one undo entry rather than hundreds. */
   beginTransaction(): void {
-    const current = this.#template.getValue();
+    const current = this._data.getCurrent();
     if (current) this.#history.begin(current);
   }
 
@@ -325,7 +417,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   }
 
   undo(): void {
-    const current = this.#template.getValue();
+    const current = this._data.getCurrent();
     if (!current) return;
 
     const previous = this.#history.undo(current);
@@ -333,7 +425,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   }
 
   redo(): void {
-    const current = this.#template.getValue();
+    const current = this._data.getCurrent();
     if (!current) return;
 
     const next = this.#history.redo(current);
@@ -371,7 +463,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
   // ------------------------------------------------------------------ saving
 
   protected async submit(): Promise<void> {
-    const template = this.#template.getValue();
+    const template = this._data.getCurrent();
     if (!template) throw new Error("There is nothing to save.");
 
     try {
@@ -379,7 +471,9 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
         ? await apiCreate(template, this.getToken)
         : await updateTemplate(template, this.getToken);
 
-      this.#setTemplate(response.template, { resetHistory: true });
+      // Saved, so the response is both what is on screen and what is on the server. The guard
+      // must not prompt on the way out of a template that was just saved.
+      this.#setTemplate(response.template, { resetHistory: true, persist: true });
 
       const wasNew = this.#isNew;
       this.#isNew = false;
@@ -415,7 +509,17 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     this.#notificationContext?.peek("danger", { data: { headline: fallback, message } });
   }
 
+  protected override resetState(): void {
+    super.resetState();
+    this._data.clear();
+    this.#allowNavigateAway = false;
+  }
+
   override destroy(): void {
+    // Core leaks these listeners; we should not.
+    window.removeEventListener("willchangestate", this.#onWillNavigate);
+    window.removeEventListener("beforeunload", this.#onBeforeUnload);
+
     this.#history.clear();
     super.destroy();
   }

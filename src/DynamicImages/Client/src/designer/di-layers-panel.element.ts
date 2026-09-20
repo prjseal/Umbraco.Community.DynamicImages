@@ -146,16 +146,25 @@ export class DiLayersPanelElement extends UmbLitElement {
   }
 
   static styles = css`
+    /* max-height: 40% resolved against the grid row the panel had already been given, so 60%
+       of that row was guaranteed waste - 92px of panel in a 228.8px row, with the list clipped
+       mid-row and grey space beneath it. The cap is now against the viewport instead, and the
+       scroll moved to .panel so the host can size to its content the way the side column's
+       auto row intends. This is also what was clipping the empty-state sentence on a new
+       template. */
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
       border-top: 1px solid var(--uui-color-border);
       background: var(--uui-color-surface);
-      max-height: 40%;
-      overflow: auto;
+      min-height: 0;
+      max-height: min(50vh, 100%);
     }
 
     .panel {
       padding: var(--uui-size-space-3);
+      min-height: 0;
+      overflow: auto;
     }
 
     h5 {

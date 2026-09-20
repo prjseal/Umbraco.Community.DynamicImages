@@ -121,8 +121,23 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     window.removeEventListener("pointercancel", this.#onPointerUp);
   }
 
-  override updated() {
+  override updated(changed: Map<string, unknown>) {
     this.#recomputeFit();
+
+    // A zoom change moves the effective scale without touching the fit scale, so the readout
+    // has to be told about it here too.
+    if (changed.has("zoom")) this.#announceScale();
+  }
+
+  /**
+   * The canvas is the only thing that knows the effective scale - it is sized to fit rather than
+   * transformed, so `zoom` being unset means "fit", not 100%. Anything showing a percentage has
+   * to hear it from here.
+   */
+  #announceScale() {
+    this.dispatchEvent(
+      new CustomEvent("di-scale-change", { bubbles: true, composed: true, detail: { scale: this.scale } }),
+    );
   }
 
   #recomputeFit() {
@@ -142,7 +157,10 @@ export class DiDesignerCanvasElement extends UmbLitElement {
       1,
     );
 
-    if (Math.abs(fit - this._fitScale) > 0.001) this._fitScale = fit;
+    if (Math.abs(fit - this._fitScale) > 0.001) {
+      this._fitScale = fit;
+      this.#announceScale();
+    }
   }
 
   // ------------------------------------------------------------------ coordinate conversion
@@ -506,10 +524,23 @@ export class DiDesignerCanvasElement extends UmbLitElement {
       new CustomEvent("di-palette-drop", {
         bubbles: true,
         composed: true,
-        detail: { payload: JSON.parse(payload), x: point.x, y: point.y },
+        detail: { payload: JSON.parse(payload), x: point.x, y: point.y, targetKey: this.#layerUnder(event) },
       }),
     );
   };
+
+  /**
+   * Which layer the pointer was over when something was dropped. A free hit-test - the event's
+   * own composed path already went through the layer box - with no geometry to get wrong. Used
+   * by a dropped Yes/No property to know which layer it should control.
+   */
+  #layerUnder(event: DragEvent): string | undefined {
+    const box = event.composedPath().find(
+      (node) => (node as HTMLElement).tagName === "DI-LAYER-BOX",
+    ) as HTMLElement | undefined;
+
+    return box?.dataset.key;
+  }
 
   #onWheel = (event: WheelEvent) => {
     // Ctrl+wheel is the established "zoom the canvas" gesture, and trackpad pinch arrives as it.

@@ -97,6 +97,10 @@ export class DiPropertyPaletteElement extends UmbLitElement {
             ICONS[property.classification] ?? ICONS.other,
             property.classification,
             { kind: "property", property },
+            // A Yes/No chip does not add a layer, so the button must not claim it does.
+            property.classification === "boolean"
+              ? `Use ${property.name} as a show/hide condition`
+              : undefined,
           ),
         )}
       </div>
@@ -116,18 +120,27 @@ export class DiPropertyPaletteElement extends UmbLitElement {
     `;
   }
 
-  #renderChip(label: string, icon: string, classification: PropertyClassification, payload: PalettePayload) {
+  #renderChip(
+    label: string,
+    icon: string,
+    classification: PropertyClassification,
+    payload: PalettePayload,
+    actionLabel?: string,
+  ) {
+    const title = actionLabel ?? label;
+
     return html`
       <div
         class="chip ${classification}"
         draggable="true"
+        title=${title}
         @dragstart=${(event: DragEvent) => this.#onDragStart(event, payload)}>
         <uui-icon name=${icon}></uui-icon>
-        <span class="label" title=${label}>${label}</span>
+        <span class="label" title=${title}>${label}</span>
         <uui-button
           compact
           look="secondary"
-          label="Add ${label} to the canvas"
+          label=${actionLabel ?? `Add ${label} to the canvas`}
           @click=${() => this.#add(payload)}>
           <uui-icon name="icon-add"></uui-icon>
         </uui-button>
@@ -198,6 +211,13 @@ export class DiPropertyPaletteElement extends UmbLitElement {
     .chip.content,
     .chip.list {
       border-left-color: var(--uui-color-danger);
+    }
+    /* A Yes/No property is the one chip that does not add a layer at all - it sets a layer's
+       visibility condition - so it gets a colour of its own, and a dashed border to say the
+       drop needs a target. */
+    .chip.boolean {
+      border-left-color: var(--uui-color-selected);
+      border-left-style: dashed;
     }
 
     .empty {

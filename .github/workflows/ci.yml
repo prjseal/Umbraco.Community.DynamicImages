@@ -1,0 +1,75 @@
+name: CI
+
+# The unit and component suites, on every push and pull request. The Playwright E2E suite is
+# deliberately not here - the test site's first boot imports ~192 uSync items, so it is minutes
+# rather than seconds. It lives in e2e.yml behind workflow_dispatch.
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+
+  dotnet:
+    name: .NET tests
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      # The test project directly, not the solution: building the solution would restore Umbraco,
+      # Clean.Core and uSync for the test site, none of which the tests need.
+      - name: Test
+        run: dotnet test test/DynamicImages.Tests
+
+  client:
+    name: Client tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/DynamicImages/Client
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: src/DynamicImages/Client/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Component tests
+        run: npm run test:browser
+
+      - name: Build
+        run: npm run build
+
+      # The one that matters. The bundle under wwwroot/App_Plugins is committed and release.yml
+      # has no npm step, so without this a stale bundle ships silently.
+      - name: The committed bundle matches its source
+        working-directory: ${{ github.workspace }}
+        run: git diff --exit-code src/DynamicImages/wwwroot

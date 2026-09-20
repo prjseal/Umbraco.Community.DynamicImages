@@ -121,10 +121,18 @@ public sealed partial class BadgesLayerRenderer(
 
     private async Task<BadgesPlan?> LayoutAsync(BadgesLayer badges, LayerRenderContext context)
     {
-        if (string.IsNullOrWhiteSpace(badges.ItemsPropertyAlias)) return null;
+        if (string.IsNullOrWhiteSpace(badges.ItemsPropertyAlias))
+        {
+            context.Skip(badges.Key, "no property is bound to list");
+            return null;
+        }
 
         var items = context.Values.GetItems(badges.ItemsPropertyAlias).Take(Math.Max(1, badges.MaxItems)).ToList();
-        if (items.Count == 0) return null;
+        if (items.Count == 0)
+        {
+            context.Skip(badges.Key, LayerSkipReasons.NoItems);
+            return null;
+        }
 
         var labelFont = badges.Label.Position == BadgeLabelPosition.None
             ? null

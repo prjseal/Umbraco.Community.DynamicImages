@@ -16,11 +16,19 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
         if (layer is not ImageLayer imageLayer) return null;
 
         using var overlay = await imageSources.LoadAsync(imageLayer.Source, context.Values, context.CancellationToken);
-        if (overlay is null) return null;
+        if (overlay is null)
+        {
+            context.Skip(imageLayer.Key, LayerSkipReasons.NoImage);
+            return null;
+        }
 
         var width = (int)Math.Round(imageLayer.Size.Width ?? overlay.Width);
         var height = (int)Math.Round(imageLayer.Size.Height ?? overlay.Height);
-        if (width <= 0 || height <= 0) return null;
+        if (width <= 0 || height <= 0)
+        {
+            context.Skip(imageLayer.Key, LayerSkipReasons.ZeroSize);
+            return null;
+        }
 
         overlay.Mutate(ctx => ctx.Resize(new ResizeOptions
         {
@@ -79,11 +87,19 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
         // Reading the header is enough for the size, and it doubles as the existence check that
         // makes a missing image measure as nothing, exactly as it renders as nothing.
         var natural = await imageSources.GetDimensionsAsync(imageLayer.Source, context.Values, context.CancellationToken);
-        if (natural is null) return null;
+        if (natural is null)
+        {
+            context.Skip(imageLayer.Key, LayerSkipReasons.NoImage);
+            return null;
+        }
 
         var width = (int)Math.Round(imageLayer.Size.Width ?? natural.Value.Width);
         var height = (int)Math.Round(imageLayer.Size.Height ?? natural.Value.Height);
-        if (width <= 0 || height <= 0) return null;
+        if (width <= 0 || height <= 0)
+        {
+            context.Skip(imageLayer.Key, LayerSkipReasons.ZeroSize);
+            return null;
+        }
 
         var position = context.PositionOf(imageLayer);
         var (x, y) = AnchorMath.ToTopLeft(position, width, height);
