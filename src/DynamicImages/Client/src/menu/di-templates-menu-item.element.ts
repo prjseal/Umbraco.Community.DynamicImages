@@ -87,6 +87,7 @@ export class DiTemplatesMenuItemElement extends UmbLitElement {
       <uui-menu-item
         label="Templates"
         has-children
+        ?loading=${this._loading}
         ?show-children=${this._expanded}
         @show-children=${() => {
           this._expanded = true;
@@ -101,6 +102,10 @@ export class DiTemplatesMenuItemElement extends UmbLitElement {
   }
 
   #renderChildren() {
+    // The item's own `loading` indicator covers the collapsed case; this covers the expanded
+    // one. Between them the sidebar never sits looking finished while it is still fetching -
+    // which, with the section chrome now painting before the bundle loads, is the only part of
+    // entering the section that can still look blank.
     if (this._loading) return html`<uui-loader></uui-loader>`;
 
     return html`

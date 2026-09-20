@@ -1,29 +1,25 @@
 import { DiTemplateWorkspaceContext } from "./workspace/di-template-workspace.context.js";
-import { SECTION_PATHNAME, TEMPLATE_ENTITY_TYPE } from "./api/dynamic-images-api.js";
+import { TEMPLATE_ENTITY_TYPE } from "./api/dynamic-images-api.js";
 
 /**
- * Everything except the section itself is registered here rather than in umbraco-package.json,
- * so elements and the workspace context are referenced as real classes: a renamed export becomes
- * a build error instead of a blank panel at runtime.
+ * Every extension that references an element or the workspace context is registered here rather
+ * than in umbraco-package.json, so it is a real class: a renamed export becomes a build error
+ * instead of a blank panel at runtime.
+ *
+ * The extensions that reference neither - the section, the sidebar app, the menu, and the
+ * Fonts/Health link items - are in umbraco-package.json instead, because Umbraco reads that file
+ * before this bundle loads and they can therefore paint straight away.
  */
 export const manifests: Array<UmbExtensionManifest> = [
   // ---------------------------------------------------------------- sidebar
-  {
-    type: "sectionSidebarApp",
-    kind: "menu",
-    alias: "DynamicImages.SidebarApp",
-    name: "Dynamic Images Sidebar",
-    meta: {
-      label: "#dynamicImages_sectionName",
-      menu: "DynamicImages.Menu",
-    },
-    conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }],
-  },
-  {
-    type: "menu",
-    alias: "DynamicImages.Menu",
-    name: "Dynamic Images Menu",
-  },
+  //
+  // The sidebar app, the menu and the Fonts/Health link items are NOT here - they live in
+  // wwwroot/App_Plugins/DynamicImages/umbraco-package.json, which Umbraco reads before this
+  // bundle loads, so the section chrome paints immediately rather than after the entry point
+  // has downloaded. None of them needs an element, so nothing is lost by moving them.
+  //
+  // This one stays, because it has an element and so benefits from the compile-time safety the
+  // comment above argues for.
   {
     type: "menuItem",
     alias: "DynamicImages.MenuItem.Templates",
@@ -31,32 +27,6 @@ export const manifests: Array<UmbExtensionManifest> = [
     element: () => import("./menu/di-templates-menu-item.element.js"),
     weight: 200,
     meta: { label: "Templates", menus: ["DynamicImages.Menu"] },
-  },
-  {
-    type: "menuItem",
-    kind: "link",
-    alias: "DynamicImages.MenuItem.Fonts",
-    name: "Dynamic Images Fonts Menu Item",
-    weight: 100,
-    meta: {
-      label: "Fonts",
-      icon: "icon-font",
-      menus: ["DynamicImages.Menu"],
-      href: `section/${SECTION_PATHNAME}/dashboard/fonts`,
-    },
-  },
-  {
-    type: "menuItem",
-    kind: "link",
-    alias: "DynamicImages.MenuItem.Health",
-    name: "Dynamic Images Health Menu Item",
-    weight: 90,
-    meta: {
-      label: "Health",
-      icon: "icon-stethoscope",
-      menus: ["DynamicImages.Menu"],
-      href: `section/${SECTION_PATHNAME}/dashboard/health`,
-    },
   },
 
   // ---------------------------------------------------------------- dashboards
