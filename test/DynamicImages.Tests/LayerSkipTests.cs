@@ -233,19 +233,4 @@ public class LayerSkipTests
 
         public void Clear(Guid fontKey) { }
     }
-
-    private sealed class NoImages : IImageSourceProvider
-    {
-        public Task<Image?> LoadAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
-            => Task.FromResult<Image?>(null);
-
-        public Task<bool> ExistsAsync(ImageSource? source, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
-
-        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, CancellationToken cancellationToken = default)
-            => Task.FromResult<(int, int)?>(null);
-
-        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
-            => Task.FromResult<(int, int)?>(null);
-    }
 }

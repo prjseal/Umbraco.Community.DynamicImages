@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using SixLabors.ImageSharp.PixelFormats;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
@@ -23,6 +24,7 @@ public sealed partial class TemplateValidator(
 
         ValidateIdentity(template, issues);
         ValidateCanvas(template, issues);
+        ValidateTransparency(template, issues);
         await ValidateBaseImageAsync(template, issues, cancellationToken);
         ValidateDocTypesAndTarget(template, issues);
         ValidateOutputFolder(template, issues);
@@ -65,6 +67,69 @@ public sealed partial class TemplateValidator(
         {
             issues.Add(new ValidationIssue(ValidationSeverity.Error, "ColourInvalid",
                 $"'{template.Canvas.Background}' is not a valid canvas background colour. Use #RRGGBB or #RRGGBBAA."));
+        }
+
+        // A stale colour under a gradient is still worth reporting: the gradient may be switched
+        // off again, and the colour is what comes back.
+        if (template.Canvas.BackgroundGradient is { } gradient)
+        {
+            ValidateGradient(gradient, "The canvas background gradient", null, issues);
+        }
+    }
+
+    /// <summary>
+    /// JPEG has no alpha channel, so anything transparent is flattened to whatever hex happened to
+    /// be under the zero alpha - which is not a choice anyone made. A warning rather than an error:
+    /// flattening is a legitimate thing to want, and this says what will actually be drawn.
+    /// </summary>
+    private static void ValidateTransparency(Template template, List<ValidationIssue> issues)
+    {
+        if (template.Output.Format != OutputFormat.Jpeg || !FillCarriesAlpha(template.Canvas)) return;
+
+        // Cover and stretch always fill the canvas, so a warning there would be noise; contain
+        // pads with transparency, and a property source that resolves to nothing covers nothing.
+        var covered = template.Canvas.BaseImage.Kind != ImageSourceKind.None
+            && template.Canvas.BaseImageFit is ImageFitMode.Cover or ImageFitMode.Stretch;
+
+        if (covered) return;
+
+        issues.Add(new ValidationIssue(ValidationSeverity.Warning, "TransparencyNotKept",
+            "The output format is JPEG, which has no transparency, so the transparent parts of this template will be flattened to whatever colour is underneath them. Use PNG or WebP to keep it."));
+    }
+
+    private static bool FillCarriesAlpha(CanvasSettings canvas)
+    {
+        // The gradient is the fill when it is set, as on a shape layer, so the colour beneath it
+        // says nothing about what is drawn.
+        if (canvas.BackgroundGradient is { } gradient) return HasAlpha(gradient.From) || HasAlpha(gradient.To);
+
+        // An empty background is the quiet path to transparency: ParseOrDefault falls back to
+        // Color.Transparent and the validator deliberately skips empty colours.
+        return string.IsNullOrWhiteSpace(canvas.Background) || HasAlpha(canvas.Background);
+    }
+
+    private static bool HasAlpha(string? value)
+        => ColourParser.TryParse(value, out var colour) && colour.ToPixel<Rgba32>().A < 255;
+
+    /// <summary>
+    /// A gradient's stops and, for a radial one, its centre - shared by the canvas and by a shape
+    /// layer, so the two report the same problems in the same words.
+    /// </summary>
+    private static void ValidateGradient(Gradient gradient, string what, Guid? layerKey, List<ValidationIssue> issues)
+    {
+        RequireColour(gradient.From, what, layerKey, issues);
+        RequireColour(gradient.To, what, layerKey, issues);
+
+        if (gradient.Kind != GradientKind.Radial) return;
+
+        // The renderer clamps either way; the warning says what will actually be drawn.
+        var x = GradientGeometry.ClampFraction(gradient.CentreX);
+        var y = GradientGeometry.ClampFraction(gradient.CentreY);
+
+        if (x != gradient.CentreX || y != gradient.CentreY)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Warning, "GradientCentreInvalid",
+                $"{what} is centred at {gradient.CentreX}, {gradient.CentreY}; a centre is a fraction of the box between 0 and 1, so it will be drawn at {x}, {y}.", layerKey));
         }
     }
 
@@ -228,11 +293,7 @@ public sealed partial class TemplateValidator(
                 }
 
                 if (rect.Fill is not null) RequireColour(rect.Fill, layer, issues);
-                if (rect.Gradient is not null)
-                {
-                    RequireColour(rect.Gradient.From, layer, issues);
-                    RequireColour(rect.Gradient.To, layer, issues);
-                }
+                if (rect.Gradient is not null) ValidateGradient(rect.Gradient, $"Layer '{Describe(layer)}'", layer.Key, issues);
                 if (rect.Border is not null) RequireColour(rect.Border.Colour, layer, issues);
 
                 // The renderer clamps either way; the warning says what will actually be drawn.
@@ -279,11 +340,16 @@ public sealed partial class TemplateValidator(
     }
 
     private static void RequireColour(string? value, LayerBase layer, List<ValidationIssue> issues)
+        => RequireColour(value, $"Layer '{Describe(layer)}'", layer.Key, issues);
+
+    /// <summary><paramref name="what"/> is the phrase that names the thing: "Layer 'Title'", or
+    /// "The canvas background gradient".</summary>
+    private static void RequireColour(string? value, string what, Guid? layerKey, List<ValidationIssue> issues)
     {
         if (string.IsNullOrWhiteSpace(value) || ColourParser.TryParse(value, out _)) return;
 
         issues.Add(new ValidationIssue(ValidationSeverity.Error, "ColourInvalid",
-            $"Layer '{Describe(layer)}' has the colour '{value}', which is not #RRGGBB or #RRGGBBAA.", layer.Key));
+            $"{what} has the colour '{value}', which is not #RRGGBB or #RRGGBBAA.", layerKey));
     }
 
     private static string Describe(LayerBase layer)

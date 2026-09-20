@@ -1009,22 +1009,6 @@ public class RendererTests
         public void Clear(Guid fontKey) { }
     }
 
-    /// <summary>No image sources, so these tests need no media library or web root.</summary>
-    private sealed class NoImages : IImageSourceProvider
-    {
-        public Task<Image?> LoadAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
-            => Task.FromResult<Image?>(null);
-
-        public Task<bool> ExistsAsync(ImageSource? source, CancellationToken cancellationToken = default)
-            => Task.FromResult(false);
-
-        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, CancellationToken cancellationToken = default)
-            => Task.FromResult<(int, int)?>(null);
-
-        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
-            => Task.FromResult<(int, int)?>(null);
-    }
-
     /// <summary>One 100x20 image, red on the left half and blue on the right, for every source asked for.</summary>
     private sealed class StripeImages : IImageSourceProvider
     {
