@@ -56,13 +56,19 @@ could not know, which change the design:
    unsaved-changes guard lives one level up, in `UmbEntityDetailWorkspaceContextBase`. So A4 is not
    "the state is in the wrong place" — the machinery was never inherited. That comment must be
    corrected as part of the fix.
-2. **Both halves of the guard are publicly exported** from `@umbraco-cms/backoffice/workspace`:
+2. **One half of the guard is publicly exported** from `@umbraco-cms/backoffice/workspace`:
    `UmbEntityWorkspaceDataManager` (persisted/current pair, `getHasUnpersistedChanges()` via
-   `jsonStringComparison`) and `umbWorkspaceWillNavigateAway(routes, unique, newUrl)`. Plus
-   `UMB_DISCARD_CHANGES_MODAL` and `umbOpenModal` from `@umbraco-cms/backoffice/modal`. So A4 does
-   **not** need a rewrite onto `UmbEntityDetailWorkspaceContextBase` — which would mean a detail
-   repository, an entity context and action-event reload events, none of which this package's
-   bespoke fetch layer has.
+   `jsonStringComparison`). Plus `UMB_DISCARD_CHANGES_MODAL` and `umbOpenModal` from
+   `@umbraco-cms/backoffice/modal`. So A4 does **not** need a rewrite onto
+   `UmbEntityDetailWorkspaceContextBase` — which would mean a detail repository, an entity context
+   and action-event reload events, none of which this package's bespoke fetch layer has.
+
+   **Corrected during implementation:** this plan originally claimed a second export,
+   `umbWorkspaceWillNavigateAway(routes, unique, newUrl)`. There is no such export in 17.x. Core
+   has only a protected `_checkWillNavigateAway(newUrl)` method on the detail base class, and it is
+   one line — `!newUrl.includes(this.routes.getActiveLocalPath())`. That line is inlined in our
+   context instead. The consequence is the same, including the part that matters: a workspace view
+   URL keeps the workspace's own path as a prefix, so switching views never prompts.
 3. **C4 is a two-liner.** `UmbSubmittableWorkspaceContextBase` already exposes
    `public readonly view = new UmbViewContext(this, null)`, and `UmbViewContext extends
    UmbViewController`, which has `setTitle()`. The observed `| Design | Umbraco` is exactly what
@@ -118,9 +124,12 @@ removed in `destroy()` — core leaks these listeners; we should not):
 ```ts
 getHasUnpersistedChanges = () => this._data.getHasUnpersistedChanges();
 
+// Core's own check, inlined - see the correction above.
+#willNavigateAway = (url: string) => !url.includes(this.routes.getActiveLocalPath());
+
 #onWillNavigate = async (event: CustomEvent) => {
   if (this.#allowNavigateAway) return true;
-  if (!umbWorkspaceWillNavigateAway(this.routes, this.getUnique(), event.detail.url)) return true;
+  if (!this.#willNavigateAway(event.detail.url)) return true;
   if (!this.getHasUnpersistedChanges()) return true;
   event.preventDefault();                       // modals are async, the event is not
   try {
@@ -135,11 +144,10 @@ getHasUnpersistedChanges = () => this._data.getHasUnpersistedChanges();
 };
 ```
 
-Switching between the four workspace views must not prompt. `umbWorkspaceWillNavigateAway` checks
-`getActiveLocalPath()` first, and a view URL is `…/edit/<key>/view/<pathname>` — a prefix match, so
-it returns `false`. The routes use `:key`, not `:unique`, so the second (route-pattern) check never
-matches; the active-path check already covers it. **Rename the route param `edit/:key` →
-`edit/:unique`** anyway so both checks work and the workspace reads like every other one. Update
+Switching between the four workspace views must not prompt. The check is against
+`getActiveLocalPath()`, and a view URL is `…/edit/<key>/view/<pathname>` — a prefix match, so it
+returns `false`. **Rename the route param `edit/:key` → `edit/:unique`** so the workspace reads
+like every other one (not load-bearing for the guard, which has only the one check). Update
 `setup: (_c, info) => this.load(info.match.params.unique)` with it.
 
 Finally, **correct the doc comment at `:21-23`** — it currently states the opposite of what the base
