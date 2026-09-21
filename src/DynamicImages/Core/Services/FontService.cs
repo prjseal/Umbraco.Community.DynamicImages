@@ -4,6 +4,7 @@ using SixLabors.Fonts;
 using SixLabors.Fonts.WellKnownIds;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
+using Umbraco.Cms.Core.Events;
 using Umbraco.Cms.Core.IO;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.PropertyEditors;
@@ -15,6 +16,7 @@ using Umbraco.Community.DynamicImages.Core.Fonts.Remote;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Core.Models.Layers;
+using Umbraco.Community.DynamicImages.Core.Notifications;
 using Umbraco.Community.DynamicImages.Persistence;
 using Umbraco.Extensions;
 using Template = Umbraco.Community.DynamicImages.Core.Models.Template;
@@ -35,6 +37,7 @@ public sealed partial class FontService(
     IShortStringHelper shortStringHelper,
     IContentTypeBaseServiceProvider contentTypeBaseServiceProvider,
     DistributedCache distributedCache,
+    IEventAggregator eventAggregator,
     ILogger<FontService> logger) : IFontService
 {
     private const string FontFolderName = "Dynamic Images Fonts";
@@ -101,7 +104,7 @@ public sealed partial class FontService(
             ContentHash = Hash(bytes)
         });
 
-        Notify(font.Key);
+        Saved(font);
 
         return new FontUploadResult(font, null);
     }
@@ -140,7 +143,7 @@ public sealed partial class FontService(
             ContentHash = Hash(bytes)
         });
 
-        Notify(font.Key);
+        Saved(font);
 
         return new FontUploadResult(font, null);
     }
@@ -188,7 +191,7 @@ public sealed partial class FontService(
             ContentHash = Hash(fetched.Bytes)
         });
 
-        Notify(font.Key);
+        Saved(font);
 
         return new WebFontRegistrationResult([font], []);
     }
@@ -277,7 +280,7 @@ public sealed partial class FontService(
                 ContentHash = Hash(fetched.Bytes)
             });
 
-            Notify(font.Key);
+            Saved(font);
             fonts.Add(font);
         }
 
@@ -333,7 +336,7 @@ public sealed partial class FontService(
         if (!string.Equals(previousHash, font.ContentHash, StringComparison.OrdinalIgnoreCase)) remoteFonts.Evict(previousHash);
 
         // Every server drops the family; their next load misses the new hash and downloads it.
-        Notify(key);
+        Saved(updated);
 
         return new FontUploadResult(updated, null);
     }
@@ -351,9 +354,26 @@ public sealed partial class FontService(
         if (isItalic is not null) font.IsItalic = isItalic.Value;
 
         var updated = repository.Update(font);
-        if (updated is not null) Notify(key);
+        if (updated is not null) Saved(updated);
 
         return updated;
+    }
+
+    /// <summary>
+    /// Inserts or replaces a font row exactly as given, rather than deriving it from a file the
+    /// way <see cref="UploadAsync"/> and the register methods do. Nothing in the backoffice needs
+    /// this; a sync tool restoring rows from another environment does.
+    /// </summary>
+    public FontDefinition Upsert(FontDefinition font)
+    {
+        if (font.Key == Guid.Empty) font.Key = Guid.NewGuid();
+
+        var existing = repository.Get(font.Key);
+        var saved = existing is null ? repository.Insert(font) : repository.Update(font) ?? font;
+
+        Saved(saved);
+
+        return saved;
     }
 
     public IReadOnlyList<Template> Delete(Guid key)
@@ -361,12 +381,15 @@ public sealed partial class FontService(
         var inUse = TemplatesUsing(key);
         if (inUse.Count > 0) return inUse;
 
+        // Read before deleting, so the notification can carry the row that went.
         var font = repository.Get(key);
 
         if (repository.Delete(key))
         {
             if (font?.SourceKind == ImageSourceKind.Url) remoteFonts.Evict(font.ContentHash);
-            Notify(key);
+
+            if (font is not null) Deleted(font);
+            else Notify(key);
         }
 
         return [];
@@ -534,5 +557,18 @@ public sealed partial class FontService(
         distributedCache.RefreshByPayload(
             DynamicImagesCacheRefresher.UniqueId,
             [new DynamicImagesCacheRefresherPayload { Kind = DynamicImagesChangeKind.Font, Key = fontKey }]);
+    }
+
+    /// <summary>Drops the caches and tells anything subscribed that the row changed.</summary>
+    private void Saved(FontDefinition font)
+    {
+        Notify(font.Key);
+        eventAggregator.Publish(new DynamicImagesFontSavedNotification(font, new EventMessages()));
+    }
+
+    private void Deleted(FontDefinition font)
+    {
+        Notify(font.Key);
+        eventAggregator.Publish(new DynamicImagesFontDeletedNotification(font, new EventMessages()));
     }
 }

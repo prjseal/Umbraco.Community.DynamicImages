@@ -4,6 +4,22 @@
 
 ### Added
 
+- **uSync support**, as an optional companion package: `Umbraco.Community.DynamicImages.uSync`
+  adds two handlers to the uSync dashboard's Settings group, which move the template and font rows
+  between environments as files under `uSync/{version}/DynamicImagesTemplates` and
+  `.../DynamicImagesFonts` — one `.config` file per row, written the moment a template or a font
+  is saved. Fonts import before templates, because a text layer names its font by key. It is a
+  separate package so uSync, which is MPL-2.0, never becomes a transitive dependency of Dynamic
+  Images. The Health dashboard's own Export/Import and the `Sync` configuration section are
+  unaffected and still work without uSync. What uSync cannot carry is an *uploaded* font's binary:
+  the row and the media node travel, but not the media file (see the README).
+- **Saved and deleted notifications**: `DynamicImagesTemplateSavedNotification`,
+  `…TemplateDeletedNotification` and the two `FontDefinition` equivalents are published alongside
+  the existing cache refresh, so anything can react to a template or a font changing. They cost a
+  dictionary lookup when nothing is subscribed. `IFontService` also gains `Upsert`, which inserts
+  or replaces a row exactly as given — every other write path derives the row from a font file it
+  fetches first, which a restore cannot do.
+
 - **The canvas fill**: the canvas is filled with a solid colour, a two-stop gradient, or nothing
   at all, and the base image still draws on top of whatever it is - so a *contain* fit pads onto
   the fill rather than onto black. Gradients gain a **radial** kind beside the linear one, on the

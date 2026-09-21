@@ -79,23 +79,34 @@ jobs:
           fi
 
           # A prerelease ships off the release it leads up to, so 1.0.0-rc01 is checked against a
-          # repo sitting at 1.0.0. Only the two versions that ship are checked: the csproj's,
-          # which becomes the NuGet version, and the manifest's, which the backoffice reads.
+          # repo sitting at 1.0.0. Only the versions that ship are checked: the two csprojs',
+          # which become the NuGet versions, and the manifest's, which the backoffice reads.
           base="${version%%-*}"
 
           # <VersionPrefix> when the csproj splits prefix from suffix, <Version> when it does not;
           # either way the suffix is dropped, because the tag is what decides the suffix.
-          csproj_file=src/DynamicImages/Umbraco.Community.DynamicImages.csproj
-          csproj=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' "$csproj_file")
-          if [ -z "$csproj" ]; then
-            csproj=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$csproj_file")
-          fi
-          csproj="${csproj%%-*}"
+          read_version() {
+            local found
+            found=$(sed -n 's:.*<VersionPrefix>\(.*\)</VersionPrefix>.*:\1:p' "$1")
+            if [ -z "$found" ]; then
+              found=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$1")
+            fi
+            echo "${found%%-*}"
+          }
+
+          csproj=$(read_version src/DynamicImages/Umbraco.Community.DynamicImages.csproj)
+          # The uSync companion ships in step with the main package, off the same tag.
+          usync_csproj=$(read_version src/DynamicImages.uSync/Umbraco.Community.DynamicImages.uSync.csproj)
           manifest=$(jq -r .version \
             src/DynamicImages/wwwroot/App_Plugins/DynamicImages/umbraco-package.json)
 
           if [ "$csproj" != "$base" ]; then
             echo "::error::The csproj is at $csproj but the tag is $version - bump it, commit, then re-tag."
+            exit 1
+          fi
+
+          if [ "$usync_csproj" != "$base" ]; then
+            echo "::error::The uSync csproj is at $usync_csproj but the tag is $version - bump it, commit, then re-tag."
             exit 1
           fi
 
@@ -107,12 +118,21 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Publishing \`$version\` to NuGet." >> "$GITHUB_STEP_SUMMARY"
 
-      # Only the package project - the test sites must never end up in a release artifact. The
+      # Only the package projects - the test sites must never end up in a release artifact. The
       # client bundle is committed, so rebuilding it stays a source-time concern
       # (src/DynamicImages/Client); verify above is what proves the committed copy is current.
       - name: Pack
         run: >
           dotnet pack src/DynamicImages/Umbraco.Community.DynamicImages.csproj
+          --configuration Release
+          -p:Version=${{ steps.version.outputs.version }}
+          --output ./artifacts
+
+      # The optional uSync companion, packed off the same tag. Its ProjectReference to the main
+      # package becomes a NuGet dependency pinned to this same version.
+      - name: Pack the uSync companion
+        run: >
+          dotnet pack src/DynamicImages.uSync/Umbraco.Community.DynamicImages.uSync.csproj
           --configuration Release
           -p:Version=${{ steps.version.outputs.version }}
           --output ./artifacts
@@ -126,9 +146,9 @@ jobs:
           path: ./artifacts/*
           if-no-files-found: error
 
-      # dotnet nuget push sends the matching .snupkg alongside the .nupkg on its own.
-      # --skip-duplicate is what makes a re-run after a partial failure a no-op rather than an
-      # error; the version check above is what stops it from hiding a stale version.
+      # Both packages, and dotnet nuget push sends the matching .snupkg alongside each .nupkg on
+      # its own. --skip-duplicate is what makes a re-run after a partial failure a no-op rather
+      # than an error; the version check above is what stops it from hiding a stale version.
       - name: Push to NuGet
         run: >
           dotnet nuget push "./artifacts/*.nupkg"

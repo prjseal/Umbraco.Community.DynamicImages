@@ -24,6 +24,9 @@
        renderer or to the backoffice client shows up here on the next build. -->
   <ItemGroup>
     <ProjectReference Include="..\DynamicImages\Umbraco.Community.DynamicImages.csproj" />
+    <!-- The optional uSync companion, so its two handlers show up in this site's uSync dashboard
+         and its folders are exported alongside the rest of uSync/v17. -->
+    <ProjectReference Include="..\DynamicImages.uSync\Umbraco.Community.DynamicImages.uSync.csproj" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -1,7 +1,9 @@
 using System.Text.RegularExpressions;
 using Umbraco.Cms.Core.Cache;
+using Umbraco.Cms.Core.Events;
 using Umbraco.Community.DynamicImages.Core.Cache;
 using Umbraco.Community.DynamicImages.Core.Models;
+using Umbraco.Community.DynamicImages.Core.Notifications;
 using Umbraco.Community.DynamicImages.Persistence;
 
 namespace Umbraco.Community.DynamicImages.Core.Services;
@@ -10,7 +12,8 @@ public sealed partial class TemplateService(
     ITemplateRepository repository,
     ITemplateValidator validator,
     ITemplateCache cache,
-    DistributedCache distributedCache) : ITemplateService
+    DistributedCache distributedCache,
+    IEventAggregator eventAggregator) : ITemplateService
 {
     public IReadOnlyList<Template> GetAll() => cache.GetAll();
 
@@ -30,6 +33,8 @@ public sealed partial class TemplateService(
 
         var saved = repository.Insert(template, userKey);
         Notify(saved.Key);
+        await eventAggregator.PublishAsync(
+            new DynamicImagesTemplateSavedNotification(saved, new EventMessages()), cancellationToken);
 
         return SaveResult.Saved(saved, validation);
     }
@@ -49,16 +54,27 @@ public sealed partial class TemplateService(
         if (saved is null) return SaveResult.Failed(SaveOutcome.Conflict, validation);
 
         Notify(saved.Key);
+        await eventAggregator.PublishAsync(
+            new DynamicImagesTemplateSavedNotification(saved, new EventMessages()), cancellationToken);
 
         return SaveResult.Saved(saved, validation);
     }
 
     public bool Delete(Guid key)
     {
-        var deleted = repository.Delete(key);
-        if (deleted) Notify(key);
+        // Read before deleting, so the notification can carry the row that went.
+        var existing = repository.Get(key);
 
-        return deleted;
+        var deleted = repository.Delete(key);
+        if (!deleted) return false;
+
+        Notify(key);
+        if (existing is not null)
+        {
+            eventAggregator.Publish(new DynamicImagesTemplateDeletedNotification(existing, new EventMessages()));
+        }
+
+        return true;
     }
 
     public async Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default)
