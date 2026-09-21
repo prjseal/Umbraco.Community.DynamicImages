@@ -15,7 +15,7 @@ namespace Umbraco.Community.DynamicImages.Tests;
 public class EncodingTests
 {
     private static DynamicImageMediaWriter Writer() =>
-        new(null!, null!, null!, null!, null!, NullLogger<DynamicImageMediaWriter>.Instance);
+        new(null!, null!, null!, null!, null!, null!, NullLogger<DynamicImageMediaWriter>.Instance);
 
     /// <summary>A buffer created without a seed pixel is transparent, which is what CreateCanvas
     /// hands the encoder for a gradient or a zero-alpha background.</summary>

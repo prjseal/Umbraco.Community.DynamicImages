@@ -1,8 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
+using Umbraco.Cms.Core.Actions;
+using Umbraco.Cms.Core.Security.Authorization;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Web.Common.Authorization;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Web;
 using Umbraco.Community.DynamicImages.Api.Models;
@@ -11,6 +15,7 @@ using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Core.Rendering;
 using Umbraco.Community.DynamicImages.Core.Services;
+using Umbraco.Extensions;
 using Template = Umbraco.Community.DynamicImages.Core.Models.Template;
 
 namespace Umbraco.Community.DynamicImages.Api.Controllers;
@@ -25,9 +30,18 @@ public class PreviewController(
     ITemplateValidator validator,
     IContentService contentService,
     IUmbracoContextFactory umbracoContextFactory,
-    IOptionsMonitor<DynamicImagesOptions> options) : DynamicImagesControllerBase
+    IAuthorizationService authorizationService,
+    IOptionsMonitor<DynamicImagesOptions> options,
+    ILogger<PreviewController> logger) : DynamicImagesControllerBase
 {
+    /// <summary>
+    /// A template document is kilobytes of JSON - a base image is a reference, never bytes - so
+    /// anything approaching this is not a template.
+    /// </summary>
+    internal const long MaxTemplateBytes = 2 * 1024 * 1024;
+
     [HttpPost("preview")]
+    [RequestSizeLimit(MaxTemplateBytes)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Preview([FromBody] PreviewRequest request, CancellationToken cancellationToken)
@@ -35,7 +49,7 @@ public class PreviewController(
         try
         {
             using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
-            var values = ResolveValues(request, contextRef);
+            var values = await ResolveValuesAsync(request, contextRef);
 
             using var result = await renderer.RenderAsync(request.Template, values, cancellationToken);
 
@@ -64,7 +78,7 @@ public class PreviewController(
         }
         catch (Exception ex)
         {
-            return Problem(title: "The preview could not be rendered", detail: ex.Message,
+            return Problem(title: "The preview could not be rendered", detail: Detail(ex),
                 statusCode: StatusCodes.Status400BadRequest);
         }
     }
@@ -74,6 +88,7 @@ public class PreviewController(
     /// "measured" bounds, and the preview pane lists the resolved values.
     /// </summary>
     [HttpPost("preview/layout")]
+    [RequestSizeLimit(MaxTemplateBytes)]
     [ProducesResponseType(typeof(LayoutResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Layout([FromBody] PreviewRequest request, CancellationToken cancellationToken)
@@ -81,7 +96,7 @@ public class PreviewController(
         try
         {
             using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
-            var values = ResolveValues(request, contextRef);
+            var values = await ResolveValuesAsync(request, contextRef);
 
             var layout = await renderer.MeasureLayoutAsync(request.Template, values, cancellationToken);
             var validation = await validator.ValidateAsync(request.Template, cancellationToken);
@@ -101,14 +116,42 @@ public class PreviewController(
         }
         catch (Exception ex)
         {
-            return Problem(title: "The layout could not be measured", detail: ex.Message,
+            return Problem(title: "The layout could not be measured", detail: Detail(ex),
                 statusCode: StatusCodes.Status400BadRequest);
         }
     }
 
-    private IRenderValueSource ResolveValues(PreviewRequest request, UmbracoContextReference contextRef)
+    /// <summary>
+    /// What to tell the caller about a failure.
+    /// <para>
+    /// A render limit and a complaint about the template's own data are written for an editor and
+    /// name nothing but the template, so they are returned as they are. Anything else is a bug or
+    /// an environment problem, and its message can carry server paths, connection strings or
+    /// stack detail - so it goes to the log and the caller gets a fixed sentence.
+    /// </para>
+    /// </summary>
+    private string Detail(Exception ex)
     {
-        if (!request.UseSampleData && request.ContentKey is { } key)
+        if (ex is RenderLimitException or ArgumentException or InvalidOperationException) return ex.Message;
+
+        logger.LogWarning(ex, "Dynamic Images: a preview request failed");
+
+        return "The preview could not be rendered. See the log for details.";
+    }
+
+    /// <summary>
+    /// The values a preview renders against: the named node's, or the built-in sample data.
+    /// <para>
+    /// A preview against a real node resolves and returns that node's draft text, so the node has
+    /// to be one the caller may read. Section users are trusted designers, which is why a refusal
+    /// falls back to sample data rather than failing the preview - they still get a picture, just
+    /// not one made of someone else's unpublished words.
+    /// </para>
+    /// </summary>
+    private async Task<IRenderValueSource> ResolveValuesAsync(
+        PreviewRequest request, UmbracoContextReference contextRef)
+    {
+        if (!request.UseSampleData && request.ContentKey is { } key && await CanBrowseAsync(key))
         {
             var content = contentService.GetById(key);
             if (content is not null)
@@ -118,5 +161,15 @@ public class PreviewController(
         }
 
         return SampleData.Build(request.Template);
+    }
+
+    private async Task<bool> CanBrowseAsync(Guid key)
+    {
+        var result = await authorizationService.AuthorizeResourceAsync(
+            User,
+            ContentPermissionResource.WithKeys(ActionBrowse.ActionLetter, key),
+            AuthorizationPolicies.ContentPermissionByResource);
+
+        return result.Succeeded;
     }
 }

@@ -34,10 +34,16 @@ export class DiRegenerateDocumentEntityAction extends UmbEntityActionBase<MetaEn
     try {
       const result = await regenerateDocument(unique, () => this.#authContext?.getLatestToken());
 
-      this.#notificationContext?.peek(result.outcome === "generated" ? "positive" : "warning", {
+      // A draft outcome is still a success - the image exists, it is just waiting on a publish -
+      // so it keeps the positive colour and carries the server's explanation of why.
+      const generated = result.outcome === "generated" || result.outcome === "generateddraft";
+
+      this.#notificationContext?.peek(generated ? "positive" : "warning", {
         data: {
           headline: "Dynamic Images",
-          message: result.outcome === "generated" ? "The image has been regenerated." : result.message ?? result.outcome,
+          message: generated
+            ? result.message ?? "The image has been regenerated."
+            : result.message ?? result.outcome,
         },
       });
     } catch (error) {

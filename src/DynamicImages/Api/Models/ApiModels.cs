@@ -200,7 +200,7 @@ public sealed record JobResponse(
         job.Processed,
         job.Generated,
         job.Skipped,
-        job.Failures.ToList(),
+        job.Failures,
         job.StartedUtc,
         job.FinishedUtc);
 }
@@ -209,7 +209,12 @@ public sealed record JobResponse(
 
 public sealed record UsageItem(Guid Key, string Name, bool HasImage, bool IsPublished);
 
-public sealed record UsageResponse(int Total, int WithImage, IReadOnlyList<UsageItem> Items);
+/// <summary>
+/// <paramref name="Total"/> is every document the template covers.
+/// <paramref name="WithImageOnPage"/> counts only the rows in <paramref name="Items"/>: counting
+/// the rest would mean loading the rest, which is what this endpoint stopped doing.
+/// </summary>
+public sealed record UsageResponse(long Total, int WithImageOnPage, IReadOnlyList<UsageItem> Items);
 
 public sealed record SyncStatusResponse(string Mode, string Folder, int FileCount, DateTime? LastWriteUtc);
 

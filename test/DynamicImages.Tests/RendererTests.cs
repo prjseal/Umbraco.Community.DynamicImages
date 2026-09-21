@@ -33,6 +33,7 @@ public class RendererTests
             new BadgesLayerRenderer(new FileFontRegistry(), new NoWebRoot(), NullLogger<BadgesLayerRenderer>.Instance),
         ]),
         new NoImages(),
+        new RenderGate(),
         NullLogger<DynamicImageRenderer>.Instance);
 
     private static Template Template(params LayerBase[] layers) => new()
@@ -202,6 +203,7 @@ public class RendererTests
         var renderer = new DynamicImageRenderer(
             new LayerRendererCollection(() => [new RectLayerRenderer()]),
             new NoImages(),
+            new RenderGate(),
             NullLogger<DynamicImageRenderer>.Instance);
 
         var template = Template(
@@ -224,6 +226,74 @@ public class RendererTests
         Assert.Equal(rendered.Bounds.Count, measured.Count);
         Assert.Equal(rendered.Bounds[0].X, measured[0].X, 3);
         Assert.Equal(rendered.Bounds[0].Y, measured[0].Y, 3);
+    }
+
+    [Fact]
+    public async Task MeasureLayoutAsync_ProducesNoPixels()
+    {
+        // The designer calls the layout endpoint alongside the preview on every debounced change.
+        // Measuring by rendering into a throwaway surface made that two full renders per
+        // keystroke - so nothing here may decode an image or allocate a canvas.
+        var images = new RefusesToDecode();
+        var renderer = new DynamicImageRenderer(
+            new LayerRendererCollection(() =>
+            [
+                new RectLayerRenderer(),
+                new ImageLayerRenderer(images),
+                new TextLayerRenderer(new FileFontRegistry(), NullLogger<TextLayerRenderer>.Instance),
+            ]),
+            images,
+            new RenderGate(),
+            NullLogger<DynamicImageRenderer>.Instance);
+
+        var photo = new ImageLayer
+        {
+            Name = "Photo",
+            Position = new Position { X = 10, Y = 10 },
+            Source = new ImageSource { Kind = ImageSourceKind.Path, Path = "/photo.png" },
+        };
+
+        var template = Template(Text(), photo);
+        template.Canvas.BaseImage = new ImageSource { Kind = ImageSourceKind.Path, Path = "/base.png" };
+
+        var layout = await renderer.MeasureLayoutAsync(template, Values());
+
+        Assert.Equal(2, layout.Bounds.Count);
+    }
+
+    [Fact]
+    public async Task MeasureLayoutAsync_ReportsTheSameSkipsAsARender()
+    {
+        var hidden = Rect("Hidden", 0, 0);
+        hidden.IsVisible = false;
+
+        var template = Template(Text(), hidden);
+
+        using var rendered = await Renderer().RenderAsync(template, Values());
+        var layout = await Renderer().MeasureLayoutAsync(template, Values());
+
+        Assert.Equal(
+            rendered.Skips.Select(s => (s.LayerKey, s.Reason)).OrderBy(s => s.LayerKey),
+            layout.Skips.Select(s => (s.LayerKey, s.Reason)).OrderBy(s => s.LayerKey));
+    }
+
+    /// <summary>
+    /// Answers header questions and throws if anything asks it to decode. Measuring must only
+    /// ever need the former.
+    /// </summary>
+    private sealed class RefusesToDecode : IImageSourceProvider
+    {
+        public Task<Image?> LoadAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("Measuring a layout must not decode an image.");
+
+        public Task<bool> ExistsAsync(ImageSource? source, CancellationToken cancellationToken = default)
+            => Task.FromResult(true);
+
+        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, CancellationToken cancellationToken = default)
+            => Task.FromResult<(int, int)?>((120, 80));
+
+        public Task<(int Width, int Height)?> GetDimensionsAsync(ImageSource? source, IRenderValueSource? values, CancellationToken cancellationToken = default)
+            => Task.FromResult<(int, int)?>((120, 80));
     }
 
     [Fact]
@@ -767,6 +837,7 @@ public class RendererTests
         var renderer = new DynamicImageRenderer(
             new LayerRendererCollection(() => [new ImageLayerRenderer(new StripeImages())]),
             new NoImages(),
+            new RenderGate(),
             NullLogger<DynamicImageRenderer>.Instance);
 
         var photo = new ImageLayer

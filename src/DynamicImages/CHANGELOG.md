@@ -2,6 +2,97 @@
 
 ## Unreleased
 
+### Changed
+
+- **Umbraco 17.5.3 is now the minimum.** Every 17.x below it has published security advisories
+  against it, so there is nothing to be gained by supporting them; it is also the version whose
+  `IUser.CalculateContentStartNodeIds` lets the sample-content list be scoped to a user's start
+  nodes.
+
+### Security
+
+- **Regenerating a document is authorised against that document.** `POST
+  documents/{key}/regenerate` checked only "has the Content section", so any editor could
+  regenerate any document by key, start nodes and per-node permissions ignored. It now makes the
+  same per-node check Umbraco's own document endpoints make: **Update** on the node, or `403`.
+- **Regeneration no longer publishes an editor's pending edits.** It published as the super user
+  with cultures `["*"]`, which pushed out every culture *and* any unpublished draft edits on the
+  node, attributed to "System". It now publishes only when the image is the only thing that
+  changed; a node with pending edits, or an editor who may update but not publish, gets the image
+  on the draft and the new `generateddraft` outcome saying so. Saves and publishes are attributed
+  to the editor who asked for them, so the audit log names a person.
+- **Regeneration only overwrites images this package generated.** The target property is an
+  ordinary media picker, so an editor who hand-picked a shared hero or a logo into it would find
+  that file replaced site-wide on the next regeneration. Ownership is now recorded as an Umbraco
+  relation between the document and the media item, visible on the media item's References tab;
+  anything else in the property is left alone and a new media item is created beside it. Images
+  generated before this are recognised by their folder and name on the first regeneration after
+  upgrading, and marked then.
+- **Web font fetching is hardened against SSRF.** Redirects are no longer followed (they let a
+  `302` walk past the `https` and public-host checks, which only ever applied to the URL that was
+  typed); the host is resolved and its *address* checked immediately before connecting, so a
+  public-looking name that resolves to `169.254.169.254` or a private range is refused; the checks
+  moved into the fetcher every code path goes through, so a uSync import is no longer a way around
+  them; a row naming Google or Bunny must be served from that provider's file host; and a file
+  whose bytes no longer match its registered hash is neither served nor cached — **Refresh** is
+  how a changed file is taken on deliberately, and the Health dashboard reports the mismatch as
+  `FontChanged`. Upstream status codes are no longer echoed for a URL the caller chose.
+- **Every render is bounded.** The preview endpoint rendered a posted template with no size
+  checks at all, so a `30000x30000` canvas was a 3.6 GB allocation and a single request taking the
+  process down. `RenderLimits` now caps the canvas at 4096 px per side and 8 megapixels, layers at
+  100, point size at 512, badges at 50, an image overlay at twice the canvas and a text layer at
+  2,000 characters of resolved text, and a `RenderGate` caps how many renders run at once. The
+  renderer enforces them, so every caller inherits them. See the README.
+- **Raw exception text no longer reaches the backoffice.** `ex.Message` went into the preview
+  400s, the sync messages and bulk job failures; an IO exception carries full server paths. The
+  messages written for editors are kept, everything else is a fixed sentence with the detail in
+  the log. A negative `skip` on the sample-content endpoint returned a 500 and is now clamped.
+- **Content lookups honour start nodes.** Previewing with a `contentKey` resolved and returned
+  the draft text of any node in the site, and `GET document-types/{alias}/content` listed every
+  node of a document type — both regardless of the caller's start nodes. A node the caller cannot
+  browse now falls back to sample data, and the sample-content list is narrowed in the query
+  itself, so its reported total stays true.
+
+### Performance
+
+- **A manual regeneration no longer renders twice.** Setting the property and publishing raised
+  `ContentPublishingNotification`, which the publish handler answered by rendering and writing the
+  media again. A bulk run over N documents was 2N renders and 2N media saves; it is now N.
+- **Long text costs a layout per doubling, not per word.** `TrimToLines` dropped one word at a
+  time and re-laid-out the whole string each step. A rich-text body bound to a text layer was tens
+  of millions of glyph placements on every publish and every designer keystroke; it now bisects,
+  over text capped at 2,000 characters.
+- **Measuring a layout produces no pixels.** The designer calls the layout endpoint alongside the
+  preview on every debounced change, and measuring rendered a full canvas to read the bounds —
+  two full renders per edit. It now runs the same pass minus the drawing.
+- **The usage tab is paged.** `GET templates/{key}/usage` walked every document a template covered
+  and loaded the content and its media one at a time — 10,000 queries for 5,000 articles, to
+  return at most `take` rows. It now runs one paged query per document type and resolves the
+  page's media in one call, and takes `skip` as well as `take`. `withImage` becomes
+  `withImageOnPage`, because counting the rest would mean loading the rest.
+- **Bulk regeneration jobs do not stack.** Two clicks started two full-site runs over the same
+  documents; a second job for a template that is already running is now a `409`, and at most two
+  run site-wide. Progress counters are interlocked and the failure list is concurrent, so polling
+  a running job can no longer throw.
+- **Smaller costs on hot paths.** Font cache invalidation ruled out a media save by content type
+  before querying the fonts table (it fired on every image upload and crop); the template
+  validator and the document-type properties endpoint no longer block on `GetAsync(...)
+  .GetAwaiter().GetResult()`, and the latter resolves a document type's data types in one call
+  rather than one per property.
+
+### Fixed
+
+- **Regeneration never actually attached the image.** It set the target property and called
+  `Publish`, but Umbraco 17 refuses to publish content carrying unsaved in-memory changes
+  (`FailedPublishUnsavedChanges`) — which is exactly what the property it had just set was. The
+  publish silently persisted nothing, the endpoint reported `generated` anyway because the result
+  was ignored, the property still pointed at nothing, and the next regeneration made another
+  media item. It now saves and then publishes, and a save or publish that fails is reported as a
+  failure with the reason rather than as success.
+- **Two template saves carrying the same timestamp could both succeed.** Optimistic concurrency
+  was a read-then-write with no condition on the update, so the later save silently discarded the
+  earlier one's work. The condition now travels with the `UPDATE`.
+
 ### Added
 
 - **uSync support**, as an optional companion package: `Umbraco.Community.DynamicImages.uSync`

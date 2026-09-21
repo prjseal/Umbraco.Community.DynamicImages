@@ -1,3 +1,4 @@
+using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Scoping;
 using Umbraco.Cms.Core.Services;
@@ -22,7 +23,12 @@ public sealed class RegenerationService(
     ILogger<RegenerationService> logger) : IRegenerationService
 {
     public async Task<RegenerationResult> RegenerateDocumentAsync(
-        Guid contentKey, Template? template = null, bool force = true, CancellationToken cancellationToken = default)
+        Guid contentKey,
+        Template? template = null,
+        bool force = true,
+        int? userId = null,
+        bool allowPublish = true,
+        CancellationToken cancellationToken = default)
     {
         var content = contentService.GetById(contentKey);
         if (content is null) return new RegenerationResult(RegenerationOutcome.NotFound);
@@ -56,23 +62,77 @@ public sealed class RegenerationService(
             var mediaKey = await mediaWriter.WriteAsync(
                 render.Image,
                 template,
-                content.Name ?? template.Name,
+                content,
                 existingIsValid ? existingMediaKey : null,
                 cancellationToken);
 
             var propertyValue = MediaSource.ToMediaPickerValue(mediaKey);
 
-            if (!string.IsNullOrWhiteSpace(template.TargetPropertyAlias))
+            if (string.IsNullOrWhiteSpace(template.TargetPropertyAlias))
             {
-                content.SetValue(template.TargetPropertyAlias, propertyValue);
-
-                // Publish rather than save when the node is already published, so the new image
-                // reaches the front end without a second editor action.
-                if (content.Published) contentService.Publish(content, ["*"]);
-                else contentService.Save(content);
+                return new RegenerationResult(RegenerationOutcome.Generated, mediaKey, propertyValue);
             }
 
-            return new RegenerationResult(RegenerationOutcome.Generated, mediaKey, propertyValue);
+            // Read before the value is set, so it answers "did the editor have work in progress
+            // before this package touched the node", which is the question the branch below asks.
+            var hadPendingEdits = content.Edited;
+
+            content.SetValue(template.TargetPropertyAlias, propertyValue);
+
+            // Publishing is only safe when the image is the ONLY thing that changed. A node with
+            // unpublished edits carries whatever the editor has been working on, and publishing it
+            // to get an image out would push all of that live - a decision that is theirs, not
+            // this package's. Same when the caller may update the node but not publish it.
+            var publish = content.Published && !hadPendingEdits && allowPublish;
+
+            // The scope is what stops this publish being rendered a second time: it raises
+            // ContentPublishingNotification, and the handler's whole job is to render on publish.
+            // Without it every manual regeneration cost two renders and two media saves, and a
+            // bulk run over N documents cost 2N of each.
+            string? writeFailure;
+
+            using (RegenerationScope.Begin())
+            {
+                // Save first, always. Umbraco 17 refuses to publish content carrying unsaved
+                // in-memory changes - FailedPublishUnsavedChanges - and the value just set is
+                // exactly that, so publishing on its own silently persisted nothing: the media
+                // item existed, the property still pointed at nothing, and the next regeneration
+                // made another one. Save-then-publish is the API here; there is no SavePublished.
+                var saved = contentService.Save(content, userId);
+                writeFailure = saved.Success ? null : saved.Result.ToString();
+
+                // Culture "*" because the endpoint has no culture of its own: the image hangs off
+                // the node, and publishing one culture's worth of it would leave the others stale.
+                if (publish && writeFailure is null)
+                {
+                    var result = contentService.Publish(content, ["*"], userId ?? Constants.Security.SuperUserId);
+                    writeFailure = result.Success ? null : result.Result.ToString();
+                }
+            }
+
+            // Both calls return a result, and ignoring it meant reporting a generated image that
+            // was never attached to anything: the media item exists, the property still points at
+            // nothing, and the next regeneration makes another one. If the node will not take the
+            // value, that is the outcome, and the reason is the thing worth saying.
+            if (writeFailure is not null)
+            {
+                logger.LogError(
+                    "Dynamic Images: the image for {ContentKey} ({ContentName}) was generated as media {MediaKey}, but {Operation} the node failed: {Reason}",
+                    contentKey, content.Name, mediaKey, publish ? "publishing" : "saving", writeFailure);
+
+                return new RegenerationResult(RegenerationOutcome.Failed, mediaKey, propertyValue,
+                    $"The image was generated, but the page could not be {(publish ? "published" : "saved")}: {writeFailure}.");
+            }
+
+            return publish
+                ? new RegenerationResult(RegenerationOutcome.Generated, mediaKey, propertyValue)
+                : new RegenerationResult(
+                    content.Published ? RegenerationOutcome.GeneratedDraft : RegenerationOutcome.Generated,
+                    mediaKey,
+                    propertyValue,
+                    content.Published
+                        ? "The image was saved to the draft. Publish the page to make it live."
+                        : null);
         }
         catch (OperationCanceledException)
         {

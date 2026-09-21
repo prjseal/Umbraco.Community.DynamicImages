@@ -12,12 +12,21 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 public sealed class DynamicImageRenderer(
     LayerRendererCollection renderers,
     IImageSourceProvider imageSources,
+    RenderGate gate,
     ILogger<DynamicImageRenderer> logger) : IDynamicImageRenderer
 {
     public async Task<RenderResult> RenderAsync(Template template, IRenderValueSource values, CancellationToken cancellationToken = default)
     {
-        var width = Math.Max(1, template.Canvas.Width);
-        var height = Math.Max(1, template.Canvas.Height);
+        // Checked before the gate is taken and before a single byte is allocated: a template
+        // asking for a 30000x30000 canvas should cost a comparison, not a queue slot.
+        EnforceLimits(template);
+
+        var width = template.Canvas.Width;
+        var height = template.Canvas.Height;
+
+        // Held for the whole render, so N concurrent previews queue instead of allocating N
+        // canvases. Released by the outer using even when a layer throws.
+        using var slot = await gate.EnterAsync(cancellationToken);
 
         var image = CreateCanvas(template.Canvas, width, height);
 
@@ -94,11 +103,86 @@ public sealed class DynamicImageRenderer(
 
     public async Task<LayoutResult> MeasureLayoutAsync(Template template, IRenderValueSource values, CancellationToken cancellationToken = default)
     {
-        // Measuring means laying out, and layout is what the renderers do - so this renders into a
-        // throwaway surface and keeps only the bounds. Cheap enough at OG sizes, and it cannot
-        // drift from what a real render produces.
-        using var result = await RenderAsync(template, values, cancellationToken);
-        return new LayoutResult(result.Bounds, result.Skips);
+        // No canvas, no base image, no pixels: every built-in renderer implements MeasureAsync as
+        // the size maths alone, and this is the same pass RenderAsync makes minus the drawing.
+        // The designer calls this alongside `preview` on every debounced change, so doing it by
+        // rendering into a throwaway surface cost two full renders per keystroke.
+        //
+        // The ILayerRenderer.MeasureAsync default still renders into a scratch image, so a
+        // third-party renderer that has not overridden it keeps working exactly as before.
+        EnforceLimits(template);
+
+        var bounds = new List<LayerBounds>(template.Layers.Count);
+        var context = new LayerRenderContext(template, values, cancellationToken);
+
+        if (RelativeLayout.IsUsed(template))
+        {
+            await MeasureReferencesAsync(template, values, context);
+        }
+
+        foreach (var layer in template.Layers)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var blocked = NotDrawnReason(layer, values);
+            if (blocked is not null)
+            {
+                context.Skip(layer.Key, blocked);
+                continue;
+            }
+
+            var renderer = renderers.For(layer);
+            if (renderer is null)
+            {
+                context.Skip(layer.Key, LayerSkipReasons.NoRenderer);
+                continue;
+            }
+
+            try
+            {
+                // A reference layer was already measured above, but measuring it again here is
+                // what keeps this loop identical to the draw pass - and a second measure is
+                // pixel-free and idempotent.
+                var measured = await renderer.MeasureAsync(layer, context);
+                if (measured is not null)
+                {
+                    bounds.Add(measured);
+                    context.Set(measured);
+                }
+                else
+                {
+                    context.Skip(layer.Key, LayerSkipReasons.ProducedNothing);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                logger.LogError(ex, "Dynamic Images: layer '{Layer}' ({Type}) failed to measure in template '{Template}'",
+                    layer.Name, layer.TypeAlias, template.Alias);
+
+                context.Skip(layer.Key, LayerSkipReasons.Failed);
+            }
+        }
+
+        return new LayoutResult(bounds, context.Skips);
+    }
+
+    /// <summary>
+    /// The hard ceilings, applied to every caller alike. The validator reports the same limits
+    /// when a template is saved, but a preview is rendered from a posted body that was never
+    /// saved, so the renderer is the only place that can actually enforce them.
+    /// </summary>
+    private static void EnforceLimits(Template template)
+    {
+        if (RenderLimits.CanvasProblem(template.Canvas.Width, template.Canvas.Height) is { } problem)
+        {
+            throw new RenderLimitException(problem);
+        }
+
+        if (template.Layers.Count > RenderLimits.MaxLayers)
+        {
+            throw new RenderLimitException(
+                $"A template may have at most {RenderLimits.MaxLayers} layers; this one has {template.Layers.Count}.");
+        }
     }
 
     /// <summary>

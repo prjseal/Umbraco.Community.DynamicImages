@@ -73,15 +73,6 @@ public sealed class TemplateRepository(
             return null;
         }
 
-        // Optimistic concurrency: compare to the second. The timestamp round-trips through JSON,
-        // so anything finer than that would fail on formatting alone.
-        if (expectedUpdatedUtc.HasValue &&
-            Math.Abs((existing.UpdatedUtc - expectedUpdatedUtc.Value).TotalSeconds) > 1)
-        {
-            scope.Complete();
-            return null;
-        }
-
         var now = DateTime.UtcNow;
         template.UpdatedUtc = now;
 
@@ -90,10 +81,29 @@ public sealed class TemplateRepository(
         dto.CreatedUtc = existing.CreatedUtc;
         dto.UpdatedUtc = now;
 
-        scope.Database.Update(dto);
+        // Optimistic concurrency as a condition on the write itself, not a comparison against the
+        // row read above: a read-then-write lets two saves carrying the same UpdatedUtc both pass
+        // the check and both succeed, with the later one silently discarding the earlier.
+        //
+        // Compared to the second, because the timestamp round-trips through JSON and anything
+        // finer would fail on formatting alone - which is also why this is a range and not an
+        // equality.
+        var updated = expectedUpdatedUtc.HasValue
+            ? scope.Database.Execute(
+                $"UPDATE {DynamicImagesConstants.TemplateTableName} " +
+                "SET alias = @0, name = @1, isEnabled = @2, schemaVersion = @3, json = @4, " +
+                "docTypeAliases = @5, updatedUtc = @6, updatedByUserKey = @7 " +
+                "WHERE [key] = @8 AND updatedUtc BETWEEN @9 AND @10",
+                dto.Alias, dto.Name, dto.IsEnabled, dto.SchemaVersion, dto.Json,
+                dto.DocTypeAliases, dto.UpdatedUtc, dto.UpdatedByUserKey,
+                dto.Key, expectedUpdatedUtc.Value.AddSeconds(-1), expectedUpdatedUtc.Value.AddSeconds(1))
+            : scope.Database.Update(dto);
+
         scope.Complete();
 
-        return template;
+        // Zero rows means someone else saved between this caller's read and this write. Null is
+        // the conflict, exactly as it was when the check was a comparison.
+        return updated > 0 ? template : null;
     }
 
     public bool Delete(Guid key)

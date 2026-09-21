@@ -36,7 +36,12 @@
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.0.0" />
+    <!-- RegenerationScope and friends are implementation detail, not package API; the tests still
+         have to be able to open the scope to assert the publish handler stands down inside it. -->
+    <InternalsVisibleTo Include="DynamicImages.Tests" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Umbraco.Cms.Api.Management" Version="17.5.3" />
     <PackageReference Include="SixLabors.ImageSharp.Drawing" Version="2.1.5" />
   </ItemGroup>
   <ItemGroup>

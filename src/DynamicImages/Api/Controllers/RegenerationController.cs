@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Scoping;
+using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Community.DynamicImages.Api.Models;
 using Umbraco.Community.DynamicImages.Core.Media;
@@ -14,8 +17,11 @@ public class RegenerationController(
     IRegenerationJobStore jobStore,
     ITemplateService templateService,
     IContentService contentService,
+    IContentTypeService contentTypeService,
+    ICoreScopeProvider scopeProvider,
     IMediaService mediaService,
     IServiceScopeFactory scopeFactory,
+    IBackOfficeSecurityAccessor backOfficeSecurityAccessor,
     ILogger<RegenerationController> logger) : DynamicImagesControllerBase
 {
     /// <summary>
@@ -26,6 +32,7 @@ public class RegenerationController(
     [HttpPost("templates/{key:guid}/regenerate")]
     [ProducesResponseType(typeof(JobResponse), StatusCodes.Status202Accepted)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
     public IActionResult RegenerateTemplate(Guid key, [FromBody] BulkRegenerateRequest? request)
     {
         var template = templateService.Get(key);
@@ -36,7 +43,24 @@ public class RegenerationController(
         }
 
         var documents = regenerationService.FindDocuments(template);
-        var job = jobStore.Create(template.Key, template.Name, documents.Count);
+
+        // The user id is captured here, in the request, because the job runs on the thread pool
+        // long after this request's principal is gone - and the saves it makes should name the
+        // person who asked for them rather than "System".
+        var created = jobStore.Create(
+            template.Key, template.Name, documents.Count, backOfficeSecurityAccessor.BackOfficeSecurity?.CurrentUser?.Id);
+
+        if (created.Job is null)
+        {
+            return Problem(
+                title: "A regeneration is already running",
+                detail: created.Refusal == JobRefusal.TemplateBusy
+                    ? $"A regeneration of '{template.Name}' is already running. Wait for it to finish, or cancel it."
+                    : "Too many regenerations are already running. Wait for one to finish.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
+        var job = created.Job;
         var onlyMissing = request?.OnlyMissing ?? false;
 
         // Fire and forget onto the thread pool with its own scope: the request's scope - and its
@@ -61,11 +85,24 @@ public class RegenerationController(
     public IActionResult CancelJob(Guid id)
         => jobStore.Cancel(id) ? Ok() : Problem(title: "Job not found", statusCode: StatusCodes.Status404NotFound);
 
-    /// <summary>Which documents a template covers, and which of them already have an image.</summary>
+    /// <summary>
+    /// Which documents a template covers, and which of them already have an image.
+    /// <para>
+    /// Paged. It used to walk every document the template covered and load the content and its
+    /// media item one at a time - 10,000 queries for 5,000 articles, on every open of the Usage
+    /// tab, to return at most <paramref name="take"/> rows. The property value is now read off
+    /// the paged entity, and the page's media items are resolved in one query.
+    /// </para>
+    /// <para>
+    /// <c>Total</c> is still the true total across every document type the template covers;
+    /// <c>WithImageOnPage</c> counts only the rows returned, because counting the rest would mean
+    /// loading the rest.
+    /// </para>
+    /// </summary>
     [HttpGet("templates/{key:guid}/usage")]
     [ProducesResponseType(typeof(UsageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult GetUsage(Guid key, [FromQuery] int take = 200)
+    public IActionResult GetUsage(Guid key, [FromQuery] int skip = 0, [FromQuery] int take = 200)
     {
         var template = templateService.Get(key);
         if (template is null)
@@ -73,25 +110,52 @@ public class RegenerationController(
             return Problem(title: "Template not found", statusCode: StatusCodes.Status404NotFound);
         }
 
-        var items = new List<UsageItem>();
-        var withImage = 0;
+        skip = Math.Max(0, skip);
+        take = Math.Clamp(take, 1, 1000);
 
-        foreach (var contentKey in regenerationService.FindDocuments(template))
+        var documents = new List<IContent>();
+        long total = 0;
+
+        foreach (var alias in template.DocTypeAliases)
         {
-            var content = contentService.GetById(contentKey);
-            if (content is null) continue;
+            var contentType = contentTypeService.Get(alias);
+            if (contentType is null) continue;
 
-            var mediaKey = MediaSource.ResolveMediaKey(content.GetValue<string>(template.TargetPropertyAlias));
-            var hasImage = mediaKey is not null && mediaService.GetById(mediaKey.Value) is not null;
-            if (hasImage) withImage++;
+            // One page per document type, deep enough to serve the window once the types before
+            // it have been counted in. The types are walked in order, so the paging is stable.
+            var page = contentService.GetPagedOfType(
+                contentType.Id, 0, skip + take, out var typeTotal, scopeProvider.CreateQuery<IContent>());
 
-            if (items.Count < Math.Clamp(take, 1, 1000))
-            {
-                items.Add(new UsageItem(content.Key, content.Name ?? "(unnamed)", hasImage, content.Published));
-            }
+            total += typeTotal;
+            documents.AddRange(page);
         }
 
-        return Ok(new UsageResponse(items.Count, withImage, items));
+        var window = documents.Skip(skip).Take(take).ToList();
+
+        // One query for the whole page's media, rather than one per row.
+        var mediaKeys = window
+            .Select(c => MediaSource.ResolveMediaKey(c.GetValue<string>(template.TargetPropertyAlias)))
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+
+        var present = mediaKeys.Count == 0
+            ? []
+            : mediaService.GetByIds(mediaKeys).Select(m => m.Key).ToHashSet();
+
+        var items = new List<UsageItem>(window.Count);
+        var withImageOnPage = 0;
+
+        foreach (var content in window)
+        {
+            var mediaKey = MediaSource.ResolveMediaKey(content.GetValue<string>(template.TargetPropertyAlias));
+            var hasImage = mediaKey is not null && present.Contains(mediaKey.Value);
+            if (hasImage) withImageOnPage++;
+
+            items.Add(new UsageItem(content.Key, content.Name ?? "(unnamed)", hasImage, content.Published));
+        }
+
+        return Ok(new UsageResponse(total, withImageOnPage, items));
     }
 
     private async Task RunJobAsync(Guid jobId, Guid templateKey, IReadOnlyList<Guid> documents, bool onlyMissing)
@@ -111,7 +175,7 @@ public class RegenerationController(
             if (template is null)
             {
                 job.Status = JobStatus.Failed;
-                job.Failures.Add("The template was deleted while the job was running.");
+                job.Fail("The template was deleted while the job was running.");
                 return;
             }
 
@@ -125,35 +189,42 @@ public class RegenerationController(
 
                 // force: false with onlyMissing honours the template's "only when empty" trigger,
                 // so "fill in the gaps" does not overwrite hand-picked images.
-                var result = await regeneration.RegenerateDocumentAsync(contentKey, template, force: !onlyMissing);
+                var result = await regeneration.RegenerateDocumentAsync(
+                    contentKey, template, force: !onlyMissing, userId: job.StartedByUserId);
 
                 switch (result.Outcome)
                 {
+                    // A node with unpublished edits gets the image on its draft rather than a
+                    // publish, which is still the image being generated - it counts as generated,
+                    // and the editor's own publish takes it live.
                     case RegenerationOutcome.Generated:
-                        job.Generated++;
+                    case RegenerationOutcome.GeneratedDraft:
+                        job.CountGenerated();
                         break;
 
                     case RegenerationOutcome.SkippedExisting:
                     case RegenerationOutcome.NoTemplate:
-                        job.Skipped++;
+                        job.CountSkipped();
                         break;
 
                     default:
                         // One bad node must not abandon the rest of the run.
-                        job.Failures.Add($"{contentKey}: {result.Message ?? result.Outcome.ToString()}");
+                        job.Fail($"{contentKey}: {result.Message ?? result.Outcome.ToString()}");
                         break;
                 }
 
-                job.Processed++;
+                job.CountProcessed();
             }
 
             job.Status = JobStatus.Completed;
         }
         catch (Exception ex)
         {
+            // Per-item failures above carry result.Message, which is already written for an
+            // editor. This is the catch-all, so the text is whatever threw - it goes to the log.
             logger.LogError(ex, "Dynamic Images: bulk regeneration job {JobId} failed", jobId);
             job.Status = JobStatus.Failed;
-            job.Failures.Add(ex.Message);
+            job.Fail("The job stopped unexpectedly. See the log for details.");
         }
         finally
         {

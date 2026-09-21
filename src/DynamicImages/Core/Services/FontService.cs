@@ -171,7 +171,7 @@ public sealed partial class FontService(
             return new WebFontRegistrationResult([], [$"'{uri}' is already registered."]);
         }
 
-        var fetched = await FetchAsync(uri, cancellationToken);
+        var fetched = await FetchAsync(uri, provider.Name, cancellationToken);
         if (fetched.Error is not null || fetched.Bytes is null) return new WebFontRegistrationResult([], [fetched.Error ?? "The font could not be downloaded."]);
 
         // A direct file is described the way an upload is: family, weight and slant come from
@@ -253,7 +253,7 @@ public sealed partial class FontService(
                 continue;
             }
 
-            var fetched = await FetchAsync(resolved.FileUrl, cancellationToken);
+            var fetched = await FetchAsync(resolved.FileUrl, provider.Name, cancellationToken);
             if (fetched.Bytes is null)
             {
                 errors.Add($"{label}: {fetched.Error}");
@@ -318,7 +318,7 @@ public sealed partial class FontService(
         }
 
         // No expected hash, so this is always a download rather than a cache hit.
-        var fetched = await FetchAsync(url, cancellationToken);
+        var fetched = await FetchAsync(url, font.Provider, cancellationToken);
         if (fetched.Bytes is null) return new FontUploadResult(null, fetched.Error);
 
         if (Describe(fetched.Bytes) is null)
@@ -366,6 +366,11 @@ public sealed partial class FontService(
     /// </summary>
     public FontDefinition Upsert(FontDefinition font)
     {
+        // Validated even though nothing in the backoffice reaches here: the caller is a sync
+        // tool, and a row it writes is fetched by the server exactly like one an editor typed.
+        // Leaving this unchecked made the import the way around every rule the UI applies.
+        if (UpsertProblem(font) is { } problem) throw new ArgumentException(problem, nameof(font));
+
         if (font.Key == Guid.Empty) font.Key = Guid.NewGuid();
 
         var existing = repository.Get(font.Key);
@@ -374,6 +379,30 @@ public sealed partial class FontService(
         Saved(saved);
 
         return saved;
+    }
+
+    /// <summary>Why an upserted row may not be stored, or null when it may.</summary>
+    private string? UpsertProblem(FontDefinition font) => font.SourceKind switch
+    {
+        ImageSourceKind.Url => WebFontProviders.ValidateDirectUrl(font.SourceUrl, out var uri) is { } problem
+            ? problem
+            : HostProblem(font.Provider, uri!),
+
+        ImageSourceKind.Path => fileProvider.IsPathSafe(font.Path)
+            ? null
+            : $"'{font.Path}' is outside the site's wwwroot.",
+
+        _ => null
+    };
+
+    private static string? HostProblem(string? providerName, Uri uri)
+    {
+        var provider = WebFontProviders.Get(providerName);
+        if (provider?.FileHost is null) return null;
+
+        return provider.AllowsFileUrl(uri)
+            ? null
+            : $"A {provider.DisplayName} font has to be served from {provider.FileHost}, and '{uri.Host}' is not.";
     }
 
     public IReadOnlyList<Template> Delete(Guid key)
@@ -436,17 +465,36 @@ public sealed partial class FontService(
            && font.Weight == weight
            && font.IsItalic == italic;
 
-    /// <summary>A download as an outcome rather than an exception, with the reason an editor can act on.</summary>
-    private async Task<(byte[]? Bytes, string? Error)> FetchAsync(Uri url, CancellationToken cancellationToken)
+    /// <summary>
+    /// A download as an outcome rather than an exception, with the reason an editor can act on.
+    /// <para>
+    /// The upstream status code is only repeated for Google and Bunny, whose hosts are fixed and
+    /// therefore tell the caller nothing they did not already know. For a URL the caller chose,
+    /// "404" and "connection refused" are different answers about a host and a port they picked,
+    /// which makes the endpoint a scanner - so those collapse to one message and the detail goes
+    /// to the log.
+    /// </para>
+    /// </summary>
+    private async Task<(byte[]? Bytes, string? Error)> FetchAsync(Uri url, string? providerName, CancellationToken cancellationToken)
     {
         try
         {
-            return (await remoteFonts.GetBytesAsync(url, expectedHash: null, cancellationToken), null);
+            var bytes = await remoteFonts.GetBytesAsync(url, providerName, expectedHash: null, cancellationToken);
+            return (bytes, bytes is null ? $"The file at '{url}' could not be used." : null);
+        }
+        catch (FontFetchException ex)
+        {
+            // This package's own refusal, already written for an editor.
+            return (null, ex.Message);
         }
         catch (HttpRequestException ex)
         {
             logger.LogWarning(ex, "Dynamic Images: the font at {Url} could not be downloaded", url);
-            return (null, ex.StatusCode is { } status
+
+            var provider = WebFontProviders.Get(providerName);
+            var leaksNothing = provider?.FileHost is not null;
+
+            return (null, leaksNothing && ex.StatusCode is { } status
                 ? $"'{url}' answered {(int)status}."
                 : $"'{url}' could not be downloaded. Check the site has outbound HTTPS access and the file is under the size limit.");
         }

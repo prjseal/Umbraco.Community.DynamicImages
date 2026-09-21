@@ -62,9 +62,21 @@ public static partial class WebFontProviders
         => SlugSeparators().Replace(family.Trim().ToLowerInvariant(), "-").Trim('-');
 
     /// <summary>
+    /// Host suffixes that only ever name something on the server's own network. They pass the
+    /// "has a dot, is not an IP literal" test and are exactly what an attacker reaches for.
+    /// </summary>
+    private static readonly string[] InternalSuffixes = [".local", ".internal", ".localhost", ".home.arpa", ".lan"];
+
+    /// <summary>
     /// Checks a direct font URL before it is stored or fetched. Returns the problem, or null when
-    /// it is acceptable. Rejections: not https, a user:password@ part, a bare host with no dot
-    /// (which would resolve on the server's own network), or an IP literal.
+    /// it is acceptable. Rejections: not https, a port other than 443, a user:password@ part, a
+    /// bare host with no dot (which would resolve on the server's own network), an internal-only
+    /// suffix, or an IP literal.
+    /// <para>
+    /// This is the cheap, readable layer. It cannot be the only one - a public-looking name can
+    /// resolve to a private address, which is what the connect callback behind the font
+    /// <see cref="HttpClient"/> is for - but it gives a useful error before anything is dialled.
+    /// </para>
     /// </summary>
     public static string? ValidateDirectUrl(string? url, out Uri? uri)
     {
@@ -81,9 +93,16 @@ public static partial class WebFontProviders
 
         if (!string.IsNullOrEmpty(parsed.UserInfo)) return "The URL must not contain a username or password.";
 
+        if (!parsed.IsDefaultPort) return "The URL must use the standard HTTPS port.";
+
         if (parsed.HostNameType != UriHostNameType.Dns || !parsed.Host.Contains('.') || IPAddress.TryParse(parsed.Host, out _))
         {
             return "The URL must use a public host name, not an IP address or a bare host.";
+        }
+
+        if (InternalSuffixes.Any(suffix => parsed.Host.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)))
+        {
+            return "The URL must use a public host name; that one only exists on the server's own network.";
         }
 
         uri = parsed;

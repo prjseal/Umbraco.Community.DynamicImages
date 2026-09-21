@@ -23,6 +23,13 @@ public static class DynamicImagesConstants
     /// <summary>Media type installed by the package to hold uploaded font files.</summary>
     public const string FontMediaTypeAlias = "dynamicImagesFont";
 
+    /// <summary>
+    /// Relation type marking a media item as one this package generated, and the document it was
+    /// generated for. It is what tells a regeneration which images it may overwrite: an editor's
+    /// hand-picked hero in the same property is not one of them.
+    /// </summary>
+    public const string GeneratedImageRelationAlias = "dynamicImagesGeneratedImage";
+
     /// <summary>The named HttpClient web fonts are fetched with; the composer sets its timeout, size cap and User-Agent.</summary>
     public const string WebFontHttpClientName = "DynamicImages.WebFonts";
 

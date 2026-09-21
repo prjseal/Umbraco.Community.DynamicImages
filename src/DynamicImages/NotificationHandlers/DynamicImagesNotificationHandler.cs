@@ -27,6 +27,12 @@ public class DynamicImagesNotificationHandler(
 {
     public async Task HandleAsync(ContentPublishingNotification notification, CancellationToken cancellationToken)
     {
+        // This package's own regeneration publishes the node it just wrote an image onto, which
+        // raises this notification. Rendering again here would redo the work that publish exists
+        // to persist - so the regeneration marks its own publish and this stands down. Checked
+        // before anything else, so the stand-down costs one read.
+        if (RegenerationScope.IsActive) return;
+
         // Read per-notification rather than once at composition, so toggling the switch takes
         // effect on the next publish instead of the next restart.
         if (!options.CurrentValue.Enabled) return;
@@ -54,7 +60,7 @@ public class DynamicImagesNotificationHandler(
 
                 var existingMediaKey = ExistingMediaKey(template, node);
                 var mediaKey = await mediaWriter.WriteAsync(
-                    render.Image, template, node.Name ?? template.Name, existingMediaKey, cancellationToken);
+                    render.Image, template, node, existingMediaKey, cancellationToken);
 
                 // Set the value on the in-flight content so the publish persists it. Do not call
                 // IContentService.Save here - the publish pipeline rejects a save from inside it

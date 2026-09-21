@@ -1,6 +1,11 @@
+using System.Linq.Expressions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core;
+using Umbraco.Cms.Core.Cache;
 using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Persistence;
+using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Persistence.Querying;
 using Umbraco.Cms.Core.Scoping;
 using Umbraco.Cms.Core.Services;
@@ -16,6 +21,9 @@ public class DocumentTypesController(
     IContentTypeService contentTypeService,
     IDataTypeService dataTypeService,
     IContentService contentService,
+    IEntityService entityService,
+    IBackOfficeSecurityAccessor backOfficeSecurityAccessor,
+    AppCaches appCaches,
     ICoreScopeProvider scopeProvider) : DynamicImagesControllerBase
 {
     [HttpGet("document-types")]
@@ -36,7 +44,7 @@ public class DocumentTypesController(
     [HttpGet("document-types/{alias}/properties")]
     [ProducesResponseType(typeof(IReadOnlyList<DocumentTypePropertyResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult GetProperties(string alias)
+    public async Task<IActionResult> GetProperties(string alias)
     {
         var contentType = contentTypeService.Get(alias);
         if (contentType is null)
@@ -45,10 +53,22 @@ public class DocumentTypesController(
                 statusCode: StatusCodes.Status404NotFound);
         }
 
+        // One lookup for the whole document type rather than a blocking one per property: this
+        // used to be a `.GetAwaiter().GetResult()` inside a Select, so a 40-property document
+        // type was 40 sequential queries, each holding a thread-pool thread.
+        var dataTypeKeys = contentType.CompositionPropertyTypes
+            .Select(property => property.DataTypeKey)
+            .Distinct()
+            .ToArray();
+
+        var editorAliases = (await dataTypeService.GetAllAsync(dataTypeKeys))
+            .GroupBy(dataType => dataType.Key)
+            .ToDictionary(group => group.Key, group => group.First().EditorAlias);
+
         var properties = contentType.CompositionPropertyTypes
             .Select(property =>
             {
-                var editorAlias = dataTypeService.GetAsync(property.DataTypeKey).GetAwaiter().GetResult()?.EditorAlias
+                var editorAlias = editorAliases.GetValueOrDefault(property.DataTypeKey)
                                   ?? property.PropertyEditorAlias;
 
                 return new DocumentTypePropertyResponse(
@@ -89,7 +109,9 @@ public class DocumentTypesController(
         }
 
         var pageSize = Math.Clamp(take, 1, 200);
-        var page = skip / pageSize;
+
+        // A negative skip made a negative page index, which the paged query answered with a 500.
+        var page = Math.Max(0, skip) / pageSize;
 
         // An empty query matches everything; the overload's filter parameter is not nullable.
         var filter = scopeProvider.CreateQuery<IContent>();
@@ -97,6 +119,8 @@ public class DocumentTypesController(
         {
             filter = filter.Where(content => content.Name != null && content.Name.Contains(query));
         }
+
+        filter = ScopeToStartNodes(filter);
 
         var items = contentService
             .GetPagedOfType(contentType.Id, page, pageSize, out var total, filter)
@@ -109,6 +133,54 @@ public class DocumentTypesController(
             .ToList();
 
         return Ok(new SampleContentResponse(total, items));
+    }
+
+    /// <summary>
+    /// Narrows a content query to the subtrees the signed-in user is allowed to see.
+    /// <para>
+    /// This list names real nodes, and it used to name every node of a document type whatever the
+    /// caller's start nodes were. The condition goes into the query rather than filtering the page
+    /// afterwards, so the reported total stays true - a count that did not match the rows would be
+    /// its own kind of wrong.
+    /// </para>
+    /// <para>
+    /// A start node covers itself and everything under it, which is "id = n OR path starts with
+    /// the node's path + a comma". The comma matters: without it <c>-1,1050</c> would also match
+    /// <c>-1,10501</c>.
+    /// </para>
+    /// </summary>
+    private IQuery<IContent> ScopeToStartNodes(IQuery<IContent> filter)
+    {
+        var user = backOfficeSecurityAccessor.BackOfficeSecurity?.CurrentUser;
+        if (user is null) return filter;
+
+        var startNodeIds = user.CalculateContentStartNodeIds(entityService, appCaches);
+
+        // Null means no start nodes are configured, and the root means the whole tree; either way
+        // there is nothing to narrow.
+        if (startNodeIds is null || startNodeIds.Length == 0) return filter;
+        if (startNodeIds.Contains(Constants.System.Root)) return filter;
+
+        var conditions = new List<Expression<Func<IContent, bool>>>();
+
+        foreach (var startNodeId in startNodeIds)
+        {
+            var path = entityService.Get(startNodeId, UmbracoObjectTypes.Document)?.Path;
+            if (string.IsNullOrEmpty(path)) continue;
+
+            var id = startNodeId;
+            var prefix = path + ",";
+
+            conditions.Add(content => content.Id == id);
+            conditions.Add(content => content.Path.SqlStartsWith(prefix, TextColumnType.NVarchar));
+        }
+
+        // Start nodes that resolve to nothing leave no condition to apply, and "no condition"
+        // must not mean "everything": a user whose start nodes have all been deleted can see
+        // nothing, which is what an impossible condition gives.
+        return conditions.Count == 0
+            ? filter.Where(content => content.Id == Constants.System.Root)
+            : filter.WhereAny(conditions);
     }
 
     private static string GroupName(IContentType contentType, IPropertyType property)

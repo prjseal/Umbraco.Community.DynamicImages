@@ -15,6 +15,15 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
     {
         if (layer is not ImageLayer imageLayer) return null;
 
+        // The header first: decoding a 20000x20000 source costs as much as allocating a canvas
+        // that size, so the ceiling has to be applied before the bytes are turned into pixels.
+        var natural = await imageSources.GetDimensionsAsync(imageLayer.Source, context.Values, context.CancellationToken);
+        if (natural is { } size && (long)size.Width * size.Height > RenderLimits.MaxSourcePixels)
+        {
+            context.Skip(imageLayer.Key, LayerSkipReasons.TooLarge);
+            return null;
+        }
+
         using var overlay = await imageSources.LoadAsync(imageLayer.Source, context.Values, context.CancellationToken);
         if (overlay is null)
         {
@@ -22,13 +31,14 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
             return null;
         }
 
-        var width = (int)Math.Round(imageLayer.Size.Width ?? overlay.Width);
-        var height = (int)Math.Round(imageLayer.Size.Height ?? overlay.Height);
-        if (width <= 0 || height <= 0)
+        var requested = Size(imageLayer, overlay.Width, overlay.Height, context);
+        if (requested is null)
         {
             context.Skip(imageLayer.Key, LayerSkipReasons.ZeroSize);
             return null;
         }
+
+        var (width, height) = requested.Value;
 
         overlay.Mutate(ctx => ctx.Resize(new ResizeOptions
         {
@@ -93,17 +103,44 @@ public sealed class ImageLayerRenderer(IImageSourceProvider imageSources) : ILay
             return null;
         }
 
-        var width = (int)Math.Round(imageLayer.Size.Width ?? natural.Value.Width);
-        var height = (int)Math.Round(imageLayer.Size.Height ?? natural.Value.Height);
-        if (width <= 0 || height <= 0)
+        if ((long)natural.Value.Width * natural.Value.Height > RenderLimits.MaxSourcePixels)
+        {
+            context.Skip(imageLayer.Key, LayerSkipReasons.TooLarge);
+            return null;
+        }
+
+        var requested = Size(imageLayer, natural.Value.Width, natural.Value.Height, context);
+        if (requested is null)
         {
             context.Skip(imageLayer.Key, LayerSkipReasons.ZeroSize);
             return null;
         }
 
+        var (width, height) = requested.Value;
+
         var position = context.PositionOf(imageLayer);
         var (x, y) = AnchorMath.ToTopLeft(position, width, height);
 
         return new LayerBounds(imageLayer.Key, x, y, width, height, 0, false, null, imageLayer.Rotation, position.X, position.Y);
+    }
+
+    /// <summary>
+    /// The size the overlay is drawn at: the layer's own, falling back to the image's natural
+    /// size, clamped to <see cref="RenderLimits.MaxOverlaySide"/>. Null when it comes out at zero.
+    /// <para>
+    /// Clamped rather than refused, because an overlay larger than twice the canvas is off the
+    /// edge in every direction: the drawn result is the same and the allocation is not. It is
+    /// applied here, shared by both entry points, so that what is measured stays what is drawn -
+    /// a clamped layer reports the clamped box, not the one that was asked for.
+    /// </para>
+    /// </summary>
+    private static (int Width, int Height)? Size(ImageLayer layer, int naturalWidth, int naturalHeight, LayerRenderContext context)
+    {
+        var width = (int)Math.Round(layer.Size.Width ?? naturalWidth);
+        var height = (int)Math.Round(layer.Size.Height ?? naturalHeight);
+        if (width <= 0 || height <= 0) return null;
+
+        var maxSide = RenderLimits.MaxOverlaySide(context.Template.Canvas.Width, context.Template.Canvas.Height);
+        return (Math.Min(width, maxSide), Math.Min(height, maxSide));
     }
 }

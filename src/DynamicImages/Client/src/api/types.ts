@@ -402,8 +402,10 @@ export interface DiJob {
 }
 
 export interface DiUsage {
+  /** Every document the template covers, not just the ones on this page. */
   total: number;
-  withImage: number;
+  /** How many of `items` have an image - the server does not count the rows it did not return. */
+  withImageOnPage: number;
   items: { key: string; name: string; hasImage: boolean; isPublished: boolean }[];
 }
 

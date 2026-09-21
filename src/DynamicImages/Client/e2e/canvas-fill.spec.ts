@@ -211,12 +211,18 @@ test("JPEG warns that the transparency will not survive, unless the image covers
   await expect.poll(() => codes.at(-1) ?? [], { timeout: 60_000 }).not.toContain("TransparencyNotKept");
 });
 
-test("the canvas accepts the 6000px the server does", async ({ page }) => {
+test("the canvas stops at the largest side the server will render", async ({ page }) => {
   const width = page.locator("di-layer-inspector di-number-field[label='Width'] input").first();
+
+  await width.fill("4096");
+  await width.press("Enter");
+  await expect(width).toHaveValue("4096");
+
+  // Past the server's per-side cap the field clamps rather than letting a template be saved that
+  // then cannot be rendered. The total-area cap is a validation error, not a field bound.
   await width.fill("6000");
   await width.press("Enter");
-
-  await expect(width).toHaveValue("6000");
+  await expect(width).toHaveValue("4096");
 });
 
 test("a shape layer's radial gradient paints its box, rotated or not", async ({ page }) => {
@@ -267,12 +273,22 @@ test("each fill change is one undo step", async ({ page }) => {
   await expect(fill).toHaveValue("colour");
 });
 
+/**
+ * The "saved" toast, and only it. A save also raises any validation warnings the template has -
+ * on a freshly installed site the fixture's output media folder does not exist yet, so there are
+ * two toasts on screen - and an unscoped `uui-toast-notification` locator fails Playwright's
+ * strict mode the moment a second one appears.
+ */
+function savedToast(page: import("@playwright/test").Page) {
+  return page.locator("uui-toast-notification[color='positive']").first();
+}
+
 test("a gradient survives a save and a reload", async ({ page }) => {
   await setFill(page, "gradient");
   await page.locator(selectIn(FIELD("Type"))).selectOption("radial");
 
   await page.locator("umb-workspace-action button:has-text('Save')").first().click();
-  await expect(page.locator("uui-toast-notification")).toBeVisible({ timeout: 60_000 });
+  await expect(savedToast(page)).toBeVisible({ timeout: 60_000 });
 
   await page.reload();
   await openTemplate(page);
@@ -283,5 +299,5 @@ test("a gradient survives a save and a reload", async ({ page }) => {
   // Leave the template as it was found, so the other specs still start from a solid canvas.
   await setFill(page, "colour");
   await page.locator("umb-workspace-action button:has-text('Save')").first().click();
-  await expect(page.locator("uui-toast-notification")).toBeVisible({ timeout: 60_000 });
+  await expect(savedToast(page)).toBeVisible({ timeout: 60_000 });
 });

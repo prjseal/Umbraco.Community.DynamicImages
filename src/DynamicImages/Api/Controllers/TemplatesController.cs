@@ -38,6 +38,7 @@ public class TemplatesController(
         => templateService.Get(key) is { } template ? Ok(template) : TemplateNotFound(key);
 
     [HttpPost("templates")]
+    [RequestSizeLimit(PreviewController.MaxTemplateBytes)]
     [ProducesResponseType(typeof(TemplateSaveResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] Template template, CancellationToken cancellationToken)
@@ -57,6 +58,7 @@ public class TemplatesController(
     }
 
     [HttpPut("templates/{key:guid}")]
+    [RequestSizeLimit(PreviewController.MaxTemplateBytes)]
     [ProducesResponseType(typeof(TemplateSaveResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -124,6 +126,7 @@ public class TemplatesController(
     }
 
     [HttpPost("templates/import")]
+    [RequestSizeLimit(PreviewController.MaxTemplateBytes)]
     [ProducesResponseType(typeof(TemplateSaveResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ImportReportResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

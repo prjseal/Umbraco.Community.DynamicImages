@@ -16,8 +16,13 @@ stack of layers you build by dragging properties onto an artboard.
 dotnet add package Umbraco.Community.DynamicImages
 ```
 
-On first start the package creates two tables, installs a media type for font files, and - if
-there is a v1 `DynamicImages` block in your configuration - imports it.
+**Umbraco 17.5.3 or later.** Everything below 17.5.3 has published security advisories against it,
+so that is the floor - and it is also the version that lets this package scope its own content
+lists to a user's start nodes.
+
+On first start the package creates two tables, installs a media type for font files, a relation
+type that marks the images it generates, and - if there is a v1 `DynamicImages` block in your
+configuration - imports it.
 
 Then grant the section: **Users → User Groups → (your group) → Sections → Dynamic Images**. Nobody
 sees the section until you do, including administrators.
@@ -48,6 +53,16 @@ The **fill** is a solid colour, a two-stop gradient - **linear** at an angle, or
 centre you place - or **transparent**. PNG and WebP keep transparency; JPEG has no alpha channel,
 so it flattens whatever is transparent to the colour underneath it, and the validator warns when
 the template is set up that way.
+
+**Size limits.** A canvas may be up to **4096 px** on either side and up to **8 megapixels** in
+total - so 4096 x 1953, or 2828 x 2828, but not 4096 x 4096. An Open Graph image is 1200 x 630, so
+this is generous against real use and mean against a template asking for something that would take
+the site down with it. A template may have at most **100 layers**; a point size is capped at
+**512**, a badge layer draws at most **50** badges, an image overlay is scaled to at most twice
+the canvas, and a text layer lays out at most **2,000** characters of resolved text. The last four
+are clamps - the image is still produced - and the designer says so as a warning; the first two
+are errors. The renderer applies all of them whatever the template came from, so the preview
+endpoint gets the same treatment as a saved template.
 
 ### Layers
 
@@ -176,7 +191,27 @@ costs no network. Deleting that folder is safe; it is re-fetched transparently. 
 font row re-resolves the provider (Google's file URLs move when a family is updated), re-downloads,
 updates the stored hash and drops the old cached copy on every server.
 
-The **Health** dashboard reports a web font that cannot be fetched as `FontUnreachable`.
+The **Health** dashboard reports a web font that cannot be fetched as `FontUnreachable`, and one
+whose file has changed since it was registered as `FontChanged`.
+
+**What the server will and will not fetch.** A font URL is typed by a person in the backoffice and
+then fetched by the server, so it is treated as untrusted:
+
+- **`https` only**, on the standard port, with no `user:password@` part.
+- **A public host.** Not an IP address, not a bare host name, not a `.local` / `.internal` /
+  `.localhost` suffix - and the host is resolved and its *address* checked before the connection
+  is made, so a public-looking name that resolves to `169.254.169.254`, `10.0.0.0/8` or anything
+  else on the server's own network is refused.
+- **No redirects.** A `3xx` is an error saying to enter the URL of the file itself. Google and
+  Bunny both serve their files directly, so this costs nothing real.
+- **The provider's own host.** A row registered as a Google font has to be served from
+  `fonts.gstatic.com`, and a Bunny one from `fonts.bunny.net`.
+- **The registered hash.** Once a font is registered, a file whose bytes no longer match the hash
+  is not used and not cached - it is parsed on the server and served to every designer's browser,
+  so it is not accepted on trust. **Refresh** is how a changed file is taken on deliberately.
+
+These apply wherever the row came from, including a uSync import: the rules live in the fetcher
+every code path goes through, not only in the registration screen.
 
 ### A font's weight, and a named style's *style*
 
@@ -203,6 +238,43 @@ that family, not a way to pick a different one.
 
 That split is why a content editor who cannot open the designer can still use **Regenerate OG
 image** on their own page - from the document's Actions menu, or from the media picker's "…" menu.
+
+### Regenerating one document
+
+Having the section is not enough on its own. Regenerating a document is authorised against **that
+node**, with the same check Umbraco's own document endpoints make, so start nodes and per-node
+permissions apply:
+
+| The editor has | What happens |
+|---|---|
+| No **Update** on the node | `403`. Nothing is generated. |
+| **Update** but not **Publish** | The image is generated and saved to the **draft**. Publishing it is someone else's call. |
+| **Update** and **Publish**, node published with no pending edits | The image is generated and the node is published, so it goes live. |
+| **Update** and **Publish**, node has unpublished edits | The image is generated and saved to the **draft**, and the response says so. |
+
+That last row is deliberate. Publishing a node to get an image out would also push out whatever
+the editor has been working on and has not chosen to release - so it never happens. The response
+outcome is `generateddraft` and the notification tells the editor to publish the page when they
+are ready.
+
+Saves and publishes are attributed to the editor who asked for them, not to "System", so the audit
+log names a person.
+
+Both places that name real content honour the caller's start nodes too: the designer's "preview
+against a real node" picker lists only nodes under them, and previewing against a node the caller
+may not browse falls back to sample data rather than returning that node's draft text.
+
+### What regeneration will and will not overwrite
+
+The target property is an ordinary media picker, so it may well be pointing at an image nobody
+generated - a shared hero, a logo. Dynamic Images only replaces a media item **it** created for
+**that** document, which it records with an Umbraco relation (visible on the media item's
+References tab). Anything else it finds there is left alone and a new media item is created
+beside it.
+
+Images generated before this was added carry no relation. The first regeneration after upgrading
+recognises them by their folder and name, replaces them in place as before, and marks them - after
+which the relation is what decides.
 
 ## Migrating from v1
 
