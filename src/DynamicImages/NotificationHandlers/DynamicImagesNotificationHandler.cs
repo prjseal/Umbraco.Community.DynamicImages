@@ -54,7 +54,7 @@ public class DynamicImagesNotificationHandler(
 
                 if (!ShouldGenerate(template, node, published)) continue;
 
-                var values = new ContentRenderValueSource(node, published);
+                var values = new ContentRenderValueSource(node, published, contextRef.UmbracoContext.Content);
 
                 using var render = await renderer.RenderAsync(template, values, cancellationToken);
 
