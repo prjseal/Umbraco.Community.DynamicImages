@@ -220,6 +220,15 @@ are recorded here so this document still describes what exists.
   `IQuery<IContent>.WhereAny` ORs one "is this node, or under it" condition per start node, so the
   total stays exact. A user whose start nodes have all been deleted gets an impossible condition
   rather than no condition - "nothing to filter by" must not mean "show everything".
+- **S1, found while verifying** — the plan's own note that "there is no `SavePublished` in 17;
+  save-then-publish is the API" turned out to be load-bearing, and neither the old code nor the
+  first cut of the new code did it. `Publish` on content carrying unsaved in-memory changes fails
+  with `FailedPublishUnsavedChanges`, so setting the property and publishing persisted nothing at
+  all; because both calls' results were discarded, the endpoint reported `generated` over it. This
+  was pre-existing - verified against `origin/main` on a second booted site, where regenerating
+  one document twice also produced two unrelated media items - and it made S4 unverifiable, since
+  the property never held a key to match a relation against. Regeneration now saves, then
+  publishes, and reports a failed write as a failure with its reason.
 - **P1** — testing that the publish handler stands down inside `RegenerationScope` needs the test
   assembly to see an internal type, so the package has an `InternalsVisibleTo` for it rather than
   `RegenerationScope` becoming public API.

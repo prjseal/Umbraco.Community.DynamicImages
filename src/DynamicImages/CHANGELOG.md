@@ -82,6 +82,13 @@
 
 ### Fixed
 
+- **Regeneration never actually attached the image.** It set the target property and called
+  `Publish`, but Umbraco 17 refuses to publish content carrying unsaved in-memory changes
+  (`FailedPublishUnsavedChanges`) — which is exactly what the property it had just set was. The
+  publish silently persisted nothing, the endpoint reported `generated` anyway because the result
+  was ignored, the property still pointed at nothing, and the next regeneration made another
+  media item. It now saves and then publishes, and a save or publish that fails is reported as a
+  failure with the reason rather than as success.
 - **Two template saves carrying the same timestamp could both succeed.** Optimistic concurrency
   was a read-then-write with no condition on the update, so the later save silently discarded the
   earlier one's work. The condition now travels with the `UPDATE`.
