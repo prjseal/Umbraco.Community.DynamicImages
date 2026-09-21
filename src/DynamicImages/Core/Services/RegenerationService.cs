@@ -62,7 +62,7 @@ public sealed class RegenerationService(
             var mediaKey = await mediaWriter.WriteAsync(
                 render.Image,
                 template,
-                content.Name ?? template.Name,
+                content,
                 existingIsValid ? existingMediaKey : null,
                 cancellationToken);
 

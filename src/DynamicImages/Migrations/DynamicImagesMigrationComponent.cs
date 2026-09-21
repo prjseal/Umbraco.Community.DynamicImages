@@ -26,7 +26,8 @@ public class DynamicImagesMigrationComponent(
             .To<CreateFontsTable>("dynamicimages-fonts-v1")
             .To<EnsureFontMediaType>("dynamicimages-fontmediatype-v1")
             .To<AddWebFontColumns>("dynamicimages-fonts-v2")
-            .To<GrantSectionToAdministrators>("dynamicimages-adminsection-v1");
+            .To<GrantSectionToAdministrators>("dynamicimages-adminsection-v1")
+            .To<EnsureGeneratedImageRelationType>("dynamicimages-relationtype-v1");
 
         var upgrader = new Upgrader(plan);
         try

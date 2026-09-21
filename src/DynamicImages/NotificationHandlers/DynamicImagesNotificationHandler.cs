@@ -60,7 +60,7 @@ public class DynamicImagesNotificationHandler(
 
                 var existingMediaKey = ExistingMediaKey(template, node);
                 var mediaKey = await mediaWriter.WriteAsync(
-                    render.Image, template, node.Name ?? template.Name, existingMediaKey, cancellationToken);
+                    render.Image, template, node, existingMediaKey, cancellationToken);
 
                 // Set the value on the in-flight content so the publish persists it. Do not call
                 // IContentService.Save here - the publish pipeline rejects a save from inside it
