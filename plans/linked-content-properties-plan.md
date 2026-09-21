@@ -475,7 +475,16 @@ sampling real content through `ScopeToStartNodes` really does infer `author` as 
 real site. Using the existing `login` / `openSection` / `openTemplate` / `openView` helpers: open the
 Design view, select a text layer, choose `author`, assert a second dropdown appears containing an
 option whose value is `mainImage` — **that option existing is the proof the inference worked** —
-choose `jobTitle`, and assert the preview no longer shows a `umb://` string.
+then pick a real node in Preview & test and assert on what the server actually drew.
+
+*As built:* the Clean `author` document type has **no `jobTitle`** (its properties are `mainImage`,
+`subtitle`, `title` and the SEO/visibility compositions), so the tail the spec chooses is `name`.
+That turns out to be the stronger assertion anyway: `author.name` and a bare `author` reference
+must resolve to the same node, so they must draw the same string, and it needs no fixture data to
+be populated. And rather than eyeballing the image for a `umb://` substring, the spec reads
+`resolvedText` off the `/preview/layout` response — the text the server says it drew — filtered to
+renders where `useSampleData` is false, since switching to Preview & test renders against samples
+before a node is picked.
 
 ---
 
@@ -560,6 +569,37 @@ Steps 1-2 and 8-10 can each be squashed if a tighter history is wanted. **3 and 
 
 ---
 
+## As built
+
+Everything above shipped. Eleven commits, in the plan's order, each green. What the code forced
+differently, and why:
+
+- **`PublishedValues`' node parameters are nullable** (`IPublishedContent?`). Section 5's own call
+  site — `PublishedValues.TextOf(published, alias)` against the nullable `published` field — needs
+  it, and returning null for a null node is what every caller already wanted.
+- **`ItemsOf` also reads a single picked node** as a one-item list. The old
+  `Value<IEnumerable<IPublishedContent>>` silently returned nothing for a ContentPicker; both
+  shapes are now covered and tested.
+- **`PublishedValues.ValueOf`** was added, unlisted in the design. `IsTruthy` needs the raw
+  converted value, and it was the one read still going through the friendly `Value(alias)`
+  extension.
+- **`#propertySelect` is gone rather than widened.** All five call sites take the path variant, so
+  the single-dropdown helper had no callers left. `#selectFrom` is the shared body, as planned.
+- **`DataTypeFilter` has a second overload**, `Parse(IDictionary<string, object>?)`, so the
+  controller reads the `filter` key without repeating the lookup.
+- **`DocumentTypesController.PropertiesOfAsync`** was extracted from `GetProperties` — that is what
+  lets the new endpoint union several target types under the same de-dup rule, and it keeps the
+  batched data-type lookup in one place.
+- **The client caps the eager load at 12 roots** (`MAX_LINKED_ROOTS`), a module constant in the
+  workspace context.
+- **`SampleDataTests.cs`** was added, unlisted in the test plan, to prove section 6's claim that a
+  dotted alias already seeds as a flat key rather than assuming it.
+- **The browser spec has eight cases, not six** — the extra two are a stored tail whose root has no
+  linked list loaded, and the "another root's properties must not leak in" check.
+
+Nothing in the design was dropped. The section 6 SampleData visibility-alias seeding rode along as
+planned and stayed a one-commit change.
+
 ## Verification
 
 - `dotnet build src/DynamicImages.sln`
@@ -576,8 +616,9 @@ Steps 1-2 and 8-10 can each be squashed if a tighter history is wanted. **3 and 
     lists, with a 200.
 - `E2E_BASE_URL=https://localhost:44344 npx playwright test linked-property --reporter=list`
 - By hand in the backoffice, on the Article OG image template:
-  - Select a text layer, choose **Author** → a second dropdown appears → choose **Job title** → the
-    preview shows the author's job title, not a `umb://document/…` string.
+  - Select a text layer, choose **Author** → a second dropdown appears → choose a property on the
+    author (**Subtitle** or **Title**; the fixture has no *Job title*) → the preview shows that
+    value, not a `umb://document/…` string.
   - Choose **Author** and leave the second dropdown on `- none -` → the preview shows the author's
     *name*.
   - Change an image layer's source to **Property**, choose **Author**, then **Main image** → the

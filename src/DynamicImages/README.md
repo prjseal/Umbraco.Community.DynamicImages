@@ -160,6 +160,37 @@ relative positioning above.
 | **Fixed text** | The same text on every page |
 | **Expression** | A token string: `{name}`, `{readingTime}`, `{prop:alias}`, `{date:alias:format}` |
 
+### Following a content picker
+
+A binding can read a property **on a linked node**, not just on the page being rendered. Pick a
+content picker in the first dropdown and a second one appears, listing what is available on the
+other side of it: `author.mainImage` for the picked author's photo, `author.jobTitle` for their
+job title.
+
+It works on every binding that names a property - text layers, image layers, badge layers and
+visibility rules, and the canvas base image - and the dotted alias works in an expression too:
+`By {prop:author.jobTitle}`.
+
+Three rules:
+
+- **The first node wins.** A picker that holds several nodes follows the first one. There is no
+  index syntax.
+- **At most three hops.** `a.b.c.d` is the deepest path that resolves. Beyond that the binding
+  resolves to nothing rather than quietly reading the wrong property, and the designer's issues
+  panel says so.
+- **A bare reference draws the name.** Leave the second dropdown on *- none -* and a text layer
+  draws the linked node's name - comma-joined when the picker holds several - rather than the
+  `umb://document/…` reference it used to print.
+
+What the second dropdown offers is worked out from the picker itself where it has a content-type
+filter, and otherwise from what existing content of that type actually points at. When neither
+narrows it down, every document type's properties are offered - so a property that is not on the
+node you happen to pick is still selectable, and the issues panel is what tells you it came back
+empty.
+
+Badge *labels* and *icons* are single-segment reads on each badge item and do not follow
+references.
+
 ### When text does not fit
 
 Set **max lines**, then choose what happens when it overflows: **shrink** steps the font size down
