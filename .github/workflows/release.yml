@@ -33,11 +33,13 @@ jobs:
   # package ships whatever is committed under wwwroot/App_Plugins, and a stale bundle would go
   # out silently under a version number that can never be reused.
   verify:
+    if: github.repository == 'prjseal/Umbraco.Community.DynamicImages'
     uses: ./.github/workflows/ci.yml
 
   publish:
     name: Pack and push
     needs: verify
+    if: github.repository == 'prjseal/Umbraco.Community.DynamicImages'
     runs-on: ubuntu-latest
 
     steps:
