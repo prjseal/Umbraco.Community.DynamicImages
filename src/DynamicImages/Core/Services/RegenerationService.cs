@@ -53,7 +53,7 @@ public sealed class RegenerationService(
             using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
             var published = contextRef.UmbracoContext.Content?.GetById(contentKey);
 
-            var values = new ContentRenderValueSource(content, published);
+            var values = new ContentRenderValueSource(content, published, contextRef.UmbracoContext.Content);
 
             using var render = await renderer.RenderAsync(template, values, cancellationToken);
 

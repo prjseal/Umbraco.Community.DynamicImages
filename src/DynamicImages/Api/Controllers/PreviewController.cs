@@ -156,7 +156,10 @@ public class PreviewController(
             var content = contentService.GetById(key);
             if (content is not null)
             {
-                return new ContentRenderValueSource(content, contextRef.UmbracoContext.Content?.GetById(key));
+                return new ContentRenderValueSource(
+                    content,
+                    contextRef.UmbracoContext.Content?.GetById(key),
+                    contextRef.UmbracoContext.Content);
             }
         }
 

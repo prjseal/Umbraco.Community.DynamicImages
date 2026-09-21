@@ -16,6 +16,10 @@ public class TextResolverTests
             ["mainContent"] = string.Join(' ', Enumerable.Repeat("word", 600)),
             ["featured"] = "1",
             ["notFeatured"] = "0",
+            // A dotted key is an opaque flat key to this source - it deliberately does not
+            // traverse. These lock in that nothing in TextResolver's parsing trips over the dot.
+            ["author.jobTitle"] = "Lead developer",
+            ["author.publishedOn"] = "2026-03-04T09:30:00",
         });
 
     [Fact]
@@ -80,6 +84,42 @@ public class TextResolverTests
 
         Assert.Equal(["subtitle", "articleDate"], aliases);
     }
+
+    // ---------------------------------------------------------------- dotted paths
+
+    [Fact]
+    public void Property_ResolvesADottedAlias()
+        => Assert.Equal("Lead developer", TextResolver.Resolve(
+            new TextBinding { Kind = TextBindingKind.Property, PropertyAlias = "author.jobTitle" }, Source));
+
+    [Fact]
+    public void Expression_ResolvesADottedPropToken()
+        => Assert.Equal("By Lead developer", TextResolver.Resolve(
+            new TextBinding { Kind = TextBindingKind.Expression, Text = "By {prop:author.jobTitle}" }, Source));
+
+    [Fact]
+    public void Expression_SplitsADottedDateTokenIntoThreeParts()
+    {
+        // token.Split(':', 3) on "date:author.publishedOn:d MMMM yyyy" has to give the alias and
+        // the format, not lose the format to the dot. Dots and colons do not collide - locked in
+        // explicitly rather than left to luck.
+        var resolved = TextResolver.Resolve(
+            new TextBinding { Kind = TextBindingKind.Expression, Text = "{date:author.publishedOn:d MMMM yyyy}" },
+            Source);
+
+        Assert.Equal("4 March 2026", resolved);
+    }
+
+    [Fact]
+    public void Date_ResolvesADottedAlias()
+        => Assert.Equal("2026", TextResolver.Resolve(
+            new TextBinding { Kind = TextBindingKind.Date, PropertyAlias = "author.publishedOn", Format = "yyyy" },
+            Source));
+
+    [Fact]
+    public void ReferencedAliases_YieldsADottedAliasWhole()
+        => Assert.Equal(["author.jobTitle", "author.publishedOn"],
+            TextResolver.ReferencedAliases("{prop:author.jobTitle} {date:author.publishedOn:yyyy}").ToList());
 
     [Theory]
     [InlineData("featured", true)]

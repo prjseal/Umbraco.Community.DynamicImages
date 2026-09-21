@@ -1,5 +1,6 @@
 using Umbraco.Cms.Core.Models;
 using Umbraco.Cms.Core.Models.PublishedContent;
+using Umbraco.Cms.Core.PublishedCache;
 using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Extensions;
 
@@ -9,8 +10,20 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 /// Reads values off a real content node. Both the draft <see cref="IContent"/> and the published
 /// <see cref="IPublishedContent"/> are used: the draft carries the in-flight values during a
 /// publish, while the published node is what resolves picker properties into nodes.
+/// <para>
+/// A property alias may be a dotted path - <c>author.mainImage</c> - which follows a content
+/// reference and reads the property on the node it lands on. The first node wins when a picker
+/// holds several, and a path over <see cref="PropertyPath.MaxHops"/> hops resolves to nothing.
+/// </para>
 /// </summary>
-public sealed class ContentRenderValueSource(IContent content, IPublishedContent? published) : IRenderValueSource
+/// <param name="contentCache">
+/// Optional so every existing call site keeps compiling. Without it a dotted path can only follow
+/// a reference a converter has already resolved into nodes, not a raw stored UDI.
+/// </param>
+public sealed class ContentRenderValueSource(
+    IContent content,
+    IPublishedContent? published,
+    IPublishedContentCache? contentCache = null) : IRenderValueSource
 {
     public string? Name => content.Name;
 
@@ -18,18 +31,54 @@ public sealed class ContentRenderValueSource(IContent content, IPublishedContent
     {
         if (string.IsNullOrWhiteSpace(propertyAlias)) return null;
 
+        if (PropertyPath.IsPath(propertyAlias))
+        {
+            return ResolveTarget(propertyAlias) is { } target ? PublishedValues.TextOf(target.Node, target.Alias) : null;
+        }
+
         if (string.Equals(propertyAlias, "name", StringComparison.OrdinalIgnoreCase)) return content.Name;
 
         // The draft first: during a publish it holds what is about to be saved, which is what the
         // generated image should reflect.
-        return content.HasProperty(propertyAlias)
-            ? content.GetValue<string>(propertyAlias)
-            : published?.Value<string>(propertyAlias);
+        if (!content.HasProperty(propertyAlias)) return PublishedValues.TextOf(published, propertyAlias);
+
+        var raw = content.GetValue<string>(propertyAlias);
+
+        return LinkedNames(raw) ?? raw;
+    }
+
+    /// <summary>
+    /// The names of the nodes a bare content reference points at, comma-joined - what an editor
+    /// means by binding a text layer to a picker, rather than the UDI that used to be drawn.
+    /// <para>
+    /// Null on anything else, and the caller then returns the raw value exactly as before. That
+    /// fall-through is the safety net: no cache injected, or the nodes unpublished or deleted, and
+    /// nothing about today's behaviour changes. The check is deliberately strict - every token must
+    /// be a <c>umb://document/</c> UDI - because a bare GUID is a string somebody might legitimately
+    /// want drawn.
+    /// </para>
+    /// </summary>
+    private string? LinkedNames(string? raw)
+    {
+        if (contentCache is null || !DocumentReference.LooksLikeDocumentReference(raw)) return null;
+
+        var names = DocumentReference.ResolveKeys(raw)
+            .Select(contentCache.GetById)
+            .Where(node => node is not null)
+            .Select(node => node!.Name)
+            .ToList();
+
+        return names.Count > 0 ? string.Join(", ", names) : null;
     }
 
     public DateTime? GetDate(string propertyAlias)
     {
         if (string.IsNullOrWhiteSpace(propertyAlias)) return null;
+
+        if (PropertyPath.IsPath(propertyAlias))
+        {
+            return ResolveTarget(propertyAlias) is { } target ? PublishedValues.DateOf(target.Node, target.Alias) : null;
+        }
 
         switch (propertyAlias.ToLowerInvariant())
         {
@@ -39,7 +88,7 @@ public sealed class ContentRenderValueSource(IContent content, IPublishedContent
                 return content.UpdateDate;
         }
 
-        if (!content.HasProperty(propertyAlias)) return published?.Value<DateTime?>(propertyAlias);
+        if (!content.HasProperty(propertyAlias)) return PublishedValues.DateOf(published, propertyAlias);
 
         var value = content.GetValue(propertyAlias);
         return value switch
@@ -54,43 +103,92 @@ public sealed class ContentRenderValueSource(IContent content, IPublishedContent
         => ReadingTime.Estimate(GetText(propertyAlias ?? TextResolver.DefaultReadingTimeProperty));
 
     public Guid? GetMediaKey(string propertyAlias)
-        => string.IsNullOrWhiteSpace(propertyAlias) ? null : MediaSource.ResolveMediaKey(GetText(propertyAlias));
+    {
+        if (string.IsNullOrWhiteSpace(propertyAlias)) return null;
+
+        if (PropertyPath.IsPath(propertyAlias))
+        {
+            return ResolveTarget(propertyAlias) is { } target ? PublishedValues.MediaKeyOf(target.Node, target.Alias) : null;
+        }
+
+        // A non-dotted read keeps its draft-first raw-string behaviour, where only the final hop of
+        // a path uses the typed reader. The asymmetry is deliberate: the draft's raw JSON is the
+        // authority during a publish, and there is no draft for a linked node.
+        return MediaSource.ResolveMediaKey(GetText(propertyAlias));
+    }
 
     public IReadOnlyList<BadgeItem> GetItems(string propertyAlias)
     {
-        if (published is null || string.IsNullOrWhiteSpace(propertyAlias)) return [];
+        if (string.IsNullOrWhiteSpace(propertyAlias)) return [];
 
-        var nodes = published.Value<IEnumerable<IPublishedContent>>(propertyAlias);
-        if (nodes is null) return [];
+        if (PropertyPath.IsPath(propertyAlias))
+        {
+            return ResolveTarget(propertyAlias) is { } target ? PublishedValues.ItemsOf(target.Node, target.Alias) : [];
+        }
 
-        return nodes.Select(node => new BadgeItem(
-            node.Name,
-            // Flattened to strings up front: the badge renderer only ever wants a label or an icon
-            // slug, and this keeps IPublishedContent out of the rendering contract.
-            node.Properties.ToDictionary(
-                property => property.Alias,
-                property => property.GetValue()?.ToString(),
-                StringComparer.OrdinalIgnoreCase)))
-            .ToList();
+        return PublishedValues.ItemsOf(published, propertyAlias);
     }
 
     public bool IsTruthy(string propertyAlias)
     {
         if (string.IsNullOrWhiteSpace(propertyAlias)) return false;
 
-        var value = content.HasProperty(propertyAlias) ? content.GetValue(propertyAlias) : published?.Value(propertyAlias);
-
-        return value switch
+        if (PropertyPath.IsPath(propertyAlias))
         {
-            null => false,
-            bool flag => flag,
-            string text => !string.IsNullOrWhiteSpace(text)
-                && !string.Equals(text, "0", StringComparison.Ordinal)
-                && !string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(text, "[]", StringComparison.Ordinal),
-            int number => number != 0,
-            System.Collections.IEnumerable list => list.GetEnumerator().MoveNext(),
-            _ => true
-        };
+            return ResolveTarget(propertyAlias) is { } target
+                && PublishedValues.Truthy(PublishedValues.ValueOf(target.Node, target.Alias));
+        }
+
+        var value = content.HasProperty(propertyAlias)
+            ? content.GetValue(propertyAlias)
+            : PublishedValues.ValueOf(published, propertyAlias);
+
+        return PublishedValues.Truthy(value);
+    }
+
+    /// <summary>
+    /// Walks a dotted path to the node its last segment should be read on. Null when the path is
+    /// too deep to follow or any hop resolves to nothing - the caller then reports the same empty
+    /// value it would for a property that is simply not set.
+    /// </summary>
+    private (IPublishedContent Node, string Alias)? ResolveTarget(string propertyAlias)
+    {
+        var path = PropertyPath.Parse(propertyAlias);
+
+        // Over the cap the whole path resolves to nothing rather than being truncated: truncating
+        // would quietly read the wrong property. TemplateValidator's PropertyPathTooDeep warning is
+        // how the editor finds out instead.
+        if (path.IsTooDeep) return null;
+
+        var node = FollowFirstHop(path.First);
+
+        foreach (var hop in path.Hops.Skip(1))
+        {
+            if (node is null) return null;
+
+            // Later hops are pure published content: there is no draft for a node that is not
+            // itself being published.
+            node = PublishedValues.FollowFirst(node, hop, contentCache);
+        }
+
+        return node is null ? null : (node, path.Last);
+    }
+
+    /// <summary>
+    /// The first hop is special. It reads the draft's raw value first, because during a publish the
+    /// draft holds the node the editor just picked while the published node still names the old one
+    /// - the same reason <see cref="GetText"/> is draft-first.
+    /// </summary>
+    private IPublishedContent? FollowFirstHop(string alias)
+    {
+        if (content.HasProperty(alias) &&
+            PublishedValues.FollowRaw(content.GetValue<string>(alias), contentCache) is { } fromDraft)
+        {
+            return fromDraft;
+        }
+
+        // A draft miss, an unparseable draft value or no cache all fall back to the published node
+        // rather than to nothing.
+        return PublishedValues.FollowFirst(published, alias, contentCache);
     }
 }

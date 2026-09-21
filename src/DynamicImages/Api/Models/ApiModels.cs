@@ -108,6 +108,22 @@ public sealed record DocumentTypePropertyResponse(
 
 public sealed record DocumentTypeResponse(Guid Key, string Alias, string Name, string Icon);
 
+/// <summary>
+/// What a content-reference property points at: the document types it can hold, and the union of
+/// their properties, for the designer's second dropdown.
+/// <para>
+/// <see cref="Inference"/> says how the target types were arrived at - <c>"filter"</c> from the
+/// picker's own configuration, <c>"sampled"</c> from what existing content actually picks,
+/// <c>"all"</c> when neither could narrow it, and <c>"none"</c> when the property is not a content
+/// reference at all. The designer can then tell "the picker says so" from a best-effort guess.
+/// </para>
+/// </summary>
+public sealed record LinkedPropertiesResponse(
+    string PropertyAlias,
+    string Inference,
+    IReadOnlyList<DocumentTypeResponse> TargetDocTypes,
+    IReadOnlyList<DocumentTypePropertyResponse> Properties);
+
 public sealed record SampleContentItem(Guid Key, string Name, string DocTypeAlias, bool IsPublished, DateTime UpdateDate);
 
 public sealed record SampleContentResponse(long Total, IReadOnlyList<SampleContentItem> Items);

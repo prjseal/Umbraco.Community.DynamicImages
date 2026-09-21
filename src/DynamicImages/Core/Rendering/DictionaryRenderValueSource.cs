@@ -3,6 +3,14 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 /// <summary>
 /// A value source backed by a plain dictionary. Used for the designer's "sample data" mode and by
 /// the renderer tests, so neither needs a database or a published content cache.
+/// <para>
+/// A dotted path is an opaque flat key here - this source deliberately does not traverse. Its
+/// dictionaries are already <see cref="StringComparer.OrdinalIgnoreCase"/>, so
+/// <c>GetText("author.jobTitle")</c> is a plain hit on whatever <c>SampleData</c> seeded under
+/// that key. Teaching it to traverse would be a second implementation of the resolver that could
+/// quietly disagree with the real one - the worst possible outcome for a preview whose job is to
+/// predict what the server will render.
+/// </para>
 /// </summary>
 public sealed class DictionaryRenderValueSource : IRenderValueSource
 {
