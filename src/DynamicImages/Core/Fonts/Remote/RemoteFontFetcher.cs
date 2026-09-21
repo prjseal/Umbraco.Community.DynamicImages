@@ -5,8 +5,14 @@ public sealed class RemoteFontFetcher(
     IFontCacheRoot cacheRoot,
     ILogger<RemoteFontFetcher> logger) : IRemoteFontFetcher
 {
-    public async Task<byte[]> GetBytesAsync(Uri url, string? expectedHash, CancellationToken cancellationToken = default)
+    public async Task<byte[]?> GetBytesAsync(
+        Uri url, string? providerName, string? expectedHash, CancellationToken cancellationToken = default)
     {
+        // Checked here rather than only at registration, because this is the one place every
+        // caller goes through: a row written by a uSync import, or edited in the database, gets
+        // the same treatment as one an editor typed into the backoffice.
+        if (UrlProblem(url, providerName) is { } problem) throw new FontFetchException(problem);
+
         if (FontHash.IsValid(expectedHash))
         {
             var cached = await TryReadAsync(CachePath(expectedHash!), cancellationToken);
@@ -14,23 +20,57 @@ public sealed class RemoteFontFetcher(
         }
 
         // The named client carries the timeout and MaxResponseContentBufferSize, so an oversize
-        // file throws out of GetByteArrayAsync rather than needing a hand-rolled streaming cap.
+        // file throws out of ReadAsByteArrayAsync rather than needing a hand-rolled streaming cap.
         using var client = httpClientFactory.CreateClient(DynamicImagesConstants.WebFontHttpClientName);
-        var bytes = await client.GetByteArrayAsync(url, cancellationToken);
+
+        using var response = await client.GetAsync(url, cancellationToken);
+
+        // The handler does not follow redirects, so a 3xx arrives here as itself. Saying so beats
+        // the "answered 302" a bare status check would give: the fix is to enter the final URL.
+        if ((int)response.StatusCode is >= 300 and < 400)
+        {
+            throw new FontFetchException(
+                $"'{url}' redirects somewhere else. Enter the URL of the font file itself.");
+        }
+
+        response.EnsureSuccessStatusCode();
+
+        var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
         var hash = FontHash.Compute(bytes);
 
         if (expectedHash is not null && !string.Equals(hash, expectedHash, StringComparison.OrdinalIgnoreCase))
         {
-            // Google's file URLs are versioned and immutable, so this is a direct URL whose file
-            // changed underneath the row. It still renders; Refresh is what updates the hash.
+            // Not served and not cached. The registered hash is what every server agreed this
+            // font is; bytes that do not match it are parsed by SixLabors.Fonts on the server and
+            // served to every designer's browser, so accepting them on trust is the whole
+            // problem. Refresh fetches with no expected hash, and is the sanctioned way in.
             logger.LogWarning(
-                "Dynamic Images: the font at {Url} no longer matches its registered hash ({Expected} → {Actual}). Refresh the font to update it.",
+                "Dynamic Images: the font at {Url} no longer matches its registered hash ({Expected} -> {Actual}), so it was not used. Refresh the font to accept the new file.",
                 url, expectedHash, hash);
+
+            return null;
         }
 
         Write(CachePath(hash), bytes);
 
         return bytes;
+    }
+
+    /// <summary>
+    /// Why this URL may not be fetched, or null when it may be. The scheme, host shape and
+    /// user-info rules are the same ones registration applies; the provider host rule is the
+    /// extra one, and it is what stops a row claiming to be a Google font pointing elsewhere.
+    /// </summary>
+    private static string? UrlProblem(Uri url, string? providerName)
+    {
+        if (WebFontProviders.ValidateDirectUrl(url.ToString(), out _) is { } problem) return problem;
+
+        var provider = WebFontProviders.Get(providerName);
+        if (provider?.FileHost is null) return null;
+
+        return provider.AllowsFileUrl(url)
+            ? null
+            : $"A {provider.DisplayName} font has to be served from {provider.FileHost}, and '{url.Host}' is not.";
     }
 
     public void Evict(string? contentHash)

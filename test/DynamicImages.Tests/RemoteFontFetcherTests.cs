@@ -12,6 +12,8 @@ namespace Umbraco.Community.DynamicImages.Tests;
 /// </summary>
 public class RemoteFontFetcherTests : IDisposable
 {
+    private const string Google = WebFontProviders.GoogleName;
+
     private static readonly Uri FontUrl = new("https://fonts.gstatic.com/s/inter/v20/abc.ttf");
     private static readonly byte[] FontBytes = "not really a font, but bytes are bytes"u8.ToArray();
 
@@ -36,7 +38,7 @@ public class RemoteFontFetcherTests : IDisposable
         var handler = Serving(FontBytes);
         var fetcher = Fetcher(handler);
 
-        var first = await fetcher.GetBytesAsync(FontUrl, expectedHash: null);
+        var first = await fetcher.GetBytesAsync(FontUrl, Google, expectedHash: null);
         var hash = FontHash.Compute(first);
 
         Assert.Equal(FontBytes, first);
@@ -45,7 +47,7 @@ public class RemoteFontFetcherTests : IDisposable
 
         // Every url row carries a hash, so the second server (or the same one after a restart)
         // asks by hash and never touches the network.
-        var second = await fetcher.GetBytesAsync(FontUrl, hash);
+        var second = await fetcher.GetBytesAsync(FontUrl, Google, hash);
 
         Assert.Equal(FontBytes, second);
         Assert.Equal(1, handler.Requests);
@@ -56,7 +58,7 @@ public class RemoteFontFetcherTests : IDisposable
     {
         var handler = Serving(FontBytes);
 
-        var bytes = await Fetcher(handler).GetBytesAsync(FontUrl, FontHash.Compute(FontBytes));
+        var bytes = await Fetcher(handler).GetBytesAsync(FontUrl, Google, FontHash.Compute(FontBytes));
 
         Assert.Equal(FontBytes, bytes);
         Assert.Equal(1, handler.Requests);
@@ -69,7 +71,7 @@ public class RemoteFontFetcherTests : IDisposable
         // own rather than a hand-rolled check.
         var fetcher = Fetcher(Serving(new byte[64]), maxBytes: 16);
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => fetcher.GetBytesAsync(FontUrl, null));
+        await Assert.ThrowsAsync<HttpRequestException>(() => fetcher.GetBytesAsync(FontUrl, Google, null));
         Assert.False(Directory.Exists(_root) && Directory.EnumerateFiles(_root).Any());
     }
 
@@ -78,29 +80,93 @@ public class RemoteFontFetcherTests : IDisposable
     {
         var fetcher = Fetcher(Serving([], HttpStatusCode.NotFound));
 
-        await Assert.ThrowsAsync<HttpRequestException>(() => fetcher.GetBytesAsync(FontUrl, null));
+        await Assert.ThrowsAsync<HttpRequestException>(() => fetcher.GetBytesAsync(FontUrl, Google, null));
     }
 
     [Fact]
-    public async Task GetBytesAsync_WarnsWhenTheHashDiffersButStillServes()
+    public async Task GetBytesAsync_RefusesAFileThatDoesNotMatchItsRegisteredHash()
     {
+        // The registered hash is what every server agreed this font is. Bytes that do not match
+        // it are parsed on the server and served to every designer's browser, so they are neither
+        // returned nor cached - a refresh, which fetches with no expected hash, is the way in.
         var fetcher = Fetcher(Serving(FontBytes));
         var stale = "0123456789ABCDEF0123456789ABCDEF";
 
-        var bytes = await fetcher.GetBytesAsync(FontUrl, stale);
+        var bytes = await fetcher.GetBytesAsync(FontUrl, Google, stale);
 
-        Assert.Equal(FontBytes, bytes);
+        Assert.Null(bytes);
         Assert.Contains(_logger.Entries, e => e.Level == LogLevel.Warning && e.Message.Contains("no longer matches"));
 
-        // Cached under the bytes' real hash, never the stale one - the file name is the truth.
-        Assert.True(File.Exists(Path.Combine(_root, $"{FontHash.Compute(FontBytes)}.bin")));
+        // Nothing cached under either hash: the bytes are not ours to keep.
+        Assert.False(File.Exists(Path.Combine(_root, $"{FontHash.Compute(FontBytes)}.bin")));
         Assert.False(File.Exists(Path.Combine(_root, $"{stale}.bin")));
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_RefusesARedirectRatherThanFollowingIt()
+    {
+        // Following a redirect applied the https and public-host checks to the URL an editor
+        // typed and not to the URL that was actually fetched, so a 302 walked past both.
+        var handler = new StubHandler(_ =>
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.Found);
+            response.Headers.Location = new Uri("https://169.254.169.254/latest/meta-data/");
+            return response;
+        });
+
+        var ex = await Assert.ThrowsAsync<FontFetchException>(
+            () => Fetcher(handler).GetBytesAsync(FontUrl, Google, null));
+
+        Assert.Contains("redirects", ex.Message);
+        Assert.False(Directory.Exists(_root) && Directory.EnumerateFiles(_root).Any());
+    }
+
+    [Theory]
+    [InlineData("http://fonts.gstatic.com/a.ttf")]
+    [InlineData("https://169.254.169.254/a.ttf")]
+    [InlineData("https://metadata/a.ttf")]
+    [InlineData("https://metadata.google.internal/a.ttf")]
+    [InlineData("https://fonts.gstatic.com:8443/a.ttf")]
+    [InlineData("https://user:pass@fonts.gstatic.com/a.ttf")]
+    public async Task GetBytesAsync_RefusesAUrlItMayNotFetch(string url)
+    {
+        // Checked at fetch time, not only at registration: the row may have arrived from a uSync
+        // import, and fonts/{key}/file fetches whatever the row says.
+        var handler = Serving(FontBytes);
+
+        await Assert.ThrowsAsync<FontFetchException>(
+            () => Fetcher(handler).GetBytesAsync(new Uri(url), null, null));
+
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_RefusesAProviderRowPointingOffItsOwnHost()
+    {
+        var handler = Serving(FontBytes);
+
+        var ex = await Assert.ThrowsAsync<FontFetchException>(
+            () => Fetcher(handler).GetBytesAsync(new Uri("https://example.com/inter.ttf"), Google, null));
+
+        Assert.Contains("fonts.gstatic.com", ex.Message);
+        Assert.Equal(0, handler.Requests);
+    }
+
+    [Fact]
+    public async Task GetBytesAsync_AllowsAnyPublicHostForADirectUrl()
+    {
+        // "direct" has no fixed file host - the editor supplies the file URL - so the host rule
+        // must not fire for it.
+        var bytes = await Fetcher(Serving(FontBytes))
+            .GetBytesAsync(new Uri("https://example.com/inter.ttf"), WebFontProviders.DirectName, null);
+
+        Assert.Equal(FontBytes, bytes);
     }
 
     [Fact]
     public async Task GetBytesAsync_LeavesNoTempFileBehind()
     {
-        await Fetcher(Serving(FontBytes)).GetBytesAsync(FontUrl, null);
+        await Fetcher(Serving(FontBytes)).GetBytesAsync(FontUrl, Google, null);
 
         Assert.Empty(Directory.EnumerateFiles(_root, "*.tmp"));
         Assert.Single(Directory.EnumerateFiles(_root));
@@ -113,7 +179,7 @@ public class RemoteFontFetcherTests : IDisposable
         // read outside the cache folder.
         var handler = Serving(FontBytes);
 
-        await Fetcher(handler).GetBytesAsync(FontUrl, "../../etc/passwd");
+        await Fetcher(handler).GetBytesAsync(FontUrl, Google, "../../etc/passwd");
 
         Assert.Equal(1, handler.Requests);
     }
@@ -123,13 +189,13 @@ public class RemoteFontFetcherTests : IDisposable
     {
         var handler = Serving(FontBytes);
         var fetcher = Fetcher(handler);
-        var hash = FontHash.Compute(await fetcher.GetBytesAsync(FontUrl, null));
+        var hash = FontHash.Compute(await fetcher.GetBytesAsync(FontUrl, Google, null));
 
         fetcher.Evict(hash);
 
         Assert.False(File.Exists(Path.Combine(_root, $"{hash}.bin")));
 
-        await fetcher.GetBytesAsync(FontUrl, hash);
+        await fetcher.GetBytesAsync(FontUrl, Google, hash);
         Assert.Equal(2, handler.Requests);
     }
 

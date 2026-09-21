@@ -62,6 +62,11 @@ public sealed class FontFileProvider(
     {
         if (!Uri.TryCreate(font.SourceUrl, UriKind.Absolute, out var url)) return null;
 
-        return new MemoryStream(await remoteFonts.GetBytesAsync(url, font.ContentHash, cancellationToken), writable: false);
+        // Null means the file no longer matches the hash this font was registered with, or the
+        // URL is not one we may fetch. Either way the font is unavailable rather than wrong: the
+        // layer using it is skipped and the health check says what happened.
+        var bytes = await remoteFonts.GetBytesAsync(url, font.Provider, font.ContentHash, cancellationToken);
+
+        return bytes is null ? null : new MemoryStream(bytes, writable: false);
     }
 }

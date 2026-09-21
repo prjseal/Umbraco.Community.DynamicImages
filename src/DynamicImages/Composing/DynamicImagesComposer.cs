@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -98,11 +100,67 @@ public class DynamicImagesComposer : IComposer
             client.Timeout = TimeSpan.FromSeconds(Math.Max(1, webFonts.TimeoutSeconds));
             client.MaxResponseContentBufferSize = Math.Max(1, webFonts.MaxBytes);
             client.DefaultRequestHeaders.UserAgent.ParseAdd(DynamicImagesConstants.UserAgent);
-        }).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { MaxAutomaticRedirections = 5 });
+        }).ConfigurePrimaryHttpMessageHandler(BuildWebFontHandler);
 
         builder.Services.AddSingleton<IFontCacheRoot, HostingFontCacheRoot>();
+
         builder.Services.AddSingleton<IRemoteFontFetcher, RemoteFontFetcher>();
         builder.Services.AddSingleton<IWebFontResolver, WebFontResolver>();
+    }
+
+    /// <summary>
+    /// The handler web fonts are fetched through, built so the checks on a URL cannot be talked
+    /// out of by the far end.
+    /// <para>
+    /// Redirects are off: following one meant the https / public-host checks applied to the URL
+    /// an editor typed and not to the URL that was actually fetched, so a 302 walked straight
+    /// past them. Google and Bunny both serve their files without redirects, and a direct URL is
+    /// supposed to be the file, so refusing one costs nothing real.
+    /// </para>
+    /// <para>
+    /// The connect callback resolves the host itself and dials a specific address. That is what
+    /// closes the DNS-rebinding window: the address that was checked is the address that is
+    /// connected to, with no second lookup in between for an attacker's short TTL to answer
+    /// differently.
+    /// </para>
+    /// </summary>
+    private static HttpMessageHandler BuildWebFontHandler() => new SocketsHttpHandler
+    {
+        AllowAutoRedirect = false,
+        ConnectCallback = ConnectToPublicAddressAsync,
+    };
+
+    private static async ValueTask<Stream> ConnectToPublicAddressAsync(
+        SocketsHttpConnectionContext context, CancellationToken cancellationToken)
+    {
+        var endPoint = context.DnsEndPoint;
+
+        var addresses = IPAddress.TryParse(endPoint.Host, out var literal)
+            ? [literal]
+            : await Dns.GetHostAddressesAsync(endPoint.Host, cancellationToken);
+
+        var allowed = addresses.FirstOrDefault(PublicAddressGuard.IsAllowed);
+        if (allowed is null)
+        {
+            // HttpRequestException rather than a custom type: it is what the callers of the
+            // fetcher already catch, and what turns into an editor-facing message.
+            throw new HttpRequestException(addresses.Length == 0
+                ? $"'{endPoint.Host}' could not be resolved."
+                : PublicAddressGuard.Describe(addresses[0]));
+        }
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+
+        try
+        {
+            await socket.ConnectAsync(new IPEndPoint(allowed, endPoint.Port), cancellationToken);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
     }
 
     private static void RegisterServices(IUmbracoBuilder builder)
