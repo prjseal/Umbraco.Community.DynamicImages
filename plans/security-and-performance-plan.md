@@ -211,12 +211,15 @@ are recorded here so this document still describes what exists.
   generating images, falling back to "not ours" (a new media item) and never to someone else's
   file. A failure to *write* the marker after the image is saved is logged rather than thrown — it
   costs a new media item next time, where throwing would cost the editor their image.
-- **S5** — only the preview half was done. Scoping `document-types/{alias}/content` to the
-  caller's start nodes needs `IUser.CalculateContentStartNodeIds`, which is not part of the
-  Umbraco 17.0.0 surface this package builds against; the alternatives either filter the page in
-  memory (making the reported total wrong) or rebuild the paged query around node paths. The plan
-  allowed for leaving it, so the endpoint is unchanged and the limitation is in the README's
-  permissions section.
+- **S5** — done in full, but it moved the package's minimum Umbraco version.
+  `IUser.CalculateContentStartNodeIds` is not part of the 17.0.0 surface the package was pinned
+  to, and the fallbacks the plan allowed for were both bad: filtering the page in memory makes the
+  reported total disagree with the rows, and leaving it meant the list kept naming nodes the
+  caller cannot see. The user's call was to raise the floor to **17.5.3**, since everything below
+  it has published security advisories anyway. On 17.5.3 the scoping is a single query:
+  `IQuery<IContent>.WhereAny` ORs one "is this node, or under it" condition per start node, so the
+  total stays exact. A user whose start nodes have all been deleted gets an impossible condition
+  rather than no condition - "nothing to filter by" must not mean "show everything".
 - **P1** — testing that the publish handler stands down inside `RegenerationScope` needs the test
   assembly to see an internal type, so the package has an `InternalsVisibleTo` for it rather than
   `RegenerationScope` becoming public API.

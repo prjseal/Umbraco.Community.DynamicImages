@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+
+- **Umbraco 17.5.3 is now the minimum.** Every 17.x below it has published security advisories
+  against it, so there is nothing to be gained by supporting them; it is also the version whose
+  `IUser.CalculateContentStartNodeIds` lets the sample-content list be scoped to a user's start
+  nodes.
+
 ### Security
 
 - **Regenerating a document is authorised against that document.** `POST
@@ -40,10 +47,11 @@
   400s, the sync messages and bulk job failures; an IO exception carries full server paths. The
   messages written for editors are kept, everything else is a fixed sentence with the detail in
   the log. A negative `skip` on the sample-content endpoint returned a 500 and is now clamped.
-- **Previewing against a real node checks the caller may read it.** It resolved and returned the
-  draft text of any node in the site; a node the caller cannot browse now falls back to sample
-  data. `GET document-types/{alias}/content` still lists every node of a type regardless of start
-  nodes — it is behind the section policy, and this is recorded in the README.
+- **Content lookups honour start nodes.** Previewing with a `contentKey` resolved and returned
+  the draft text of any node in the site, and `GET document-types/{alias}/content` listed every
+  node of a document type — both regardless of the caller's start nodes. A node the caller cannot
+  browse now falls back to sample data, and the sample-content list is narrowed in the query
+  itself, so its reported total stays true.
 
 ### Performance
 

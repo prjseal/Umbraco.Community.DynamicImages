@@ -16,8 +16,13 @@ stack of layers you build by dragging properties onto an artboard.
 dotnet add package Umbraco.Community.DynamicImages
 ```
 
-On first start the package creates two tables, installs a media type for font files, and - if
-there is a v1 `DynamicImages` block in your configuration - imports it.
+**Umbraco 17.5.3 or later.** Everything below 17.5.3 has published security advisories against it,
+so that is the floor - and it is also the version that lets this package scope its own content
+lists to a user's start nodes.
+
+On first start the package creates two tables, installs a media type for font files, a relation
+type that marks the images it generates, and - if there is a v1 `DynamicImages` block in your
+configuration - imports it.
 
 Then grant the section: **Users → User Groups → (your group) → Sections → Dynamic Images**. Nobody
 sees the section until you do, including administrators.
@@ -255,11 +260,9 @@ are ready.
 Saves and publishes are attributed to the editor who asked for them, not to "System", so the audit
 log names a person.
 
-**Known limitation:** `GET document-types/{alias}/content`, which fills the designer's
-"preview against a real node" picker, lists every node of a document type regardless of the
-caller's start nodes. It is behind the section policy, so only users who can configure Dynamic
-Images see it. Previewing against a node *is* checked - a node the caller may not read falls back
-to sample data.
+Both places that name real content honour the caller's start nodes too: the designer's "preview
+against a real node" picker lists only nodes under them, and previewing against a node the caller
+may not browse falls back to sample data rather than returning that node's draft text.
 
 ### What regeneration will and will not overwrite
 

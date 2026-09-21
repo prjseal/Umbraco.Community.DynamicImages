@@ -2332,19 +2332,26 @@ function Mu(e, t, i) {
     return `polygon(${a.map((s) => `${(s.x * 100).toFixed(3)}% ${(s.y * 100).toFixed(3)}%`).join(", ")})`;
 }
 const g = {
-  /** Font size, in points. Beyond 800 the renderer is being asked for a poster, not an OG image. */
-  fontSize: { min: 1, max: 800 },
+  /**
+   * Font size, in points. The maximum is the server's: `RenderLimits.MaxFontSize` clamps anything
+   * larger, so offering more here would mean the designer showing a size the render will not use.
+   */
+  fontSize: { min: 1, max: 512 },
   /** Position. Negative is legitimate - a layer can be deliberately bled off the canvas edge. */
   x: { min: -5e3, max: 5e3 },
   y: { min: -5e3, max: 5e3 },
   /**
    * Any box dimension. Zero is not a size; "auto" is expressed by clearing the field, not by 0.
-   * The maximum is the server's: TemplateValidator accepts up to 8000, and it is the authority on
-   * what a canvas may be - 5000 here quietly clamped an imported 6000px template the moment its
-   * Width field was touched.
+   * The maximum is the server's, and the server is the authority on what a canvas may be: a value
+   * this field allowed but the renderer refused would be a template that saves and then cannot
+   * produce an image.
+   *
+   * `RenderLimits.MaxCanvasSide` is the per-side cap. The server also caps the total *area* at 8
+   * megapixels, which a number input cannot express - so 4096 x 4096 is typeable here and comes
+   * back as a `CanvasSizeInvalid` validation error, which is where an area rule belongs.
    */
-  width: { min: 1, max: 8e3 },
-  height: { min: 1, max: 8e3 },
+  width: { min: 1, max: 4096 },
+  height: { min: 1, max: 4096 },
   /** A multiple of the font size. Below 0.5 the lines overlap. */
   lineSpacing: { min: 0.5, max: 4 },
   /** Tracking, in the same units the renderer uses. Negative tightens. */
