@@ -14,8 +14,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Umbraco.Community.DynamicIm
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Umbraco.Community.DynamicImages.uSync", "DynamicImages.uSync\Umbraco.Community.DynamicImages.uSync.csproj", "{EA110051-75D3-4025-B995-40C36CD6C2F5}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamicImages.TestSite", "DynamicImages.TestSite\DynamicImages.TestSite.csproj", "{5F422B12-D79E-47F8-8C5E-1C980B4627DB}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamicImages.TestSite.Clean", "DynamicImages.TestSite.Clean\DynamicImages.TestSite.Clean.csproj", "{6D714BA2-4F02-4BAB-A64B-BBE60EFC5523}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DynamicImages.Tests", "..\test\DynamicImages.Tests\DynamicImages.Tests.csproj", "{3754031A-83E3-464A-9750-8AEA1117CA6B}"
@@ -34,10 +32,6 @@ Global
 		{EA110051-75D3-4025-B995-40C36CD6C2F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EA110051-75D3-4025-B995-40C36CD6C2F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EA110051-75D3-4025-B995-40C36CD6C2F5}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5F422B12-D79E-47F8-8C5E-1C980B4627DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5F422B12-D79E-47F8-8C5E-1C980B4627DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5F422B12-D79E-47F8-8C5E-1C980B4627DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5F422B12-D79E-47F8-8C5E-1C980B4627DB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{6D714BA2-4F02-4BAB-A64B-BBE60EFC5523}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{6D714BA2-4F02-4BAB-A64B-BBE60EFC5523}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{6D714BA2-4F02-4BAB-A64B-BBE60EFC5523}.Release|Any CPU.ActiveCfg = Release|Any CPU
