@@ -220,9 +220,11 @@ public class RegenerationController(
         }
         catch (Exception ex)
         {
+            // Per-item failures above carry result.Message, which is already written for an
+            // editor. This is the catch-all, so the text is whatever threw - it goes to the log.
             logger.LogError(ex, "Dynamic Images: bulk regeneration job {JobId} failed", jobId);
             job.Status = JobStatus.Failed;
-            job.Fail(ex.Message);
+            job.Fail("The job stopped unexpectedly. See the log for details.");
         }
         finally
         {

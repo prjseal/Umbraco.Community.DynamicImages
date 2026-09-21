@@ -45,8 +45,10 @@ public sealed class SyncService(
             }
             catch (Exception ex)
             {
+                // The exception text carries full server paths on an IO failure, and this list is
+                // shown in the backoffice. The log has the detail.
                 logger.LogError(ex, "Dynamic Images: could not export template '{Alias}'", template.Alias);
-                messages.Add($"{template.Alias}: {ex.Message}");
+                messages.Add($"{template.Alias}: the file could not be written. See the log for details.");
             }
         }
 
@@ -99,7 +101,7 @@ public sealed class SyncService(
             catch (Exception ex)
             {
                 logger.LogError(ex, "Dynamic Images: could not import '{File}'", file);
-                messages.Add($"{Path.GetFileName(file)}: {ex.Message}");
+                messages.Add($"{Path.GetFileName(file)}: the file could not be read. See the log for details.");
             }
         }
 

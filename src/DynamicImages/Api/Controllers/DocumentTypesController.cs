@@ -101,7 +101,9 @@ public class DocumentTypesController(
         }
 
         var pageSize = Math.Clamp(take, 1, 200);
-        var page = skip / pageSize;
+
+        // A negative skip made a negative page index, which the paged query answered with a 500.
+        var page = Math.Max(0, skip) / pageSize;
 
         // An empty query matches everything; the overload's filter parameter is not nullable.
         var filter = scopeProvider.CreateQuery<IContent>();

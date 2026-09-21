@@ -31,7 +31,8 @@ public class PreviewController(
     IContentService contentService,
     IUmbracoContextFactory umbracoContextFactory,
     IAuthorizationService authorizationService,
-    IOptionsMonitor<DynamicImagesOptions> options) : DynamicImagesControllerBase
+    IOptionsMonitor<DynamicImagesOptions> options,
+    ILogger<PreviewController> logger) : DynamicImagesControllerBase
 {
     /// <summary>
     /// A template document is kilobytes of JSON - a base image is a reference, never bytes - so
@@ -77,7 +78,7 @@ public class PreviewController(
         }
         catch (Exception ex)
         {
-            return Problem(title: "The preview could not be rendered", detail: ex.Message,
+            return Problem(title: "The preview could not be rendered", detail: Detail(ex),
                 statusCode: StatusCodes.Status400BadRequest);
         }
     }
@@ -115,9 +116,27 @@ public class PreviewController(
         }
         catch (Exception ex)
         {
-            return Problem(title: "The layout could not be measured", detail: ex.Message,
+            return Problem(title: "The layout could not be measured", detail: Detail(ex),
                 statusCode: StatusCodes.Status400BadRequest);
         }
+    }
+
+    /// <summary>
+    /// What to tell the caller about a failure.
+    /// <para>
+    /// A render limit and a complaint about the template's own data are written for an editor and
+    /// name nothing but the template, so they are returned as they are. Anything else is a bug or
+    /// an environment problem, and its message can carry server paths, connection strings or
+    /// stack detail - so it goes to the log and the caller gets a fixed sentence.
+    /// </para>
+    /// </summary>
+    private string Detail(Exception ex)
+    {
+        if (ex is RenderLimitException or ArgumentException or InvalidOperationException) return ex.Message;
+
+        logger.LogWarning(ex, "Dynamic Images: a preview request failed");
+
+        return "The preview could not be rendered. See the log for details.";
     }
 
     /// <summary>
