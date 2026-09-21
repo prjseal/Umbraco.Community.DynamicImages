@@ -34,6 +34,15 @@ public static class SampleData
             }
         }
 
+        // And every visibility alias, truthy. IsTruthy in sample mode is false for any alias
+        // nobody seeded, so a WhenPropertyTruthy layer vanished from the designer preview while
+        // rendering perfectly on the real node - the designer showing less than the real render,
+        // which is the one direction it must not err in.
+        foreach (var layer in template.Layers.Where(layer => !string.IsNullOrWhiteSpace(layer.Visibility.PropertyAlias)))
+        {
+            text.TryAdd(layer.Visibility.PropertyAlias!, "1");
+        }
+
         var items = new Dictionary<string, IReadOnlyList<BadgeItem>>(StringComparer.OrdinalIgnoreCase);
         foreach (var badges in template.Layers.OfType<BadgesLayer>().Where(b => !string.IsNullOrWhiteSpace(b.ItemsPropertyAlias)))
         {
