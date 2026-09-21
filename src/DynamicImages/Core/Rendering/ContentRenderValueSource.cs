@@ -40,9 +40,35 @@ public sealed class ContentRenderValueSource(
 
         // The draft first: during a publish it holds what is about to be saved, which is what the
         // generated image should reflect.
-        return content.HasProperty(propertyAlias)
-            ? content.GetValue<string>(propertyAlias)
-            : published?.Value<string>(propertyAlias);
+        if (!content.HasProperty(propertyAlias)) return PublishedValues.TextOf(published, propertyAlias);
+
+        var raw = content.GetValue<string>(propertyAlias);
+
+        return LinkedNames(raw) ?? raw;
+    }
+
+    /// <summary>
+    /// The names of the nodes a bare content reference points at, comma-joined - what an editor
+    /// means by binding a text layer to a picker, rather than the UDI that used to be drawn.
+    /// <para>
+    /// Null on anything else, and the caller then returns the raw value exactly as before. That
+    /// fall-through is the safety net: no cache injected, or the nodes unpublished or deleted, and
+    /// nothing about today's behaviour changes. The check is deliberately strict - every token must
+    /// be a <c>umb://document/</c> UDI - because a bare GUID is a string somebody might legitimately
+    /// want drawn.
+    /// </para>
+    /// </summary>
+    private string? LinkedNames(string? raw)
+    {
+        if (contentCache is null || !DocumentReference.LooksLikeDocumentReference(raw)) return null;
+
+        var names = DocumentReference.ResolveKeys(raw)
+            .Select(contentCache.GetById)
+            .Where(node => node is not null)
+            .Select(node => node!.Name)
+            .ToList();
+
+        return names.Count > 0 ? string.Join(", ", names) : null;
     }
 
     public DateTime? GetDate(string propertyAlias)
