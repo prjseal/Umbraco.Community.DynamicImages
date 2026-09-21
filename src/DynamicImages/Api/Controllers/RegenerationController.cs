@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Umbraco.Cms.Core.Models;
+using Umbraco.Cms.Core.Scoping;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Cms.Core.Services;
 using Umbraco.Community.DynamicImages.Api.Models;
@@ -15,6 +17,8 @@ public class RegenerationController(
     IRegenerationJobStore jobStore,
     ITemplateService templateService,
     IContentService contentService,
+    IContentTypeService contentTypeService,
+    ICoreScopeProvider scopeProvider,
     IMediaService mediaService,
     IServiceScopeFactory scopeFactory,
     IBackOfficeSecurityAccessor backOfficeSecurityAccessor,
@@ -81,11 +85,24 @@ public class RegenerationController(
     public IActionResult CancelJob(Guid id)
         => jobStore.Cancel(id) ? Ok() : Problem(title: "Job not found", statusCode: StatusCodes.Status404NotFound);
 
-    /// <summary>Which documents a template covers, and which of them already have an image.</summary>
+    /// <summary>
+    /// Which documents a template covers, and which of them already have an image.
+    /// <para>
+    /// Paged. It used to walk every document the template covered and load the content and its
+    /// media item one at a time - 10,000 queries for 5,000 articles, on every open of the Usage
+    /// tab, to return at most <paramref name="take"/> rows. The property value is now read off
+    /// the paged entity, and the page's media items are resolved in one query.
+    /// </para>
+    /// <para>
+    /// <c>Total</c> is still the true total across every document type the template covers;
+    /// <c>WithImageOnPage</c> counts only the rows returned, because counting the rest would mean
+    /// loading the rest.
+    /// </para>
+    /// </summary>
     [HttpGet("templates/{key:guid}/usage")]
     [ProducesResponseType(typeof(UsageResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult GetUsage(Guid key, [FromQuery] int take = 200)
+    public IActionResult GetUsage(Guid key, [FromQuery] int skip = 0, [FromQuery] int take = 200)
     {
         var template = templateService.Get(key);
         if (template is null)
@@ -93,25 +110,52 @@ public class RegenerationController(
             return Problem(title: "Template not found", statusCode: StatusCodes.Status404NotFound);
         }
 
-        var items = new List<UsageItem>();
-        var withImage = 0;
+        skip = Math.Max(0, skip);
+        take = Math.Clamp(take, 1, 1000);
 
-        foreach (var contentKey in regenerationService.FindDocuments(template))
+        var documents = new List<IContent>();
+        long total = 0;
+
+        foreach (var alias in template.DocTypeAliases)
         {
-            var content = contentService.GetById(contentKey);
-            if (content is null) continue;
+            var contentType = contentTypeService.Get(alias);
+            if (contentType is null) continue;
 
-            var mediaKey = MediaSource.ResolveMediaKey(content.GetValue<string>(template.TargetPropertyAlias));
-            var hasImage = mediaKey is not null && mediaService.GetById(mediaKey.Value) is not null;
-            if (hasImage) withImage++;
+            // One page per document type, deep enough to serve the window once the types before
+            // it have been counted in. The types are walked in order, so the paging is stable.
+            var page = contentService.GetPagedOfType(
+                contentType.Id, 0, skip + take, out var typeTotal, scopeProvider.CreateQuery<IContent>());
 
-            if (items.Count < Math.Clamp(take, 1, 1000))
-            {
-                items.Add(new UsageItem(content.Key, content.Name ?? "(unnamed)", hasImage, content.Published));
-            }
+            total += typeTotal;
+            documents.AddRange(page);
         }
 
-        return Ok(new UsageResponse(items.Count, withImage, items));
+        var window = documents.Skip(skip).Take(take).ToList();
+
+        // One query for the whole page's media, rather than one per row.
+        var mediaKeys = window
+            .Select(c => MediaSource.ResolveMediaKey(c.GetValue<string>(template.TargetPropertyAlias)))
+            .OfType<Guid>()
+            .Distinct()
+            .ToList();
+
+        var present = mediaKeys.Count == 0
+            ? []
+            : mediaService.GetByIds(mediaKeys).Select(m => m.Key).ToHashSet();
+
+        var items = new List<UsageItem>(window.Count);
+        var withImageOnPage = 0;
+
+        foreach (var content in window)
+        {
+            var mediaKey = MediaSource.ResolveMediaKey(content.GetValue<string>(template.TargetPropertyAlias));
+            var hasImage = mediaKey is not null && present.Contains(mediaKey.Value);
+            if (hasImage) withImageOnPage++;
+
+            items.Add(new UsageItem(content.Key, content.Name ?? "(unnamed)", hasImage, content.Published));
+        }
+
+        return Ok(new UsageResponse(total, withImageOnPage, items));
     }
 
     private async Task RunJobAsync(Guid jobId, Guid templateKey, IReadOnlyList<Guid> documents, bool onlyMissing)

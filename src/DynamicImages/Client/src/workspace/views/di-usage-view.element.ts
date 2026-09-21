@@ -69,7 +69,11 @@ export class DiUsageViewElement extends UmbLitElement {
         </div>
 
         <p class="summary">
-          <strong>${this._usage.withImage}</strong> of <strong>${this._usage.total}</strong> have an image.
+          <strong>${this._usage.withImageOnPage}</strong> of the
+          <strong>${this._usage.items.length}</strong> shown have an image.
+          ${this._usage.total > this._usage.items.length
+            ? html`<span class="muted">${this._usage.total} in total.</span>`
+            : nothing}
         </p>
 
         <uui-toggle
@@ -118,6 +122,10 @@ export class DiUsageViewElement extends UmbLitElement {
 
     .summary {
       margin: 0 0 var(--uui-size-space-3);
+    }
+
+    .summary .muted {
+      color: var(--uui-color-text-alt);
     }
 
     .empty {
