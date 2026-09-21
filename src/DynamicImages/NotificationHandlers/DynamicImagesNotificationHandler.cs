@@ -27,6 +27,12 @@ public class DynamicImagesNotificationHandler(
 {
     public async Task HandleAsync(ContentPublishingNotification notification, CancellationToken cancellationToken)
     {
+        // This package's own regeneration publishes the node it just wrote an image onto, which
+        // raises this notification. Rendering again here would redo the work that publish exists
+        // to persist - so the regeneration marks its own publish and this stands down. Checked
+        // before anything else, so the stand-down costs one read.
+        if (RegenerationScope.IsActive) return;
+
         // Read per-notification rather than once at composition, so toggling the switch takes
         // effect on the next publish instead of the next restart.
         if (!options.CurrentValue.Enabled) return;

@@ -66,10 +66,17 @@ public sealed class RegenerationService(
             {
                 content.SetValue(template.TargetPropertyAlias, propertyValue);
 
-                // Publish rather than save when the node is already published, so the new image
-                // reaches the front end without a second editor action.
-                if (content.Published) contentService.Publish(content, ["*"]);
-                else contentService.Save(content);
+                // The scope is what stops this publish being rendered a second time: it raises
+                // ContentPublishingNotification, and the handler's whole job is to render on
+                // publish. Without it every manual regeneration cost two renders and two media
+                // saves, and a bulk run over N documents cost 2N of each.
+                using (RegenerationScope.Begin())
+                {
+                    // Publish rather than save when the node is already published, so the new image
+                    // reaches the front end without a second editor action.
+                    if (content.Published) contentService.Publish(content, ["*"]);
+                    else contentService.Save(content);
+                }
             }
 
             return new RegenerationResult(RegenerationOutcome.Generated, mediaKey, propertyValue);
