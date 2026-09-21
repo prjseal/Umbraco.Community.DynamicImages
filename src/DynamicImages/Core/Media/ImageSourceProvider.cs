@@ -1,4 +1,5 @@
 using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.PixelFormats;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.IO;
 using Umbraco.Cms.Core.Services;
@@ -20,7 +21,9 @@ public sealed class ImageSourceProvider(
 
         try
         {
-            return await Image.LoadAsync(stream, cancellationToken);
+            // Always Rgba32: a JPEG otherwise decodes as Rgb24, which has no alpha channel, so
+            // erasing rounded corners from it leaves opaque black instead of transparency.
+            return await Image.LoadAsync<Rgba32>(stream, cancellationToken);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
