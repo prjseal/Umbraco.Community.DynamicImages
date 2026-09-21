@@ -200,7 +200,7 @@ public sealed record JobResponse(
         job.Processed,
         job.Generated,
         job.Skipped,
-        job.Failures.ToList(),
+        job.Failures,
         job.StartedUtc,
         job.FinishedUtc);
 }

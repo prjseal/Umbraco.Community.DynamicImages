@@ -54,8 +54,14 @@ export class DiRegeneratePropertyAction extends UmbPropertyActionBase<MetaProper
         this.#propertyContext?.setValue(JSON.parse(result.propertyValue));
       }
 
+      // "generateddraft" is a success: the image was written and saved to the draft, but the
+      // page was not published - either it had edits the editor has not released, or they may
+      // update it and not publish it. The server's message says which, so it is shown as it is.
       this.#notificationContext?.peek("positive", {
-        data: { headline: "Dynamic Images", message: "The image has been regenerated." },
+        data: {
+          headline: "Dynamic Images",
+          message: result.message ?? "The image has been regenerated.",
+        },
       });
     } catch (error) {
       const isMissingTemplate = error instanceof DiApiError && error.status === 404;

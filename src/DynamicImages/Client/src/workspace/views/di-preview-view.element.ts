@@ -195,8 +195,10 @@ export class DiPreviewViewElement extends UmbLitElement {
     try {
       const result = await regenerateDocument(this._sampleNode.key, this.#context.getToken);
 
-      this.#notificationContext?.peek(result.outcome === "generated" ? "positive" : "warning", {
-        data: { message: `'${this._sampleNode.name}': ${result.outcome}` },
+      const generated = result.outcome === "generated" || result.outcome === "generateddraft";
+
+      this.#notificationContext?.peek(generated ? "positive" : "warning", {
+        data: { message: result.message ?? `'${this._sampleNode.name}': ${result.outcome}` },
       });
     } catch (error) {
       this.#notificationContext?.peek("danger", {
