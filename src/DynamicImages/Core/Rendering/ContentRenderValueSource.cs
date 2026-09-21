@@ -57,40 +57,16 @@ public sealed class ContentRenderValueSource(IContent content, IPublishedContent
         => string.IsNullOrWhiteSpace(propertyAlias) ? null : MediaSource.ResolveMediaKey(GetText(propertyAlias));
 
     public IReadOnlyList<BadgeItem> GetItems(string propertyAlias)
-    {
-        if (published is null || string.IsNullOrWhiteSpace(propertyAlias)) return [];
-
-        var nodes = published.Value<IEnumerable<IPublishedContent>>(propertyAlias);
-        if (nodes is null) return [];
-
-        return nodes.Select(node => new BadgeItem(
-            node.Name,
-            // Flattened to strings up front: the badge renderer only ever wants a label or an icon
-            // slug, and this keeps IPublishedContent out of the rendering contract.
-            node.Properties.ToDictionary(
-                property => property.Alias,
-                property => property.GetValue()?.ToString(),
-                StringComparer.OrdinalIgnoreCase)))
-            .ToList();
-    }
+        => PublishedValues.ItemsOf(published, propertyAlias);
 
     public bool IsTruthy(string propertyAlias)
     {
         if (string.IsNullOrWhiteSpace(propertyAlias)) return false;
 
-        var value = content.HasProperty(propertyAlias) ? content.GetValue(propertyAlias) : published?.Value(propertyAlias);
+        var value = content.HasProperty(propertyAlias)
+            ? content.GetValue(propertyAlias)
+            : PublishedValues.ValueOf(published, propertyAlias);
 
-        return value switch
-        {
-            null => false,
-            bool flag => flag,
-            string text => !string.IsNullOrWhiteSpace(text)
-                && !string.Equals(text, "0", StringComparison.Ordinal)
-                && !string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)
-                && !string.Equals(text, "[]", StringComparison.Ordinal),
-            int number => number != 0,
-            System.Collections.IEnumerable list => list.GetEnumerator().MoveNext(),
-            _ => true
-        };
+        return PublishedValues.Truthy(value);
     }
 }
