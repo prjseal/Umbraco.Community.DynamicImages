@@ -22,8 +22,8 @@ public static class DynamicImagesJsonOptions
         WriteIndented = writeIndented,
         Converters =
         {
-            // Enums travel as their camelCase names ("topLeft", "ellipsis"), not as integers -
-            // the v1 config's numeric LayerType is exactly the sort of thing this replaces.
+            // Enums travel as their camelCase names ("topLeft", "ellipsis"), not as integers,
+            // so a stored template stays readable.
             new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
         }
     };

@@ -10,7 +10,6 @@ public sealed record HealthIssue(
 
 public sealed record HealthReport(
     bool IsEnabled,
-    bool LegacyConfigPresent,
     int TemplateCount,
     int FontCount,
     IReadOnlyList<HealthIssue> Issues);

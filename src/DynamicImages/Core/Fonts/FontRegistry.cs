@@ -11,8 +11,7 @@ public sealed class FontRegistry(
     ILogger<FontRegistry> logger) : IFontRegistry
 {
     // Lazy<Task<...>> so concurrent renders of the same font wait on one load rather than each
-    // parsing the file. v1 built one dictionary in the service constructor, which is why a new
-    // font needed an application restart.
+    // parsing the file, and so a new font needs no application restart.
     private readonly ConcurrentDictionary<Guid, Lazy<Task<FontFamily?>>> _families = new();
 
     public Task<FontFamily?> GetFamilyAsync(Guid fontKey, CancellationToken cancellationToken = default)
@@ -95,8 +94,7 @@ public sealed class FontRegistry(
         try
         {
             // A collection per font: SixLabors keys families by the name inside the file, so two
-            // fonts sharing a family name would collide in one shared collection - the bug the v1
-            // orphan copy still has.
+            // fonts sharing a family name would collide in one shared collection.
             var collection = new FontCollection();
             return collection.Add(stream);
         }

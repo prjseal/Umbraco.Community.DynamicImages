@@ -148,8 +148,8 @@ public sealed class DynamicImageMediaWriter(
         using var stream = new MemoryStream();
         var quality = Math.Clamp(output.Quality, 1, 100);
 
-        // v1 always encoded JPEG but named the file .png, so every generated image was served
-        // with the wrong type. The encoder and the extension now come from the same setting.
+        // The encoder and the file extension come from the same setting, so a generated image is
+        // never served with the wrong type.
         switch (output.Format)
         {
             case OutputFormat.Jpeg:

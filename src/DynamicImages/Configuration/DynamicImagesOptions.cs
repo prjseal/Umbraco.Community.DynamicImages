@@ -1,4 +1,3 @@
-using Umbraco.Community.DynamicImages.Core.Models.Legacy;
 
 namespace Umbraco.Community.DynamicImages.Configuration;
 
@@ -32,9 +31,8 @@ public class SyncOptions
 }
 
 /// <summary>
-/// The package's configuration. From v2 the templates themselves live in the database - what is
-/// left here is the global kill switch, the preview and sync settings, and the v1
-/// <c>Instructions</c>/<c>Fonts</c> block, which is kept purely as import input.
+/// The package's configuration. The templates themselves live in the database - what is
+/// left here is the global kill switch and the preview, sync and web font settings.
 /// </summary>
 public class DynamicImagesOptions
 {
@@ -42,8 +40,7 @@ public class DynamicImagesOptions
 
     /// <summary>
     /// Turns image generation on or off for the whole site. Read through
-    /// <see cref="IOptionsMonitor{T}"/>, so it follows a configuration reload without a restart -
-    /// v1 read it once at composition time and bailed out of registering anything at all.
+    /// <see cref="IOptionsMonitor{T}"/>, so it follows a configuration reload without a restart.
     /// </summary>
     public bool Enabled { get; set; } = true;
 
@@ -53,16 +50,4 @@ public class DynamicImagesOptions
 
     /// <summary>Fetching and caching of Google, Bunny and direct-URL fonts.</summary>
     public WebFontOptions WebFonts { get; set; } = new();
-
-    /// <summary>
-    /// Automatically import the v1 configuration below the first time the package starts against
-    /// an empty template table, so an upgrade needs no manual step.
-    /// </summary>
-    public bool AutoImportLegacyConfig { get; set; } = true;
-
-    /// <summary>v1 instructions. Import input only - editing these no longer changes what renders.</summary>
-    public List<LegacyInstruction> Instructions { get; set; } = [];
-
-    /// <summary>v1 fonts. Import input only.</summary>
-    public List<LegacyFontConfig> Fonts { get; set; } = [];
 }

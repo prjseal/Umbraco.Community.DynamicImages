@@ -6,7 +6,7 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 
 /// <summary>
 /// Turns a <see cref="TextBinding"/> into the string a text layer draws. The expression kind
-/// subsumes v1's "SuffixText containing {readingTime}" special case with a general token syntax.
+/// offers a general token syntax, such as {readingTime}.
 /// </summary>
 public static partial class TextResolver
 {

@@ -10,7 +10,6 @@ public sealed class HealthService(
     ITemplateRepository templateRepository,
     IFontRepository fontRepository,
     ITemplateValidator validator,
-    ILegacyConfigImporter legacyImporter,
     IFontFileProvider fontFiles,
     IRemoteFontFetcher remoteFonts,
     IOptionsMonitor<DynamicImagesOptions> options) : IHealthService
@@ -36,12 +35,6 @@ public sealed class HealthService(
                 template.Key,
                 template.Name,
                 issue.LayerKey)));
-        }
-
-        if (legacyImporter.HasLegacyConfig && templates.Count == 0)
-        {
-            issues.Add(new HealthIssue("warning", "LegacyConfigNotImported",
-                "There is still a v1 DynamicImages block in configuration that has not been imported."));
         }
 
         if (templates.Count == 0)
@@ -80,7 +73,6 @@ public sealed class HealthService(
 
         return new HealthReport(
             options.CurrentValue.Enabled,
-            legacyImporter.HasLegacyConfig,
             templates.Count,
             fonts.Count,
             issues);

@@ -58,7 +58,7 @@ public class TextResolverTests
     [Fact]
     public void Expression_SubstitutesEveryToken()
     {
-        // This is the general form of v1's "SuffixText containing {readingTime}" special case.
+        // Every token in the expression is substituted.
         var binding = new TextBinding
         {
             Kind = TextBindingKind.Expression,

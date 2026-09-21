@@ -13,8 +13,7 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering.Layers;
 
 /// <summary>
 /// A row or column of circular badges with an icon and a label - categories, tags, authors.
-/// Generalised from v1's CategoryBadges layer; the colour handling deliberately keeps v1's
-/// "alpha as blend percentage" behaviour so imported designs are pixel-identical.
+/// Colour alpha is applied as a blend percentage.
 /// </summary>
 public sealed partial class BadgesLayerRenderer(
     IFontRegistry fontRegistry,
@@ -33,7 +32,7 @@ public sealed partial class BadgesLayerRenderer(
         if (badges.Rotation == 0)
         {
             // Straight onto the canvas, exactly as before rotation existed: this path is
-            // deliberately pixel-identical to what v1 imports produced.
+            // deliberately pixel-identical to the unrotated rendering.
             DrawRun(image, badges, plan, plan.OriginX, plan.OriginY, context.CancellationToken);
             return plan.Bounds;
         }
@@ -82,7 +81,7 @@ public sealed partial class BadgesLayerRenderer(
             var label = plan.Labels[slot.Index];
             if (plan.LabelFont is null || slot.Label is not { } labelRect || string.IsNullOrWhiteSpace(label)) continue;
 
-            // Below: centred under the circle, as v1 drew it. Right: vertically centred beside it.
+            // Below: centred under the circle. Right: vertically centred beside it.
             var options = badges.Label.Position == BadgeLabelPosition.Right
                 ? new RichTextOptions(plan.LabelFont)
                 {

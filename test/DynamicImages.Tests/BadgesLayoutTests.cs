@@ -29,7 +29,7 @@ public class BadgesLayoutTests
     [Fact]
     public void LabelsBelow_ReproduceTheFixedWidthRunExactly()
     {
-        // The numbers imported v1 designs were laid out with: every item is one circle wide, and
+        // The fixed-width layout: every item is one circle wide, and
         // the label height is gap + 1.2 x font size.
         var result = BadgesLayout.Compute(Badges(), 3, hasLabels: true, i => LabelWidths[i]);
 

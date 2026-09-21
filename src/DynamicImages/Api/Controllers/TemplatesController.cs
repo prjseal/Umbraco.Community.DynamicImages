@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Mvc;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Community.DynamicImages.Api.Models;
 using Umbraco.Community.DynamicImages.Core.Json;
-using Umbraco.Community.DynamicImages.Core.Models.Legacy;
 using Umbraco.Community.DynamicImages.Core.Services;
 using Template = Umbraco.Community.DynamicImages.Core.Models.Template;
 
@@ -13,7 +12,6 @@ namespace Umbraco.Community.DynamicImages.Api.Controllers;
 public class TemplatesController(
     ITemplateService templateService,
     ITemplateJsonMigrator migrator,
-    ILegacyConfigImporter legacyImporter,
     IBackOfficeSecurityAccessor backOfficeSecurityAccessor) : DynamicImagesControllerBase
 {
     [HttpGet("templates")]
@@ -128,31 +126,13 @@ public class TemplatesController(
     [HttpPost("templates/import")]
     [RequestSizeLimit(PreviewController.MaxTemplateBytes)]
     [ProducesResponseType(typeof(TemplateSaveResponse), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ImportReportResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Import([FromBody] TemplateImportRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Json))
         {
-            return Problem(title: "Nothing to import", detail: "Paste a template or a v1 configuration block.",
+            return Problem(title: "Nothing to import", detail: "Paste a template.",
                 statusCode: StatusCodes.Status400BadRequest);
-        }
-
-        // A v1 block and a v2 template are told apart by shape, so one paste box serves both.
-        if (LooksLikeLegacyConfig(request.Json))
-        {
-            try
-            {
-                var config = JsonSerializer.Deserialize<LegacyConfig>(request.Json, DynamicImagesJsonOptions.Default);
-                if (config is null) return UnreadableJson();
-
-                var report = await legacyImporter.ImportAsync(config, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
-                return Ok(new ImportReportResponse(report.Created, report.Skipped, report.Warnings));
-            }
-            catch (JsonException)
-            {
-                return UnreadableJson();
-            }
         }
 
         Template? template;
@@ -204,30 +184,6 @@ public class TemplatesController(
             : ValidationProblemFor(created);
     }
 
-    [HttpPost("templates/import/appsettings")]
-    [ProducesResponseType(typeof(ImportReportResponse), StatusCodes.Status200OK)]
-    public async Task<IActionResult> ImportFromAppSettings(CancellationToken cancellationToken)
-    {
-        var report = await legacyImporter.ImportFromConfigurationAsync(
-            CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
-
-        return Ok(new ImportReportResponse(report.Created, report.Skipped, report.Warnings));
-    }
-
-    private static bool LooksLikeLegacyConfig(string json)
-    {
-        try
-        {
-            using var document = JsonDocument.Parse(json);
-            return document.RootElement.ValueKind == JsonValueKind.Object &&
-                   document.RootElement.TryGetProperty("instructions", out _);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
-
     private static TemplateSummary Summarise(Template template) => new(
         template.Key,
         template.Alias,
@@ -252,7 +208,7 @@ public class TemplatesController(
             statusCode: StatusCodes.Status400BadRequest);
 
     private IActionResult UnreadableJson()
-        => Problem(title: "Unreadable JSON", detail: "That does not look like a Dynamic Images template or configuration block.",
+        => Problem(title: "Unreadable JSON", detail: "That does not look like a Dynamic Images template.",
             statusCode: StatusCodes.Status400BadRequest);
 
     private IActionResult ValidationProblemFor(SaveResult result)

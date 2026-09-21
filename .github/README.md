@@ -22,8 +22,7 @@ Add the package to an existing Umbraco website (v17+) from NuGet:
 dotnet add package Umbraco.Community.DynamicImages
 ```
 
-On first start the package creates two tables, installs a media type for font files, and - if there
-is a v1 `DynamicImages` block in your configuration - imports it.
+On first start the package creates two tables, installs a media type for font files.
 
 Then grant the section: **Users → User Groups → (your group) → Sections → Dynamic Images**. Nobody
 sees the section until you do, including administrators.
@@ -45,7 +44,7 @@ sees the section until you do, including administrators.
 ## Documentation
 
 Full documentation - layer types, anchored and relative positioning, badge layout, text bindings,
-overflow handling, permissions, configuration, Umbraco Cloud notes and **migrating from v1** - is in
+overflow handling, permissions, configuration, Umbraco Cloud notes - is in
 [the package README](../src/DynamicImages/README.md), which is also what ships on NuGet.
 
 Release notes are in [the changelog](../src/DynamicImages/CHANGELOG.md).

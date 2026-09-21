@@ -5,9 +5,8 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 
 /// <summary>
 /// Parses the one colour format the package accepts: #RGB, #RRGGBB or #RRGGBBAA (the leading #
-/// is optional). v1 called <c>Color.ParseHex</c> directly, which threw on an empty or malformed
-/// value and took a publish down with it; here a bad colour is a validation error and a
-/// caller-supplied fallback.
+/// is optional). A bad colour is a validation error and a caller-supplied fallback, never an
+/// exception that takes a publish down.
 /// </summary>
 public static class ColourParser
 {
@@ -50,8 +49,7 @@ public static class ColourParser
     /// <summary>
     /// Splits a colour into an opaque colour plus its alpha as a 0-1 blend percentage.
     /// The badge renderer draws through <c>GraphicsOptions.BlendPercentage</c> rather than an
-    /// alpha channel, which is how v1 produced its translucent circles - keeping it means
-    /// imported designs render identically.
+    /// alpha channel.
     /// </summary>
     public static (Color Colour, float BlendPercentage) SplitAlpha(string? value, Color fallback)
     {

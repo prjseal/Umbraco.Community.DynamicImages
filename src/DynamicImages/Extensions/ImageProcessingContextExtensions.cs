@@ -14,7 +14,7 @@ public static class ImageProcessingContextExtensions
 {
     /// <summary>
     /// Cuts rounded corners out of the current image by erasing the four corner wedges.
-    /// Unlike v1's ConvertToAvatar this does not also resize or fill with a colour - the image
+    /// This does not also resize or fill with a colour - the image
     /// layer renderer has already sized the overlay, and filling meant the corners came back
     /// opaque black over anything but a black background.
     /// </summary>

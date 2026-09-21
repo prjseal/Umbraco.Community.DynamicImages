@@ -108,7 +108,7 @@ Four selector traps, all of which look like a broken feature and are not:
 - **`di-layer-box` is never `toBeVisible`** — it is a positioned wrapper whose paint is in its
   shadow root. Wait for `state: "attached"` and assert on the computed style inside.
 
-And one fact about the fixture itself: **the auto-imported "Article OG image" template has a
+And one fact about the fixture itself: **the uSync-imported "Article OG image" template has a
 `cover` base image**, so any validation rule that is suppressed when the base image covers the
 canvas (`TransparencyNotKept`) will correctly *not* fire on it until the fit is changed.
 

@@ -4,7 +4,6 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 
 /// <summary>
 /// Estimates reading time from rich text or block JSON, at 200 words per minute.
-/// Lifted unchanged from v1 so imported templates produce the same "N min read" they always did.
 /// </summary>
 public static partial class ReadingTime
 {

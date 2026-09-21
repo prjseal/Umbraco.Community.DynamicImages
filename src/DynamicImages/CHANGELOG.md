@@ -209,11 +209,6 @@
   sidebar app, the menu and the Fonts/Health link items, none of which needs an element. Umbraco
   reads that file before the bundle loads, so the sidebar paints immediately instead of after a
   ~250 KB download. Element-bearing extensions stay in `manifests.ts` for the compile-time safety.
-- **The v1 configuration import runs after every component has initialised**, as an
-  `UmbracoApplicationStarted` handler rather than an `IAsyncComponent`. On a first boot it used to
-  run before uSync created the document types, so the first thing the log said about this package
-  was that its target document type did not exist. A warning that will resolve itself is now
-  logged at Information and re-checked when a content type is saved.
 - **`LayerRenderContext` gains `Skip(key, reason)`**, and `RenderResult` a `Skips` list.
   `Task<LayerBounds?>` is unchanged — relative layout depends on "no bounds means did not draw" —
   so the reason travels beside it. `IDynamicImageRenderer` gains `MeasureLayoutAsync`.
@@ -270,8 +265,7 @@
 ## 1.0.0
 
 The first release. Templates live in the database and are designed in a backoffice section
-rather than being written by hand in `appsettings.json`; an older `DynamicImages` configuration
-block is imported automatically on first start.
+rather than being written by hand in `appsettings.json`.
 
 ### Added
 
@@ -281,7 +275,7 @@ block is imported automatically on first start.
   Layers render with the real font files, and the server's own measured bounds can be overlaid.
 - **Anchored positioning**: every layer has an anchor as well as an x/y, so right- and
   centre-aligned layers stay put whatever their content does.
-- **Layer types**: text, image, badges (generalised from v1's category badges) and shapes, as a
+- **Layer types**: text, image, badges and shapes, as a
   discriminated union with an `ILayerRenderer` per type that consuming sites can extend.
 - **Text bindings** including a general expression syntax with `{name}`, `{readingTime}`,
   `{prop:alias}` and `{date:alias:format}` tokens.
@@ -317,4 +311,3 @@ block is imported automatically on first start.
 
 - `DynamicImagesTestController`, an anonymous API endpoint that could publish content. The
   authorised Management API endpoints replace it.
-- `Instruction.Author` and `Layer.LabelLetterSpacing`, neither of which was ever read.

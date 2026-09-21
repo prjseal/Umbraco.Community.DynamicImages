@@ -93,7 +93,7 @@ public class BadgeLabel
 
 /// <summary>
 /// A row (or column) of circular badges built from a multi-node picker property - categories,
-/// tags, authors. Generalised from the v1 "CategoryBadges" layer.
+/// tags, authors.
 /// </summary>
 public class BadgesLayer : LayerBase
 {

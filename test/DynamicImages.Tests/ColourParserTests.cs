@@ -33,8 +33,7 @@ public class ColourParserTests
     [InlineData("#GGGGGG")]
     public void TryParse_RejectsAnythingElseInsteadOfThrowing(string? value)
     {
-        // v1 called Color.ParseHex directly, which threw on an empty or malformed value and took
-        // the publish down with it.
+        // A bad value must never throw and take the publish down with it.
         Assert.False(ColourParser.TryParse(value, out _));
     }
 
@@ -46,7 +45,7 @@ public class ColourParserTests
     public void SplitAlpha_SeparatesTheAlphaIntoABlendPercentage()
     {
         // The badge renderer draws through GraphicsOptions.BlendPercentage rather than an alpha
-        // channel, which is how v1 produced its translucent circles.
+        // channel.
         var (colour, blend) = ColourParser.SplitAlpha("#FFFFFF14", Color.Black);
 
         var pixel = colour.ToPixel<Rgba32>();

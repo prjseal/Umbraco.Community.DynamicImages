@@ -29,20 +29,15 @@ public class DynamicImagesComposer : IComposer
     {
         builder.Services.Configure<DynamicImagesOptions>(builder.Config.GetSection(DynamicImagesOptions.SectionName));
 
-        // Deliberately no early return on Enabled or on there being no fonts. v1 skipped
-        // registration entirely, which is why nothing could be configured without a restart - and
-        // why the backoffice section could not exist at all until the site was already working.
+        // Deliberately no early return on Enabled or on there being no fonts: registration is
+        // unconditional so that everything can be configured without a restart, and so the
+        // backoffice section exists before the site is fully set up.
         builder.Components().Append<DynamicImagesMigrationComponent>();
 
-        // The v1 import is deliberately NOT a component. Components initialise before the rest
-        // of the boot sequence, which on a first boot put the import ahead of uSync creating the
-        // document types and made the package's very first log line a warning that its target
-        // document type does not exist. UmbracoApplicationStarted runs after every component.
+        // File sync in Import mode is deliberately NOT a component. Components initialise before
+        // the rest of the boot sequence, which on a first boot puts it ahead of uSync creating the
+        // document types. UmbracoApplicationStarted runs after every component.
         builder.AddNotificationAsyncHandler<UmbracoApplicationStartedNotification, DynamicImagesStartupHandler>();
-
-        // Left registered permanently; it does nothing unless the import above armed it.
-        builder.Services.AddSingleton<LegacyImportRetryState>();
-        builder.AddNotificationAsyncHandler<ContentTypeSavedNotification, LegacyImportRetryHandler>();
 
         RegisterPersistence(builder);
         RegisterRendering(builder);
@@ -171,7 +166,6 @@ public class DynamicImagesComposer : IComposer
         builder.Services.AddScoped<ITemplateService, TemplateService>();
         builder.Services.AddScoped<ITemplateValidator, TemplateValidator>();
         builder.Services.AddScoped<IFontService, FontService>();
-        builder.Services.AddScoped<ILegacyConfigImporter, LegacyConfigImporter>();
         builder.Services.AddScoped<IRegenerationService, RegenerationService>();
         builder.Services.AddScoped<IHealthService, HealthService>();
         builder.Services.AddScoped<ISyncService, SyncService>();
