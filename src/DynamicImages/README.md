@@ -20,9 +20,8 @@ dotnet add package Umbraco.Community.DynamicImages
 so that is the floor - and it is also the version that lets this package scope its own content
 lists to a user's start nodes.
 
-On first start the package creates two tables, installs a media type for font files, a relation
-type that marks the images it generates, and - if there is a v1 `DynamicImages` block in your
-configuration - imports it.
+On first start the package creates two tables, installs a media type for font files, and a relation
+type that marks the images it generates.
 
 Then grant the section: **Users → User Groups → (your group) → Sections → Dynamic Images**. Nobody
 sees the section until you do, including administrators.
@@ -276,50 +275,12 @@ Images generated before this was added carry no relation. The first regeneration
 recognises them by their folder and name, replaces them in place as before, and marks them - after
 which the relation is what decides.
 
-## Migrating from v1
-
-v2 is a breaking change: templates live in the database and are edited in the backoffice, not in
-`appsettings.json`.
-
-Leave your existing `DynamicImages` block where it is. On first start against an empty template
-table it is imported: instructions become templates, fonts are registered from their paths, and
-layers keep their positions. You can also import it again at any time from the banner on the
-Overview dashboard, or paste a v1 block into *Import JSON*.
-
-Once the import looks right, trim the configuration to:
-
-```json
-{
-  "DynamicImages": {
-    "Enabled": true
-  }
-}
-```
-
-Editing the old `Instructions` no longer changes what renders.
-
-What the import cannot carry over is called out in the warnings it returns:
-
-- `Author` was never read when rendering in v1, so it is dropped.
-- A `SuffixText` containing `{readingTime}` becomes an **expression** binding, which is the general
-  form of that special case.
-
-Behaviour that changed on purpose:
-
-- **Output format is honoured.** v1 always encoded JPEG but named the file `.png`. The encoder and
-  the extension now both follow the template's format setting, which defaults to PNG.
-- **Regeneration replaces the file in place**, keeping the media key - so existing picker
-  references and shared URLs keep resolving.
-- **Rich text is stripped to plain text** rather than drawn as raw markup.
-- **A missing font or unreadable colour is a validation error**, not an exception during a publish.
-
 ## Configuration
 
 ```json
 {
   "DynamicImages": {
     "Enabled": true,
-    "AutoImportLegacyConfig": true,
     "Preview": { "Scale": 0.5 },
     "Sync": { "Mode": "Off", "Folder": "umbraco/DynamicImages" },
     "WebFonts": { "TimeoutSeconds": 15, "MaxBytes": 10485760, "CacheFolder": null }
@@ -330,7 +291,6 @@ Behaviour that changed on purpose:
 | Setting | Default | What it does |
 |---|---|---|
 | `Enabled` | `true` | Global switch. Read live, so toggling it takes effect on the next publish. |
-| `AutoImportLegacyConfig` | `true` | Import a v1 block on first start against an empty table |
 | `Preview.Scale` | `0.5` | Scale of the designer's debounced preview renders |
 | `Sync.Mode` | `Off` | `Export` writes templates to disk on demand; `Import` reads them on start-up |
 | `Sync.Folder` | `umbraco/DynamicImages` | Where those JSON files live, relative to the content root |

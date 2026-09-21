@@ -1,5 +1,5 @@
 import type {
-  DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiImportReport, DiJob, DiLayout,
+  DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiJob, DiLayout,
   DiProperty, DiRegisterWebFontRequest, DiRegisterWebFontResponse, DiSampleContentItem,
   DiSyncStatus, DiTemplate, DiTemplateSaveResponse, DiTemplateSummary, DiUsage,
 } from "./types.js";
@@ -97,11 +97,8 @@ export const importTemplate = async (
   templateJson: string,
   mode: "create" | "overwrite",
   getToken: TokenGetter,
-): Promise<DiTemplateSaveResponse | DiImportReport> =>
+): Promise<DiTemplateSaveResponse> =>
   json(await request("/templates/import", getToken, { method: "POST", json: { json: templateJson, mode } }));
-
-export const importFromAppSettings = async (getToken: TokenGetter): Promise<DiImportReport> =>
-  json(await request("/templates/import/appsettings", getToken, { method: "POST" }));
 
 // ---------------------------------------------------------------- fonts
 

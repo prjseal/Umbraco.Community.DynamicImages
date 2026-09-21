@@ -381,7 +381,6 @@ export interface DiHealthIssue {
 
 export interface DiHealthReport {
   isEnabled: boolean;
-  legacyConfigPresent: boolean;
   templateCount: number;
   fontCount: number;
   issues: DiHealthIssue[];
@@ -407,12 +406,6 @@ export interface DiUsage {
   /** How many of `items` have an image - the server does not count the rows it did not return. */
   withImageOnPage: number;
   items: { key: string; name: string; hasImage: boolean; isPublished: boolean }[];
-}
-
-export interface DiImportReport {
-  created: string[];
-  skipped: string[];
-  warnings: string[];
 }
 
 export interface DiSyncStatus {

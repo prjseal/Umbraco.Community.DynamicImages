@@ -34,6 +34,7 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Client\node_modules\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
     <!-- RegenerationScope and friends are implementation detail, not package API; the tests still
@@ -49,6 +50,8 @@
     <None Include="icon.png" Pack="true" PackagePath="\" />
     <!-- Keep the npm workspace out of static web assets and the package -->
     <Content Remove="Client\**" />
-    <None Include="Client\**" Pack="false" />
+    <!-- node_modules paths run past the 260-character limit, and the Razor targets filter items by
+         %(FullPath), which fails Visual Studio's project load with "Cannot expand metadata". -->
+    <None Include="Client\**" Exclude="Client\node_modules\**" Pack="false" />
   </ItemGroup>
 </Project>

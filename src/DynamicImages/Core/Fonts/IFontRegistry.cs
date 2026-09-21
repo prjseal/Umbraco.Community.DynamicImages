@@ -3,9 +3,9 @@ using SixLabors.Fonts;
 namespace Umbraco.Community.DynamicImages.Core.Fonts;
 
 /// <summary>
-/// Resolves a font key from a template to a loaded <see cref="FontFamily"/>. Replaces v1's
-/// constructor-built dictionary, which meant a new font needed an application restart and a
-/// mistyped key threw out of an indexer mid-publish.
+/// Resolves a font key from a template to a loaded <see cref="FontFamily"/>. A new font needs no
+/// application restart, and a mistyped key is reported rather than thrown from an indexer
+/// mid-publish.
 /// </summary>
 public interface IFontRegistry
 {

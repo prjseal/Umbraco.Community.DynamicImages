@@ -6,7 +6,7 @@ import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { umbConfirmModal } from "@umbraco-cms/backoffice/modal";
 import {
   deleteTemplate, duplicateTemplate, exportTemplate, fetchFonts, fetchHealth, fetchTemplates,
-  hrefForCreate, hrefForDashboard, hrefForTemplate, importFromAppSettings, importTemplate,
+  hrefForCreate, hrefForDashboard, hrefForTemplate, importTemplate,
   notifyTemplatesChanged, type TokenGetter,
 } from "../api/dynamic-images-api.js";
 import type { DiFont, DiHealthReport, DiTemplateSummary } from "../api/types.js";
@@ -83,30 +83,6 @@ export class DiOverviewDashboardElement extends UmbLitElement {
     this.#notificationContext?.peek(colour, { data: { headline, message } });
   }
 
-  async #importLegacy() {
-    this._importing = true;
-
-    try {
-      const report = await importFromAppSettings(this.#getToken);
-
-      this.#notify(
-        report.created.length > 0 ? "positive" : "warning",
-        report.created.length > 0
-          ? `Imported ${report.created.length} template(s)`
-          : "Nothing was imported",
-      );
-
-      for (const warning of report.warnings.slice(0, 5)) this.#notify("warning", warning);
-
-      notifyTemplatesChanged();
-      await this.#load();
-    } catch (error) {
-      this.#notify("danger", "The import failed", error);
-    } finally {
-      this._importing = false;
-    }
-  }
-
   async #importPasted() {
     if (!this._pasteJson.trim()) return;
 
@@ -180,38 +156,8 @@ export class DiOverviewDashboardElement extends UmbLitElement {
 
     return html`
       <umb-body-layout headline="Dynamic Images">
-        ${this.#renderLegacyBanner()} ${this.#renderStats()} ${this.#renderHealth()} ${this.#renderTemplates()}
+        ${this.#renderStats()} ${this.#renderHealth()} ${this.#renderTemplates()}
       </umb-body-layout>
-    `;
-  }
-
-  #renderLegacyBanner() {
-    if (!this._health?.legacyConfigPresent) return nothing;
-
-    const alreadyImported = this._templates.length > 0;
-
-    return html`
-      <uui-box class="banner">
-        <div class="banner-inner">
-          <uui-icon name="icon-alert"></uui-icon>
-          <div>
-            <strong>There is still a v1 configuration block in appsettings.</strong>
-            <p>
-              ${alreadyImported
-                ? "Templates already exist here, so it is no longer read. You can import it again if you need to."
-                : "Import it to bring your existing designs into the backoffice."}
-            </p>
-          </div>
-          <uui-button
-            look="primary"
-            color="positive"
-            label="Import from appsettings"
-            ?disabled=${this._importing}
-            @click=${this.#importLegacy}>
-            Import from appsettings
-          </uui-button>
-        </div>
-      </uui-box>
     `;
   }
 
@@ -278,7 +224,7 @@ export class DiOverviewDashboardElement extends UmbLitElement {
         <div slot="header-actions" class="header-actions">
           <uui-button
             look="secondary"
-            label="Paste a template or a v1 configuration"
+            label="Paste a template"
             @click=${() => {
               this._showPaste = !this._showPaste;
             }}>
@@ -299,8 +245,8 @@ export class DiOverviewDashboardElement extends UmbLitElement {
     return html`
       <div class="paste">
         <uui-textarea
-          label="Template or v1 configuration JSON"
-          placeholder="Paste an exported template, or a v1 DynamicImages configuration block"
+          label="Template JSON"
+          placeholder="Paste an exported template"
           rows="6"
           .value=${this._pasteJson}
           @input=${(event: Event) => {
@@ -391,22 +337,6 @@ export class DiOverviewDashboardElement extends UmbLitElement {
 
     uui-box {
       margin-bottom: var(--uui-size-layout-1);
-    }
-
-    .banner {
-      border-left: 4px solid var(--uui-color-warning);
-    }
-
-    .banner-inner {
-      display: flex;
-      align-items: center;
-      gap: var(--uui-size-space-4);
-      flex-wrap: wrap;
-    }
-
-    .banner-inner p {
-      margin: var(--uui-size-space-1) 0 0;
-      color: var(--uui-color-text-alt);
     }
 
     .stats {

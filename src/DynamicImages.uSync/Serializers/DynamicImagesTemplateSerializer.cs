@@ -93,8 +93,8 @@ public class DynamicImagesTemplateSerializer(
         Template? template;
         try
         {
-            // Through the migrator, so a v1 document in a file is upgraded on the way in exactly
-            // as a v1 document in the database is upgraded on the way out.
+            // Through the migrator, so an older-schema document in a file is upgraded on the way in exactly
+            // as one in the database is upgraded on the way out.
             template = scope.ServiceProvider.GetRequiredService<ITemplateJsonMigrator>().Deserialize(design);
         }
         catch (JsonException ex)

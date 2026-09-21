@@ -17,7 +17,7 @@ export const USER = {
   password: process.env.UMBRACO_USER_PASSWORD ?? "CHANGE-ME-local-only-1234",
 };
 
-/** The template the test site's v1 auto-import creates. */
+/** The template the test site's uSync fixture creates. */
 export const TEMPLATE_NAME = "Article OG image";
 
 export async function login(page: Page): Promise<void> {

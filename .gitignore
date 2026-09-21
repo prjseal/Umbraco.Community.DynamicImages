@@ -354,9 +354,6 @@ MigrationBackup/
 
 # Rider
 src/.idea
-/src/DynamicImages.TestSite/umbraco/Data
-/src/DynamicImages.TestSite/uSync/v9/Media
-/src/DynamicImages.TestSite/uSync/v9/Content/generating-dynaimic-images-for-the-package-jam-at-umbraco-spark.config
 
 # Running the Clean test site writes a uSync config for every media item Dynamic Images
 # generates. Following the v9 precedent above, the whole folder is ignored rather than trying to

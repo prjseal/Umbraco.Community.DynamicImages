@@ -26,11 +26,6 @@ public sealed record TemplateSaveResponse(Template Template, IReadOnlyList<Valid
 
 public sealed record TemplateImportRequest(string Json, string Mode = "create");
 
-public sealed record ImportReportResponse(
-    IReadOnlyList<string> Created,
-    IReadOnlyList<string> Skipped,
-    IReadOnlyList<string> Warnings);
-
 // ---------------------------------------------------------------- fonts
 
 public sealed record FontResponse(

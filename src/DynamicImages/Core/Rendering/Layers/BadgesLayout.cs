@@ -11,7 +11,7 @@ public sealed record BadgesLayoutResult(float TotalWidth, float TotalHeight, IRe
 /// <summary>
 /// The geometry of a badges layer: how big each item is, where it sits in the row or column, and
 /// how big the whole run is. Pure, so the renderer's draw and measure paths and the tests share
-/// one set of numbers. A label below its circle keeps v1's fixed-width items exactly; a label to
+/// one set of numbers. A label below its circle uses fixed-width items; a label to
 /// the right makes each item as wide as its text, and wrapping packs rows against the layer's width.
 /// </summary>
 public static class BadgesLayout

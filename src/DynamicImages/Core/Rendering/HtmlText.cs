@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 namespace Umbraco.Community.DynamicImages.Core.Rendering;
 
 /// <summary>
-/// Turns a rich text value into the plain text a text layer can draw. v1 handed the raw markup to
-/// ImageSharp, which happily rendered the tags.
+/// Turns a rich text value into the plain text a text layer can draw, rather than
+/// handing the raw markup to ImageSharp, which would render the tags.
 /// </summary>
 public static partial class HtmlText
 {
