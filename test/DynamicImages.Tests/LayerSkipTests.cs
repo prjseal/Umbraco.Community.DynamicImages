@@ -37,6 +37,7 @@ public class LayerSkipTests
                 new TextLayerRenderer(new FileFontRegistry(), NullLogger<TextLayerRenderer>.Instance),
             ]),
             images,
+            new RenderGate(),
             NullLogger<DynamicImageRenderer>.Instance);
     }
 

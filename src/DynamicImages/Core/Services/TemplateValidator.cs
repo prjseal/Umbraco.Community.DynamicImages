@@ -24,6 +24,7 @@ public sealed partial class TemplateValidator(
 
         ValidateIdentity(template, issues);
         ValidateCanvas(template, issues);
+        ValidateLayerCount(template, issues);
         ValidateTransparency(template, issues);
         await ValidateBaseImageAsync(template, issues, cancellationToken);
         ValidateDocTypesAndTarget(template, issues);
@@ -54,12 +55,22 @@ public sealed partial class TemplateValidator(
                 "The alias may only contain letters, numbers, hyphens and underscores, and must start with a letter."));
     }
 
+    private static void ValidateLayerCount(Template template, List<ValidationIssue> issues)
+    {
+        if (template.Layers.Count > RenderLimits.MaxLayers)
+        {
+            issues.Add(new ValidationIssue(ValidationSeverity.Error, "TooManyLayers",
+                $"A template may have at most {RenderLimits.MaxLayers} layers; this one has {template.Layers.Count}."));
+        }
+    }
+
     private static void ValidateCanvas(Template template, List<ValidationIssue> issues)
     {
-        if (template.Canvas.Width is < 1 or > 8000 || template.Canvas.Height is < 1 or > 8000)
+        // The same numbers the renderer enforces, so the designer cannot save a template that
+        // then refuses to render. RenderLimits is the single source; this only reports it.
+        if (RenderLimits.CanvasProblem(template.Canvas.Width, template.Canvas.Height) is { } canvasProblem)
         {
-            issues.Add(new ValidationIssue(ValidationSeverity.Error, "CanvasSizeInvalid",
-                "The canvas must be between 1 and 8000 pixels in each direction."));
+            issues.Add(new ValidationIssue(ValidationSeverity.Error, "CanvasSizeInvalid", canvasProblem));
         }
 
         if (!string.IsNullOrWhiteSpace(template.Canvas.Background) &&
@@ -233,6 +244,7 @@ public sealed partial class TemplateValidator(
                 }
 
                 RequireColour(text.Style.Colour, layer, issues);
+                WarnIfFontTooLarge(text.Style.FontSize, layer, issues);
 
                 foreach (var alias in BoundAliases(text))
                 {
@@ -260,6 +272,14 @@ public sealed partial class TemplateValidator(
                 {
                     issues.Add(new ValidationIssue(ValidationSeverity.Warning, "NoItemsProperty",
                         $"Layer '{Describe(layer)}' has no items property, so no badges will be drawn.", layer.Key));
+                }
+
+                WarnIfFontTooLarge(badges.Label.FontSize, layer, issues);
+
+                if (badges.MaxItems > RenderLimits.MaxBadgeItems)
+                {
+                    issues.Add(new ValidationIssue(ValidationSeverity.Warning, "TooManyBadges",
+                        $"Layer '{Describe(layer)}' asks for {badges.MaxItems} badges; at most {RenderLimits.MaxBadgeItems} will be drawn.", layer.Key));
                 }
 
                 RequireColour(badges.Label.Colour, layer, issues);
@@ -337,6 +357,18 @@ public sealed partial class TemplateValidator(
         }
 
         return source.Fallback is null || ValidatePathSource(source.Fallback, layerKey, issues);
+    }
+
+    /// <summary>
+    /// A warning, not an error: the renderer clamps an oversize point size rather than refusing
+    /// it, so the template still produces an image - this says what will actually be drawn.
+    /// </summary>
+    private static void WarnIfFontTooLarge(float fontSize, LayerBase layer, List<ValidationIssue> issues)
+    {
+        if (fontSize <= RenderLimits.MaxFontSize) return;
+
+        issues.Add(new ValidationIssue(ValidationSeverity.Warning, "FontSizeTooLarge",
+            $"Layer '{Describe(layer)}' asks for {fontSize:0.##}pt; it will be drawn at {RenderLimits.MaxFontSize:0.##}pt, the largest supported.", layer.Key));
     }
 
     private static void RequireColour(string? value, LayerBase layer, List<ValidationIssue> issues)

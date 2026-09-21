@@ -108,4 +108,76 @@ public class TextFittingTests
     [Fact]
     public void StyleOf_RecoversTheStyleOfALoadedFont()
         => Assert.Equal(FontStyle.Regular, TextFitting.StyleOf(Font()));
+
+    /// <summary>
+    /// A rich-text body bound to a text layer: 5,000 words, which the old one-word-at-a-time trim
+    /// laid out once per word. The cap plus the bisection is what makes this affordable, and this
+    /// asserts the budget rather than the algorithm - the point is the wall clock on a publish.
+    /// </summary>
+    [Fact]
+    public void Fit_HandlesAWholeArticleQuickly()
+    {
+        var article = string.Join(' ', Enumerable.Range(0, 5_000).Select(i => $"word{i}"));
+
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        var result = TextFitting.Fit(article, Font(), Style(3, TextOverflow.Ellipsis), wrappingWidth: 1020);
+        watch.Stop();
+
+        Assert.True(result.Truncated);
+        Assert.EndsWith("\u2026", result.Text);
+        Assert.True(watch.ElapsedMilliseconds < 1_000,
+            $"fitting a 5,000-word body took {watch.ElapsedMilliseconds}ms; it should be well under a second");
+    }
+
+    [Fact]
+    public void Fit_CapsTheTextBeforeLayingItOut()
+    {
+        // Twice the cap, with no line limit to trim it: what comes back is the cap alone, which
+        // is what bounds every layout underneath.
+        var article = string.Join(' ', Enumerable.Range(0, 2_000).Select(i => $"word{i}"));
+        Assert.True(article.Length > RenderLimits.MaxTextLength * 2);
+
+        var result = TextFitting.Fit(article, Font(), Style(null, TextOverflow.Ellipsis), wrappingWidth: 1020);
+
+        Assert.True(result.Text.Length <= RenderLimits.MaxTextLength);
+        Assert.StartsWith("word0 word1 ", result.Text);
+
+        // Cut on a word boundary, so the last word is whole rather than sliced.
+        Assert.DoesNotContain("  ", result.Text);
+        Assert.Equal(result.Text.TrimEnd(), result.Text);
+    }
+
+    [Fact]
+    public void Fit_CutsAnUnbrokenRunThatHasNoWordBoundary()
+    {
+        var run = new string('x', RenderLimits.MaxTextLength * 2);
+
+        var result = TextFitting.Fit(run, Font(), Style(null, TextOverflow.Ellipsis), wrappingWidth: 1020);
+
+        Assert.Equal(RenderLimits.MaxTextLength, result.Text.Length);
+    }
+
+    /// <summary>
+    /// The bisection has to land on the same string the old linear scan did: the largest word
+    /// count that still fits. Checked directly - one more word must not fit.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Fit_TrimsToTheLargestNumberOfWordsThatFits(int maxLines)
+    {
+        var style = Style(maxLines, TextOverflow.Ellipsis);
+        var result = TextFitting.Fit(LongTitle, Font(), style, wrappingWidth: 1020);
+
+        Assert.True(result.Truncated);
+        Assert.True(TextFitting.CountLines(result.Text, Font(), style, 1020) <= maxLines);
+
+        var kept = result.Text.TrimEnd('\u2026').Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+        var words = LongTitle.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (kept >= words.Length) return;
+
+        var oneMore = string.Join(' ', words.Take(kept + 1)).TrimEnd(',', ';', ':', '-', '\u2013') + "\u2026";
+        Assert.True(TextFitting.CountLines(oneMore, Font(), style, 1020) > maxLines,
+            $"'{oneMore}' fits in {maxLines} line(s), so the trim stopped one word short");
+    }
 }

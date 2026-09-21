@@ -26,6 +26,7 @@ public static class LayerSkipReasons
     public const string NoImage = "the image could not be loaded";
     public const string ZeroSize = "the computed size is zero";
     public const string NoItems = "there is nothing to list";
+    public const string TooLarge = "the image is too large to draw";
 
     /// <summary>
     /// The catch-all for a renderer that returned null without saying why. Better than the

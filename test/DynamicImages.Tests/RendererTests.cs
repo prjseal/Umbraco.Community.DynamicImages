@@ -33,6 +33,7 @@ public class RendererTests
             new BadgesLayerRenderer(new FileFontRegistry(), new NoWebRoot(), NullLogger<BadgesLayerRenderer>.Instance),
         ]),
         new NoImages(),
+        new RenderGate(),
         NullLogger<DynamicImageRenderer>.Instance);
 
     private static Template Template(params LayerBase[] layers) => new()
@@ -202,6 +203,7 @@ public class RendererTests
         var renderer = new DynamicImageRenderer(
             new LayerRendererCollection(() => [new RectLayerRenderer()]),
             new NoImages(),
+            new RenderGate(),
             NullLogger<DynamicImageRenderer>.Instance);
 
         var template = Template(
@@ -767,6 +769,7 @@ public class RendererTests
         var renderer = new DynamicImageRenderer(
             new LayerRendererCollection(() => [new ImageLayerRenderer(new StripeImages())]),
             new NoImages(),
+            new RenderGate(),
             NullLogger<DynamicImageRenderer>.Instance);
 
         var photo = new ImageLayer

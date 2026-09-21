@@ -73,6 +73,10 @@ public class DynamicImagesComposer : IComposer
             .Append<TextLayerRenderer>()
             .Append<BadgesLayerRenderer>();
 
+        // Singleton, so the concurrency cap is per process rather than per render: a designer
+        // dragging, a bulk job and a publish all queue against the same gate.
+        builder.Services.AddSingleton<RenderGate>();
+
         builder.Services.AddSingleton<IDynamicImageRenderer, DynamicImageRenderer>();
         builder.Services.AddSingleton<IImageSourceProvider, ImageSourceProvider>();
         builder.Services.AddSingleton<IDynamicImageMediaWriter, DynamicImageMediaWriter>();

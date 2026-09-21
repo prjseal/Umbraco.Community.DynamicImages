@@ -127,7 +127,9 @@ public sealed partial class BadgesLayerRenderer(
             return null;
         }
 
-        var items = context.Values.GetItems(badges.ItemsPropertyAlias).Take(Math.Max(1, badges.MaxItems)).ToList();
+        var items = context.Values.GetItems(badges.ItemsPropertyAlias)
+            .Take(Math.Clamp(badges.MaxItems, 1, RenderLimits.MaxBadgeItems))
+            .ToList();
         if (items.Count == 0)
         {
             context.Skip(badges.Key, LayerSkipReasons.NoItems);
@@ -136,7 +138,11 @@ public sealed partial class BadgesLayerRenderer(
 
         var labelFont = badges.Label.Position == BadgeLabelPosition.None
             ? null
-            : await fontRegistry.GetFontAsync(badges.Label.FontKey, badges.Label.FontSize, "Regular", context.CancellationToken);
+            : await fontRegistry.GetFontAsync(
+                badges.Label.FontKey,
+                Math.Clamp(badges.Label.FontSize, 1f, RenderLimits.MaxFontSize),
+                "Regular",
+                context.CancellationToken);
 
         var labels = items
             .Select(item => labelFont is null

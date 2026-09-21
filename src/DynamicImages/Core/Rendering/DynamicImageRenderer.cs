@@ -12,12 +12,21 @@ namespace Umbraco.Community.DynamicImages.Core.Rendering;
 public sealed class DynamicImageRenderer(
     LayerRendererCollection renderers,
     IImageSourceProvider imageSources,
+    RenderGate gate,
     ILogger<DynamicImageRenderer> logger) : IDynamicImageRenderer
 {
     public async Task<RenderResult> RenderAsync(Template template, IRenderValueSource values, CancellationToken cancellationToken = default)
     {
-        var width = Math.Max(1, template.Canvas.Width);
-        var height = Math.Max(1, template.Canvas.Height);
+        // Checked before the gate is taken and before a single byte is allocated: a template
+        // asking for a 30000x30000 canvas should cost a comparison, not a queue slot.
+        EnforceLimits(template);
+
+        var width = template.Canvas.Width;
+        var height = template.Canvas.Height;
+
+        // Held for the whole render, so N concurrent previews queue instead of allocating N
+        // canvases. Released by the outer using even when a layer throws.
+        using var slot = await gate.EnterAsync(cancellationToken);
 
         var image = CreateCanvas(template.Canvas, width, height);
 
@@ -99,6 +108,25 @@ public sealed class DynamicImageRenderer(
         // drift from what a real render produces.
         using var result = await RenderAsync(template, values, cancellationToken);
         return new LayoutResult(result.Bounds, result.Skips);
+    }
+
+    /// <summary>
+    /// The hard ceilings, applied to every caller alike. The validator reports the same limits
+    /// when a template is saved, but a preview is rendered from a posted body that was never
+    /// saved, so the renderer is the only place that can actually enforce them.
+    /// </summary>
+    private static void EnforceLimits(Template template)
+    {
+        if (RenderLimits.CanvasProblem(template.Canvas.Width, template.Canvas.Height) is { } problem)
+        {
+            throw new RenderLimitException(problem);
+        }
+
+        if (template.Layers.Count > RenderLimits.MaxLayers)
+        {
+            throw new RenderLimitException(
+                $"A template may have at most {RenderLimits.MaxLayers} layers; this one has {template.Layers.Count}.");
+        }
     }
 
     /// <summary>

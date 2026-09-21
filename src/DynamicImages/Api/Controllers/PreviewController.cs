@@ -27,7 +27,14 @@ public class PreviewController(
     IUmbracoContextFactory umbracoContextFactory,
     IOptionsMonitor<DynamicImagesOptions> options) : DynamicImagesControllerBase
 {
+    /// <summary>
+    /// A template document is kilobytes of JSON - a base image is a reference, never bytes - so
+    /// anything approaching this is not a template.
+    /// </summary>
+    internal const long MaxTemplateBytes = 2 * 1024 * 1024;
+
     [HttpPost("preview")]
+    [RequestSizeLimit(MaxTemplateBytes)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Preview([FromBody] PreviewRequest request, CancellationToken cancellationToken)
@@ -74,6 +81,7 @@ public class PreviewController(
     /// "measured" bounds, and the preview pane lists the resolved values.
     /// </summary>
     [HttpPost("preview/layout")]
+    [RequestSizeLimit(MaxTemplateBytes)]
     [ProducesResponseType(typeof(LayoutResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Layout([FromBody] PreviewRequest request, CancellationToken cancellationToken)

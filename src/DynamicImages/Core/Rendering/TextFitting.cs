@@ -25,6 +25,11 @@ public static class TextFitting
             return new FittedText(text, font.Size, 0, false);
         }
 
+        // A rich-text body bound to a text layer arrives whole - thousands of words, of which a
+        // canvas this size can show tens. Capping here bounds every layout below it, and the
+        // ellipsis path is the same one an overlong title already takes.
+        text = Cap(text);
+
         var lines = CountLines(text, font, style, wrappingWidth);
         if (style.MaxLines is not > 0 || lines <= style.MaxLines)
         {
@@ -68,23 +73,56 @@ public static class TextFitting
         return new FittedText(trimmed, floor, maxLines, true);
     }
 
+    /// <summary>
+    /// Truncates <paramref name="text"/> to <see cref="RenderLimits.MaxTextLength"/> characters on
+    /// a word boundary. No ellipsis is added here - whatever survives still goes through the fit,
+    /// which adds one if the layer's line limit also bites.
+    /// </summary>
+    private static string Cap(string text)
+    {
+        if (text.Length <= RenderLimits.MaxTextLength) return text;
+
+        var cut = text.LastIndexOf(' ', RenderLimits.MaxTextLength);
+
+        // A single unbroken run longer than the cap has no word boundary to fall back on, so it
+        // is cut mid-word rather than kept whole.
+        return cut <= 0 ? text[..RenderLimits.MaxTextLength] : text[..cut];
+    }
+
     private static string TrimToLines(string text, Font font, TextStyle style, float? wrappingWidth, int maxLines, bool appendEllipsis)
     {
         var words = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return text;
 
-        // Drop one word at a time from the end until the (optionally ellipsised) string fits.
-        for (var count = words.Length - 1; count > 0; count--)
+        // Line count is monotonic in word count - adding a word never makes the block shorter -
+        // so the largest word count that still fits can be found by bisection rather than by
+        // dropping one word at a time. That turns O(words) full layouts into O(log words), which
+        // is what makes a long body affordable. `low` is always a count known to fit (one word,
+        // the floor the old loop fell through to) and `high` one known not to.
+        var low = 1;
+        var high = words.Length;
+
+        while (high - low > 1)
         {
-            var candidate = string.Join(' ', words.Take(count));
-            var withSuffix = appendEllipsis ? candidate.TrimEnd(',', ';', ':', '-', '–') + Ellipsis : candidate;
-            if (CountLines(withSuffix, font, style, wrappingWidth) <= maxLines)
+            var mid = low + (high - low) / 2;
+            if (CountLines(Candidate(words, mid, appendEllipsis), font, style, wrappingWidth) <= maxLines)
             {
-                return withSuffix;
+                low = mid;
+            }
+            else
+            {
+                high = mid;
             }
         }
 
-        return appendEllipsis ? words[0] + Ellipsis : words[0];
+        return Candidate(words, low, appendEllipsis);
+    }
+
+    /// <summary>The first <paramref name="count"/> words, ellipsised the way the caller asked.</summary>
+    private static string Candidate(string[] words, int count, bool appendEllipsis)
+    {
+        var candidate = string.Join(' ', words.Take(count));
+        return appendEllipsis ? candidate.TrimEnd(',', ';', ':', '-', '–') + Ellipsis : candidate;
     }
 
     /// <summary>Number of laid-out lines, honouring the same wrapping and spacing the renderer uses.</summary>

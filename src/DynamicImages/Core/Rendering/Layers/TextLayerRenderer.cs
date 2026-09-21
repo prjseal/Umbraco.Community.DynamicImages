@@ -63,8 +63,12 @@ public sealed class TextLayerRenderer(IFontRegistry fontRegistry, ILogger<TextLa
             return null;
         }
 
+        // Clamped, not refused: an absurd point size is a slip in the designer, and the cap keeps
+        // the glyph cache and the rasteriser inside what a canvas this size could ever show.
+        var fontSize = Math.Clamp(text.Style.FontSize, 1f, RenderLimits.MaxFontSize);
+
         var font = await fontRegistry.GetFontAsync(
-            text.Style.FontKey, text.Style.FontSize, text.Style.FontStyle, context.CancellationToken);
+            text.Style.FontKey, fontSize, text.Style.FontStyle, context.CancellationToken);
 
         if (font is null)
         {
