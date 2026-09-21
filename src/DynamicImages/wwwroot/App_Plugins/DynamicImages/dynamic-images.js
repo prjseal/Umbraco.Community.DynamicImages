@@ -6528,9 +6528,9 @@ Xl = async function() {
   if (!(!this._sampleNode || !K(this, pe))) {
     this._regenerating = !0;
     try {
-      const i = await Ba(this._sampleNode.key, K(this, pe).getToken);
-      (e = K(this, Fi)) == null || e.peek(i.outcome === "generated" ? "positive" : "warning", {
-        data: { message: `'${this._sampleNode.name}': ${i.outcome}` }
+      const i = await Ba(this._sampleNode.key, K(this, pe).getToken), a = i.outcome === "generated" || i.outcome === "generateddraft";
+      (e = K(this, Fi)) == null || e.peek(a ? "positive" : "warning", {
+        data: { message: i.message ?? `'${this._sampleNode.name}': ${i.outcome}` }
       });
     } catch (i) {
       (t = K(this, Fi)) == null || t.peek("danger", {
@@ -7018,7 +7018,9 @@ let Ke = class extends N {
         </div>
 
         <p class="summary">
-          <strong>${this._usage.withImage}</strong> of <strong>${this._usage.total}</strong> have an image.
+          <strong>${this._usage.withImageOnPage}</strong> of the
+          <strong>${this._usage.items.length}</strong> shown have an image.
+          ${this._usage.total > this._usage.items.length ? r`<span class="muted">${this._usage.total} in total.</span>` : p}
         </p>
 
         <uui-toggle
@@ -7078,6 +7080,10 @@ Ke.styles = I`
 
     .summary {
       margin: 0 0 var(--uui-size-space-3);
+    }
+
+    .summary .muted {
+      color: var(--uui-color-text-alt);
     }
 
     .empty {
@@ -7208,13 +7214,13 @@ class us extends Ec {
     if (i)
       try {
         const n = await Ba(i, () => {
-          var o;
-          return (o = c(this, Gi)) == null ? void 0 : o.getLatestToken();
-        });
-        (a = c(this, oi)) == null || a.peek(n.outcome === "generated" ? "positive" : "warning", {
+          var l;
+          return (l = c(this, Gi)) == null ? void 0 : l.getLatestToken();
+        }), o = n.outcome === "generated" || n.outcome === "generateddraft";
+        (a = c(this, oi)) == null || a.peek(o ? "positive" : "warning", {
           data: {
             headline: "Dynamic Images",
-            message: n.outcome === "generated" ? "The image has been regenerated." : n.message ?? n.outcome
+            message: o ? n.message ?? "The image has been regenerated." : n.message ?? n.outcome
           }
         });
       } catch (n) {
@@ -7265,7 +7271,10 @@ class hs extends Dc {
         return (l = c(this, Hi)) == null ? void 0 : l.getLatestToken();
       });
       o.propertyValue && ((a = c(this, ji)) == null || a.setValue(JSON.parse(o.propertyValue))), (s = c(this, Et)) == null || s.peek("positive", {
-        data: { headline: "Dynamic Images", message: "The image has been regenerated." }
+        data: {
+          headline: "Dynamic Images",
+          message: o.message ?? "The image has been regenerated."
+        }
       });
     } catch (o) {
       const l = o instanceof ot && o.status === 404;

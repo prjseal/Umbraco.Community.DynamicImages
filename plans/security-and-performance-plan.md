@@ -188,6 +188,50 @@ Modified
 Reused as-is
 - `WebRootPath` (path checks), `FontHash`, `WebFontProviders.ValidateDirectUrl` (extended, not replaced), `RelativeLayout`, `MediaSource`, the `RemoteFontFetcherTests` stub handler/factory/cache-root, `TemplateValidatorTests.NeverCalled` proxy.
 
+## What was built differently
+
+The plan was followed as written except for the points below, each of which the code forced. They
+are recorded here so this document still describes what exists.
+
+- **S1** — `RegenerateDocumentAsync` gained `userId` *and* `allowPublish`, both optional, rather
+  than only `userId`. The publish permission is evaluated in the controller for every call rather
+  than only when the node is published, which avoids loading the content twice.
+- **S2** — `IRemoteFontFetcher.GetBytesAsync` returns `byte[]?` and takes the row's provider name
+  rather than the whole `FontDefinition`: a changed file is the font being *unavailable*, not an
+  error a render should fail on, and the provider name is all the host rule needs. The refusals
+  that are this package's own (a URL it may not fetch, a redirect) throw `FontFetchException`.
+  The health check tells `FontUnreachable` from `FontChanged` with a second fetch, which is
+  affordable on a check an editor explicitly asked for.
+- **S3** — the overlay clamp is shared by `RenderAsync` and `MeasureAsync`, and the **clamped**
+  box is what gets reported. Reporting the requested size would make a measured layer land
+  somewhere other than where it draws, which relative positioning hangs off.
+  `DynamicImageRenderer` takes the `RenderGate` as a constructor parameter rather than reaching
+  for a static, so a test can supply its own.
+- **S4** — reading the ownership relation is wrapped: a site part-way through the migration keeps
+  generating images, falling back to "not ours" (a new media item) and never to someone else's
+  file. A failure to *write* the marker after the image is saved is logged rather than thrown — it
+  costs a new media item next time, where throwing would cost the editor their image.
+- **S5** — only the preview half was done. Scoping `document-types/{alias}/content` to the
+  caller's start nodes needs `IUser.CalculateContentStartNodeIds`, which is not part of the
+  Umbraco 17.0.0 surface this package builds against; the alternatives either filter the page in
+  memory (making the reported total wrong) or rebuild the paged query around node paths. The plan
+  allowed for leaving it, so the endpoint is unchanged and the limitation is in the README's
+  permissions section.
+- **P1** — testing that the publish handler stands down inside `RegenerationScope` needs the test
+  assembly to see an internal type, so the package has an `InternalsVisibleTo` for it rather than
+  `RegenerationScope` becoming public API.
+- **P3** — `IMediaService` has `GetByIds(IEnumerable<Guid>)`, as the plan expected. Paging across
+  several document types is done by taking `skip + take` from each type and windowing the result,
+  rather than by offsetting into each type, which would cost an extra query per type to learn its
+  total. `WithImage` became `WithImageOnPage`, and the client's usage view says "of the N shown".
+- **P7** — `IRegenerationJobStore.Create` returns a `JobCreateResult` carrying *why* it refused,
+  rather than a bare null, so the controller can say whether the template is busy or the site is.
+  The counters became methods (`CountProcessed`, `CountGenerated`, `CountSkipped`) over interlocked
+  fields, since a property cannot be incremented atomically from outside.
+- **P8** — the read above the update is kept. It supplies the row's id and `createdUtc`, and
+  answers "no such template" separately from "someone else saved first"; the conditional `WHERE`
+  is what makes the check atomic.
+
 ## Implementation order
 
 1. Read this plan (`plans/security-and-performance-plan.md`); update it where the code forces a different choice.
@@ -199,7 +243,8 @@ Reused as-is
 7. P3, P4, P5, P6, P8, S5, S6 — small, independent; one commit each.
 8. README, CHANGELOG, client rebuild, full test run.
 
-Each step is its own commit on `claude/dynamicimages-security-perf-review-y2sf18`.
+Each step is its own commit. (Implemented on `claude/security-performance-plan-hstcbj`, branched
+from `main`; this plan file was brought onto it as step 1.)
 
 ## Verification
 
