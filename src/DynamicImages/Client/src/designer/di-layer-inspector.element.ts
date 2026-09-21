@@ -30,6 +30,13 @@ export class DiLayerInspectorElement extends UmbLitElement {
   @property({ type: Array })
   properties: DiProperty[] = [];
 
+  /**
+   * The properties reachable through each content-classified root, keyed by that root's alias.
+   * Loaded eagerly by the workspace context, so it is already here when the editor picks a root.
+   */
+  @property({ type: Object })
+  linkedProperties: Record<string, DiProperty[]> = {};
+
   @property({ type: Array })
   fonts: DiFont[] = [];
 

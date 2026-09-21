@@ -1,12 +1,12 @@
 import { UmbEntityWorkspaceDataManager, UmbSubmittableWorkspaceContextBase } from "@umbraco-cms/backoffice/workspace";
 import { UmbContextToken } from "@umbraco-cms/backoffice/context-api";
-import { UmbArrayState, UmbBooleanState, UmbStringState, UmbNumberState } from "@umbraco-cms/backoffice/observable-api";
+import { UmbArrayState, UmbBooleanState, UmbObjectState, UmbStringState, UmbNumberState } from "@umbraco-cms/backoffice/observable-api";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_DISCARD_CHANGES_MODAL, umbOpenModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
 import {
-  DiApiError, createTemplate as apiCreate, fetchFonts, fetchProperties, fetchTemplate,
+  DiApiError, createTemplate as apiCreate, fetchFonts, fetchLinkedProperties, fetchProperties, fetchTemplate,
   hrefForTemplate, notifyTemplatesChanged, updateTemplate,
 } from "../api/dynamic-images-api.js";
 import type {
@@ -30,6 +30,13 @@ export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
  * that answers "is this dirty", and the `willchangestate` listener below is core's own guard,
  * inlined.
  */
+/**
+ * How many content-classified roots are probed for their linked properties. A document type with
+ * dozens of pickers would otherwise be dozens of requests on every template open, and a dropdown
+ * that long is not usable anyway.
+ */
+const MAX_LINKED_ROOTS = 12;
+
 export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBase<DiTemplate> {
   /**
    * The persisted/current pair. `getHasUnpersistedChanges()` is a JSON comparison of the two, so
@@ -46,6 +53,13 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
   #properties = new UmbArrayState<DiProperty>([], (property) => property.alias);
   readonly properties = this.#properties.asObservable();
+
+  /**
+   * The properties reachable through each content-classified root property, keyed by that root's
+   * alias - what the inspector's second dropdown offers for `author.…`.
+   */
+  #linkedProperties = new UmbObjectState<Record<string, DiProperty[]>>({});
+  readonly linkedProperties = this.#linkedProperties.asObservable();
 
   #fonts = new UmbArrayState<DiFont>([], (font) => font.key);
   readonly fonts = this.#fonts.asObservable();
@@ -238,6 +252,44 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
     this.#fonts.setValue(fonts);
     this.#properties.setValue(properties);
+    this.#linkedProperties.setValue(await this.#loadLinkedProperties(template.docTypeAliases, properties));
+  }
+
+  /**
+   * What each content-classified property points at, loaded eagerly rather than on demand. Lazy
+   * loading would leave the second dropdown empty for the moment right after the editor picks a
+   * root - the exact moment they are looking at it - and would need event plumbing back from the
+   * inspector for no gain.
+   *
+   * Mirrors {@link #loadProperties}: one request per (docTypeAlias, rootAlias) pair, each
+   * swallowing its own failure, then flattened and de-duped by alias with the first winning.
+   */
+  async #loadLinkedProperties(
+    docTypeAliases: string[], properties: DiProperty[],
+  ): Promise<Record<string, DiProperty[]>> {
+    const roots = properties
+      .filter((property) => property.classification === "content")
+      .slice(0, MAX_LINKED_ROOTS);
+
+    if (roots.length === 0 || docTypeAliases.length === 0) return {};
+
+    const loaded = await Promise.all(
+      roots.map(async (root) => {
+        const responses = await Promise.all(
+          docTypeAliases.map((alias) =>
+            fetchLinkedProperties(alias, root.alias, this.getToken).catch(() => null)),
+        );
+
+        const seen = new Map<string, DiProperty>();
+        for (const property of responses.flatMap((response) => response?.properties ?? [])) {
+          if (!seen.has(property.alias)) seen.set(property.alias, property);
+        }
+
+        return [root.alias, [...seen.values()]] as [string, DiProperty[]];
+      }),
+    );
+
+    return Object.fromEntries(loaded.filter(([, list]) => list.length > 0));
   }
 
   /**
@@ -263,7 +315,10 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     const template = this._data.getCurrent();
     if (!template) return;
 
-    this.#properties.setValue(await this.#loadProperties(template.docTypeAliases));
+    const properties = await this.#loadProperties(template.docTypeAliases);
+
+    this.#properties.setValue(properties);
+    this.#linkedProperties.setValue(await this.#loadLinkedProperties(template.docTypeAliases, properties));
   }
 
   async reloadFonts(): Promise<void> {

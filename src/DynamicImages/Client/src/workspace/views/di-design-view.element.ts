@@ -50,6 +50,10 @@ export class DiDesignViewElement extends UmbLitElement {
   @state()
   private _properties: DiProperty[] = [];
 
+  /** Keyed by the root property's alias - what the inspector's second dropdown offers for it. */
+  @state()
+  private _linkedProperties: Record<string, DiProperty[]> = {};
+
   @state()
   private _fonts: DiFont[] = [];
 
@@ -115,6 +119,9 @@ export class DiDesignViewElement extends UmbLitElement {
       });
       this.observe(context.properties, (properties) => {
         this._properties = properties ?? [];
+      });
+      this.observe(context.linkedProperties, (linked) => {
+        this._linkedProperties = linked ?? {};
       });
       this.observe(context.fonts, (fonts) => {
         this._fonts = fonts ?? [];
@@ -512,6 +519,7 @@ export class DiDesignViewElement extends UmbLitElement {
             .template=${this._template}
             .layer=${this.#selectedLayer}
             .properties=${this._properties}
+            .linkedProperties=${this._linkedProperties}
             .fonts=${this._fonts}>
           </di-layer-inspector>
 
