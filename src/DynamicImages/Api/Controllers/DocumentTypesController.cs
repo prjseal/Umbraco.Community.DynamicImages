@@ -36,7 +36,7 @@ public class DocumentTypesController(
     [HttpGet("document-types/{alias}/properties")]
     [ProducesResponseType(typeof(IReadOnlyList<DocumentTypePropertyResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public IActionResult GetProperties(string alias)
+    public async Task<IActionResult> GetProperties(string alias)
     {
         var contentType = contentTypeService.Get(alias);
         if (contentType is null)
@@ -45,10 +45,22 @@ public class DocumentTypesController(
                 statusCode: StatusCodes.Status404NotFound);
         }
 
+        // One lookup for the whole document type rather than a blocking one per property: this
+        // used to be a `.GetAwaiter().GetResult()` inside a Select, so a 40-property document
+        // type was 40 sequential queries, each holding a thread-pool thread.
+        var dataTypeKeys = contentType.CompositionPropertyTypes
+            .Select(property => property.DataTypeKey)
+            .Distinct()
+            .ToArray();
+
+        var editorAliases = (await dataTypeService.GetAllAsync(dataTypeKeys))
+            .GroupBy(dataType => dataType.Key)
+            .ToDictionary(group => group.Key, group => group.First().EditorAlias);
+
         var properties = contentType.CompositionPropertyTypes
             .Select(property =>
             {
-                var editorAlias = dataTypeService.GetAsync(property.DataTypeKey).GetAwaiter().GetResult()?.EditorAlias
+                var editorAlias = editorAliases.GetValueOrDefault(property.DataTypeKey)
                                   ?? property.PropertyEditorAlias;
 
                 return new DocumentTypePropertyResponse(

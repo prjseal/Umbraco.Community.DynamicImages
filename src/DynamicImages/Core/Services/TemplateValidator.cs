@@ -27,7 +27,7 @@ public sealed partial class TemplateValidator(
         ValidateLayerCount(template, issues);
         ValidateTransparency(template, issues);
         await ValidateBaseImageAsync(template, issues, cancellationToken);
-        ValidateDocTypesAndTarget(template, issues);
+        await ValidateDocTypesAndTargetAsync(template, issues);
         ValidateOutputFolder(template, issues);
 
         var fontKeys = fontRepository.GetAll().Select(f => f.Key).ToHashSet();
@@ -177,7 +177,7 @@ public sealed partial class TemplateValidator(
         }
     }
 
-    private void ValidateDocTypesAndTarget(Template template, List<ValidationIssue> issues)
+    private async Task ValidateDocTypesAndTargetAsync(Template template, List<ValidationIssue> issues)
     {
         if (template.DocTypeAliases.Count == 0)
         {
@@ -206,7 +206,7 @@ public sealed partial class TemplateValidator(
                 issues.Add(new ValidationIssue(ValidationSeverity.Warning, "PropertyUnknown",
                     $"'{alias}' has no property called '{template.TargetPropertyAlias}' to write the image to."));
             }
-            else if (!IsMediaPicker(property.DataTypeKey))
+            else if (!await IsMediaPickerAsync(property.DataTypeKey))
             {
                 issues.Add(new ValidationIssue(ValidationSeverity.Warning, "TargetPropertyNotMediaPicker",
                     $"'{template.TargetPropertyAlias}' on '{alias}' is not a media picker, so the generated image cannot be stored in it."));
@@ -220,9 +220,14 @@ public sealed partial class TemplateValidator(
         }
     }
 
-    private bool IsMediaPicker(Guid dataTypeKey)
+    /// <summary>
+    /// Awaited rather than blocked on. This runs on every save, every layout call and every
+    /// health check, and <c>.GetAwaiter().GetResult()</c> held a thread-pool thread for the
+    /// duration of a database query each time.
+    /// </summary>
+    private async Task<bool> IsMediaPickerAsync(Guid dataTypeKey)
     {
-        var dataType = dataTypeService.GetAsync(dataTypeKey).GetAwaiter().GetResult();
+        var dataType = await dataTypeService.GetAsync(dataTypeKey);
         return dataType?.EditorAlias is Umbraco.Cms.Core.Constants.PropertyEditors.Aliases.MediaPicker3
             or Umbraco.Cms.Core.Constants.PropertyEditors.Aliases.ImageCropper;
     }
