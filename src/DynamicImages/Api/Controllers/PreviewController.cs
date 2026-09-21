@@ -1,8 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
+using Umbraco.Cms.Core.Actions;
+using Umbraco.Cms.Core.Security.Authorization;
 using Umbraco.Cms.Core.Services;
+using Umbraco.Cms.Web.Common.Authorization;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Web;
 using Umbraco.Community.DynamicImages.Api.Models;
@@ -11,6 +15,7 @@ using Umbraco.Community.DynamicImages.Core.Media;
 using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Core.Rendering;
 using Umbraco.Community.DynamicImages.Core.Services;
+using Umbraco.Extensions;
 using Template = Umbraco.Community.DynamicImages.Core.Models.Template;
 
 namespace Umbraco.Community.DynamicImages.Api.Controllers;
@@ -25,6 +30,7 @@ public class PreviewController(
     ITemplateValidator validator,
     IContentService contentService,
     IUmbracoContextFactory umbracoContextFactory,
+    IAuthorizationService authorizationService,
     IOptionsMonitor<DynamicImagesOptions> options) : DynamicImagesControllerBase
 {
     /// <summary>
@@ -42,7 +48,7 @@ public class PreviewController(
         try
         {
             using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
-            var values = ResolveValues(request, contextRef);
+            var values = await ResolveValuesAsync(request, contextRef);
 
             using var result = await renderer.RenderAsync(request.Template, values, cancellationToken);
 
@@ -89,7 +95,7 @@ public class PreviewController(
         try
         {
             using var contextRef = umbracoContextFactory.EnsureUmbracoContext();
-            var values = ResolveValues(request, contextRef);
+            var values = await ResolveValuesAsync(request, contextRef);
 
             var layout = await renderer.MeasureLayoutAsync(request.Template, values, cancellationToken);
             var validation = await validator.ValidateAsync(request.Template, cancellationToken);
@@ -114,9 +120,19 @@ public class PreviewController(
         }
     }
 
-    private IRenderValueSource ResolveValues(PreviewRequest request, UmbracoContextReference contextRef)
+    /// <summary>
+    /// The values a preview renders against: the named node's, or the built-in sample data.
+    /// <para>
+    /// A preview against a real node resolves and returns that node's draft text, so the node has
+    /// to be one the caller may read. Section users are trusted designers, which is why a refusal
+    /// falls back to sample data rather than failing the preview - they still get a picture, just
+    /// not one made of someone else's unpublished words.
+    /// </para>
+    /// </summary>
+    private async Task<IRenderValueSource> ResolveValuesAsync(
+        PreviewRequest request, UmbracoContextReference contextRef)
     {
-        if (!request.UseSampleData && request.ContentKey is { } key)
+        if (!request.UseSampleData && request.ContentKey is { } key && await CanBrowseAsync(key))
         {
             var content = contentService.GetById(key);
             if (content is not null)
@@ -126,5 +142,15 @@ public class PreviewController(
         }
 
         return SampleData.Build(request.Template);
+    }
+
+    private async Task<bool> CanBrowseAsync(Guid key)
+    {
+        var result = await authorizationService.AuthorizeResourceAsync(
+            User,
+            ContentPermissionResource.WithKeys(ActionBrowse.ActionLetter, key),
+            AuthorizationPolicies.ContentPermissionByResource);
+
+        return result.Succeeded;
     }
 }
