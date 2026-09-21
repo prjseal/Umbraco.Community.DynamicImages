@@ -1,5 +1,5 @@
 import type {
-  DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiJob, DiLayout,
+  DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiJob, DiLayout, DiLinkedProperties,
   DiProperty, DiRegisterWebFontRequest, DiRegisterWebFontResponse, DiSampleContentItem,
   DiSyncStatus, DiTemplate, DiTemplateSaveResponse, DiTemplateSummary, DiUsage,
 } from "./types.js";
@@ -154,6 +154,19 @@ export const fetchDocumentTypes = async (getToken: TokenGetter): Promise<DiDocum
 
 export const fetchProperties = async (alias: string, getToken: TokenGetter): Promise<DiProperty[]> =>
   json(await request(`/document-types/${encodeURIComponent(alias)}/properties`, getToken));
+
+/**
+ * What a content-reference property points at, for the inspector's second dropdown. A property
+ * that is not a content reference answers 200 with `inference: "none"` and empty lists, not an
+ * error - the designer asks speculatively whenever the first dropdown changes.
+ */
+export const fetchLinkedProperties = async (
+  alias: string, propertyAlias: string, getToken: TokenGetter,
+): Promise<DiLinkedProperties> =>
+  json(await request(
+    `/document-types/${encodeURIComponent(alias)}/properties/${encodeURIComponent(propertyAlias)}/linked`,
+    getToken,
+  ));
 
 export async function fetchSampleContent(
   alias: string, query: string, skip: number, take: number, getToken: TokenGetter,

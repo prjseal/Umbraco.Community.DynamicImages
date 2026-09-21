@@ -43,6 +43,7 @@ export interface DiImageSource {
   kind: ImageSourceKind;
   mediaKey?: string | null;
   path?: string | null;
+  /** {@link DottedAlias} - e.g. `author.mainImage` for the picked author's photo. */
   propertyAlias?: string | null;
   fallback?: DiImageSource | null;
 }
@@ -51,6 +52,10 @@ export type TextBindingKind = "property" | "nodeName" | "readingTime" | "date" |
 
 export interface DiTextBinding {
   kind: TextBindingKind;
+  /**
+   * {@link DottedAlias}. A bare reference - `author` with no tail - draws the linked node's name
+   * rather than its UDI.
+   */
   propertyAlias?: string | null;
   format?: string | null;
   culture?: string | null;
@@ -61,6 +66,7 @@ export type VisibilityRuleKind = "always" | "whenNotEmpty" | "whenPropertyTruthy
 
 export interface DiVisibility {
   rule: VisibilityRuleKind;
+  /** {@link DottedAlias} - e.g. `author.isFeatured`. */
   propertyAlias?: string | null;
 }
 
@@ -121,6 +127,10 @@ export interface DiImageLayer extends DiLayerBase {
 
 export interface DiBadgesLayer extends DiLayerBase {
   type: "badges";
+  /**
+   * {@link DottedAlias}. The label and icon aliases below are single-segment reads on each badge
+   * item and do not follow references.
+   */
   itemsPropertyAlias: string;
   labelPropertyAlias?: string | null;
   maxItems: number;
@@ -311,6 +321,38 @@ export interface DiDocumentType {
   alias: string;
   name: string;
   icon: string;
+}
+
+/**
+ * Any `propertyAlias` on a binding may be a dotted path - `author.mainImage` - which follows the
+ * content reference in its first segment and reads the last segment on the node it lands on.
+ *
+ * Three rules, all enforced server-side: **the first node wins** when a picker holds several,
+ * there is no index syntax, and a path may follow at most `MAX_HOPS` (3) references - beyond that
+ * it resolves to nothing rather than being truncated, and the template validator warns.
+ *
+ * The dotted string rides in the existing field, so the template JSON and uSync serialisation
+ * carry it unchanged.
+ */
+export type DottedAlias = string;
+
+/** How {@link DiLinkedProperties.targetDocTypes} was arrived at. */
+export type LinkedInference =
+  /** The picker's own content-type filter said so. */
+  | "filter"
+  /** Inferred from what existing content actually picks. */
+  | "sampled"
+  /** Nothing could narrow it, so every document type is offered. */
+  | "all"
+  /** The property is not a content reference at all. */
+  | "none";
+
+/** What a content-reference property points at, and what can be read on the far side of it. */
+export interface DiLinkedProperties {
+  propertyAlias: string;
+  inference: LinkedInference;
+  targetDocTypes: DiDocumentType[];
+  properties: DiProperty[];
 }
 
 export interface DiProperty {
