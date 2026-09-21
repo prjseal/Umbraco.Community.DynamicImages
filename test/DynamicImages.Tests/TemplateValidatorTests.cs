@@ -186,6 +186,119 @@ public class TemplateValidatorTests
     /// those interfaces would cost more than the warnings under test are worth, and a member that
     /// does get called returns nothing rather than quietly passing.
     /// </summary>
+    // ---------------------------------------------------------------- PropertyPathTooDeep
+
+    // Validator() hands KnownPropertyAliases a content-type service that is never called, so
+    // PropertyUnknown is off throughout - which is exactly what the depth check needs, since it
+    // deliberately sits outside that guard and must fire with no document types resolved at all.
+
+    private static Template WithLayer(LayerBase layer)
+    {
+        var template = Template();
+        template.Layers.Add(layer);
+        return template;
+    }
+
+    private static TextLayer Bound(string alias) => new()
+    {
+        Name = "Byline",
+        Binding = new TextBinding { Kind = TextBindingKind.Property, PropertyAlias = alias }
+    };
+
+    [Fact]
+    public async Task ATextBindingPathOverTheCap_WarnsAndNamesTheLayer()
+    {
+        var issues = await Validate(WithLayer(Bound("a.b.c.d.e")));
+
+        var issue = Assert.Single(issues, i => i.Code == "PropertyPathTooDeep");
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
+        Assert.Contains("Byline", issue.Message);
+        Assert.Contains("a.b.c.d.e", issue.Message);
+    }
+
+    [Fact]
+    public async Task ATwoSegmentPath_DoesNotWarn()
+        => Assert.DoesNotContain(await Validate(WithLayer(Bound("author.mainImage"))),
+            i => i.Code == "PropertyPathTooDeep");
+
+    [Fact]
+    public async Task APathAtTheCap_DoesNotWarn()
+        => Assert.DoesNotContain(await Validate(WithLayer(Bound("a.b.c.d"))),
+            i => i.Code == "PropertyPathTooDeep");
+
+    [Fact]
+    public async Task AnImageSourcePathOverTheCap_Warns()
+    {
+        var layer = new ImageLayer
+        {
+            Name = "Author photo",
+            Source = new ImageSource { Kind = ImageSourceKind.Property, PropertyAlias = "a.b.c.d.e" }
+        };
+
+        Assert.Contains(await Validate(WithLayer(layer)), i => i.Code == "PropertyPathTooDeep");
+    }
+
+    [Fact]
+    public async Task AnImageFallbackPathOverTheCap_Warns()
+    {
+        var layer = new ImageLayer
+        {
+            Name = "Author photo",
+            Source = new ImageSource
+            {
+                Kind = ImageSourceKind.Property,
+                PropertyAlias = "author.mainImage",
+                Fallback = new ImageSource { Kind = ImageSourceKind.Property, PropertyAlias = "a.b.c.d.e" }
+            }
+        };
+
+        Assert.Contains(await Validate(WithLayer(layer)), i => i.Code == "PropertyPathTooDeep");
+    }
+
+    [Fact]
+    public async Task ABadgesItemsPathOverTheCap_Warns()
+    {
+        // No icon: the path-pattern check reaches for a web host environment this suite does not
+        // build, and it is not what this test is about.
+        var layer = new BadgesLayer { Name = "Categories", ItemsPropertyAlias = "a.b.c.d.e" };
+        layer.Icon.Kind = BadgeIconKind.None;
+
+        Assert.Contains(await Validate(WithLayer(layer)), i => i.Code == "PropertyPathTooDeep");
+    }
+
+    [Fact]
+    public async Task AVisibilityPathOverTheCap_Warns()
+    {
+        var layer = new RectLayer { Name = "Scrim", Fill = "#000000" };
+        layer.Visibility.Rule = VisibilityRuleKind.WhenPropertyTruthy;
+        layer.Visibility.PropertyAlias = "a.b.c.d.e";
+
+        Assert.Contains(await Validate(WithLayer(layer)), i => i.Code == "PropertyPathTooDeep");
+    }
+
+    [Fact]
+    public async Task AnExpressionTokenPathOverTheCap_Warns()
+    {
+        var layer = new TextLayer
+        {
+            Name = "Byline",
+            Binding = new TextBinding { Kind = TextBindingKind.Expression, Text = "By {prop:a.b.c.d.e}" }
+        };
+
+        Assert.Contains(await Validate(WithLayer(layer)), i => i.Code == "PropertyPathTooDeep");
+    }
+
+    [Fact]
+    public async Task ACanvasBaseImagePathOverTheCap_Warns()
+    {
+        var template = Template();
+        template.Canvas.BaseImage = new ImageSource { Kind = ImageSourceKind.Property, PropertyAlias = "a.b.c.d.e" };
+
+        var issue = Assert.Single(await Validate(template), i => i.Code == "PropertyPathTooDeep");
+        Assert.Null(issue.LayerKey);
+        Assert.Contains("canvas base image", issue.Message);
+    }
+
     private static T NeverCalled<T>() where T : class => DispatchProxy.Create<T, ReturnsDefault>();
 
     private class ReturnsDefault : DispatchProxy

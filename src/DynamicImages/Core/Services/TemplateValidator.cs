@@ -73,6 +73,11 @@ public sealed partial class TemplateValidator(
             issues.Add(new ValidationIssue(ValidationSeverity.Error, "CanvasSizeInvalid", canvasProblem));
         }
 
+        foreach (var alias in PropertyAliasesOf(template.Canvas.BaseImage))
+        {
+            WarnIfTooDeep(alias, "The canvas base image", null, issues);
+        }
+
         if (!string.IsNullOrWhiteSpace(template.Canvas.Background) &&
             !ColourParser.TryParse(template.Canvas.Background, out _))
         {
@@ -253,10 +258,17 @@ public sealed partial class TemplateValidator(
 
                 foreach (var alias in BoundAliases(text))
                 {
-                    if (propertyAliases.Count > 0 && !propertyAliases.Contains(alias))
+                    // The first segment only. Checking the tail would mean inferring the linked
+                    // document types - the same best-effort guess the linked-properties endpoint
+                    // makes - and a warning built on a guess is worse than silence.
+                    var first = PropertyPath.Parse(alias).First;
+
+                    if (propertyAliases.Count > 0 && !propertyAliases.Contains(first))
                     {
                         issues.Add(new ValidationIssue(ValidationSeverity.Warning, "PropertyUnknown",
-                            $"Layer '{Describe(layer)}' reads '{alias}', which none of the selected document types have.", layer.Key));
+                            PropertyPath.IsPath(alias)
+                                ? $"Layer '{Describe(layer)}' reads '{alias}', and none of the selected document types have a property called '{first}' to follow."
+                                : $"Layer '{Describe(layer)}' reads '{alias}', which none of the selected document types have.", layer.Key));
                     }
                 }
                 break;
@@ -337,6 +349,15 @@ public sealed partial class TemplateValidator(
                 break;
         }
 
+        // Deliberately outside the propertyAliases guard above: a path being too deep to follow
+        // needs no document types to be true. It covers every binding site on the layer, while
+        // PropertyUnknown stays on text layers alone - extending that to the other fields would be
+        // correct and would fire on templates that have worked for months. Noted as a follow-up.
+        foreach (var alias in AliasesOf(layer))
+        {
+            WarnIfTooDeep(alias, $"Layer '{Describe(layer)}'", layer.Key, issues);
+        }
+
         if (layer.Opacity is < 0 or > 1)
         {
             issues.Add(new ValidationIssue(ValidationSeverity.Error, "OpacityInvalid",
@@ -406,6 +427,55 @@ public sealed partial class TemplateValidator(
                 foreach (var alias in TextResolver.ReferencedAliases(text.Binding.Text)) yield return alias;
                 break;
         }
+    }
+
+    /// <summary>
+    /// Every alias a layer reads, across all four binding sites: the text bindings, an image
+    /// source and its fallback chain, a badges layer's items, and the visibility rule.
+    /// </summary>
+    private static IEnumerable<string> AliasesOf(LayerBase layer)
+    {
+        if (layer is TextLayer text)
+        {
+            foreach (var alias in BoundAliases(text)) yield return alias;
+        }
+
+        if (layer is ImageLayer image)
+        {
+            foreach (var alias in PropertyAliasesOf(image.Source)) yield return alias;
+        }
+
+        if (layer is BadgesLayer badges && !string.IsNullOrWhiteSpace(badges.ItemsPropertyAlias))
+        {
+            yield return badges.ItemsPropertyAlias;
+        }
+
+        if (!string.IsNullOrWhiteSpace(layer.Visibility.PropertyAlias)) yield return layer.Visibility.PropertyAlias;
+    }
+
+    /// <summary>An image source's property alias, and every one down its fallback chain.</summary>
+    private static IEnumerable<string> PropertyAliasesOf(ImageSource? source)
+    {
+        while (source is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(source.PropertyAlias)) yield return source.PropertyAlias;
+
+            source = source.Fallback;
+        }
+    }
+
+    /// <summary>
+    /// A path that follows more references than the renderer follows resolves to nothing rather
+    /// than being truncated, so this is the only way the editor finds out. <paramref name="what"/>
+    /// is the phrase that names the thing, as in <see cref="RequireColour(string?, string, Guid?, List{ValidationIssue})"/>.
+    /// </summary>
+    private static void WarnIfTooDeep(string alias, string what, Guid? layerKey, List<ValidationIssue> issues)
+    {
+        var path = PropertyPath.Parse(alias);
+        if (!path.IsTooDeep) return;
+
+        issues.Add(new ValidationIssue(ValidationSeverity.Warning, "PropertyPathTooDeep",
+            $"{what} reads '{alias}', which follows {path.Hops.Count} content references; at most {PropertyPath.MaxHops} are followed, so it will be empty.", layerKey));
     }
 
     /// <summary>
