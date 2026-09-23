@@ -6225,7 +6225,7 @@ let Oe = class extends C {
         ${this.suffix ? r`<span class="suffix">${this.suffix}</span>` : h}
       </span>
     `;
-    return this.label ? this.compact ? r`<label class="compact-field"><span class="compact-label">${this.label}</span>${e}</label>` : r`<umb-property-layout orientation="vertical" label=${this.label}>${e}</umb-property-layout>` : e;
+    return !this.label || this.compact ? e : r`<umb-property-layout orientation="vertical" label=${this.label}>${e}</umb-property-layout>`;
   }
 };
 Js = /* @__PURE__ */ new WeakSet();
@@ -6248,19 +6248,30 @@ Oe.styles = F`
       padding: var(--uui-size-space-3) 0;
     }
 
-    .compact-field {
-      display: grid;
-      gap: 2px;
-    }
-
-    .compact-label {
-      font-size: 11px;
-      color: var(--uui-color-text-alt);
+    :host([compact]) .input {
+      box-sizing: border-box;
+      height: 100%;
+      border-radius: var(--di-number-field-border-radius, var(--uui-border-radius));
     }
 
     :host([compact]) input {
       min-height: 0;
-      padding: 4px 6px;
+      height: 100%;
+      padding: 0 2px 0 var(--uui-size-space-2, 6px);
+      text-align: right;
+      /* The buttons either side already step it; the spinner only crowded the number. */
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+
+    :host([compact]) input::-webkit-inner-spin-button,
+    :host([compact]) input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    :host([compact]) .suffix {
+      padding-right: var(--uui-size-space-2, 6px);
     }
 
     .input {
@@ -8035,33 +8046,38 @@ let Ce = class extends C {
     return r`
       <div class="toolbar" @focusout=${() => this.requestUpdate()}>
         <div class="zoom">
-          <!-- Stepping multiplies the *effective* scale, so stepping up out of Fit lands one
+          <!-- One segmented control, [-|27 %|+], the way Figma, Photoshop and Affinity draw zoom:
+               every segment the same height and edge to edge, and no caption above the number -
+               the old "Zoom" label pushed the field below the buttons either side of it.
+               Stepping multiplies the *effective* scale, so stepping up out of Fit lands one
                step above what is on screen rather than jumping to 125%. -->
-          <uui-button
-            compact
-            look="secondary"
-            label="Zoom out"
-            @click=${() => ne(this, H, Be).call(this, "di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
-            <uui-icon name="icon-zoom-out"></uui-icon>
-          </uui-button>
-          <di-number-field
-            compact
-            class="value"
-            label="Zoom"
-            suffix="%"
-            step="5"
-            .min=${Io.min * 100}
-            .max=${Io.max * 100}
-            .value=${ne(this, H, Fd).call(this)}
-            @change=${ne(this, H, Pd)}>
-          </di-number-field>
-          <uui-button
-            compact
-            look="secondary"
-            label="Zoom in"
-            @click=${() => ne(this, H, Be).call(this, "di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
-            <uui-icon name="icon-zoom-in"></uui-icon>
-          </uui-button>
+          <div class="segmented" role="group" aria-label="Zoom">
+            <uui-button
+              compact
+              look="secondary"
+              label="Zoom out"
+              @click=${() => ne(this, H, Be).call(this, "di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
+              <uui-icon name="icon-zoom-out"></uui-icon>
+            </uui-button>
+            <di-number-field
+              compact
+              class="value"
+              label="Zoom"
+              suffix="%"
+              step="5"
+              .min=${Io.min * 100}
+              .max=${Io.max * 100}
+              .value=${ne(this, H, Fd).call(this)}
+              @change=${ne(this, H, Pd)}>
+            </di-number-field>
+            <uui-button
+              compact
+              look="secondary"
+              label="Zoom in"
+              @click=${() => ne(this, H, Be).call(this, "di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
+              <uui-icon name="icon-zoom-in"></uui-icon>
+            </uui-button>
+          </div>
           <uui-button compact look="secondary" label="Fit to the window" @click=${() => ne(this, H, Be).call(this, "di-zoom-fit")}>
             Fit
           </uui-button>
@@ -8125,6 +8141,11 @@ Ce.styles = F`
     }
 
     .toolbar {
+      /* One height for every control in the row, so nothing sits a few pixels proud of its
+         neighbour - the field and the buttons especially. */
+      --di-toolbar-control-height: var(--uui-size-11, 33px);
+      --uui-button-height: var(--di-toolbar-control-height);
+
       display: flex;
       align-items: center;
       gap: var(--uui-size-space-4);
@@ -8144,10 +8165,31 @@ Ce.styles = F`
       margin-left: auto;
     }
 
+    /* The three segments butt together and only the outer corners are rounded. */
+    .segmented {
+      display: flex;
+      align-items: stretch;
+      height: var(--di-toolbar-control-height);
+    }
+
+    .segmented uui-button {
+      --uui-button-border-radius: 0;
+    }
+
+    .segmented uui-button:first-child {
+      --uui-button-border-radius: var(--uui-border-radius) 0 0 var(--uui-border-radius);
+    }
+
+    .segmented uui-button:last-child {
+      --uui-button-border-radius: 0 var(--uui-border-radius) var(--uui-border-radius) 0;
+    }
+
     /* A fixed narrow width, so the toolbar row does not shuffle sideways as the readout goes
        from 27 to 100 to 400. This is what the old span's min-width was for. */
     .value {
-      width: 72px;
+      --di-number-field-border-radius: 0;
+      width: 56px;
+      height: 100%;
       font-size: 12px;
     }
   `;

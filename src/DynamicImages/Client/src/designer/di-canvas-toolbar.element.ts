@@ -87,33 +87,38 @@ export class DiCanvasToolbarElement extends UmbLitElement {
     return html`
       <div class="toolbar" @focusout=${() => this.requestUpdate()}>
         <div class="zoom">
-          <!-- Stepping multiplies the *effective* scale, so stepping up out of Fit lands one
+          <!-- One segmented control, [-|27 %|+], the way Figma, Photoshop and Affinity draw zoom:
+               every segment the same height and edge to edge, and no caption above the number -
+               the old "Zoom" label pushed the field below the buttons either side of it.
+               Stepping multiplies the *effective* scale, so stepping up out of Fit lands one
                step above what is on screen rather than jumping to 125%. -->
-          <uui-button
-            compact
-            look="secondary"
-            label="Zoom out"
-            @click=${() => this.#emit("di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
-            <uui-icon name="icon-zoom-out"></uui-icon>
-          </uui-button>
-          <di-number-field
-            compact
-            class="value"
-            label="Zoom"
-            suffix="%"
-            step="5"
-            .min=${ZOOM_BOUNDS.min * 100}
-            .max=${ZOOM_BOUNDS.max * 100}
-            .value=${this.#percentToShow()}
-            @change=${this.#onPercentChange}>
-          </di-number-field>
-          <uui-button
-            compact
-            look="secondary"
-            label="Zoom in"
-            @click=${() => this.#emit("di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
-            <uui-icon name="icon-zoom-in"></uui-icon>
-          </uui-button>
+          <div class="segmented" role="group" aria-label="Zoom">
+            <uui-button
+              compact
+              look="secondary"
+              label="Zoom out"
+              @click=${() => this.#emit("di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
+              <uui-icon name="icon-zoom-out"></uui-icon>
+            </uui-button>
+            <di-number-field
+              compact
+              class="value"
+              label="Zoom"
+              suffix="%"
+              step="5"
+              .min=${ZOOM_BOUNDS.min * 100}
+              .max=${ZOOM_BOUNDS.max * 100}
+              .value=${this.#percentToShow()}
+              @change=${this.#onPercentChange}>
+            </di-number-field>
+            <uui-button
+              compact
+              look="secondary"
+              label="Zoom in"
+              @click=${() => this.#emit("di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
+              <uui-icon name="icon-zoom-in"></uui-icon>
+            </uui-button>
+          </div>
           <uui-button compact look="secondary" label="Fit to the window" @click=${() => this.#emit("di-zoom-fit")}>
             Fit
           </uui-button>
@@ -165,6 +170,11 @@ export class DiCanvasToolbarElement extends UmbLitElement {
     }
 
     .toolbar {
+      /* One height for every control in the row, so nothing sits a few pixels proud of its
+         neighbour - the field and the buttons especially. */
+      --di-toolbar-control-height: var(--uui-size-11, 33px);
+      --uui-button-height: var(--di-toolbar-control-height);
+
       display: flex;
       align-items: center;
       gap: var(--uui-size-space-4);
@@ -184,10 +194,31 @@ export class DiCanvasToolbarElement extends UmbLitElement {
       margin-left: auto;
     }
 
+    /* The three segments butt together and only the outer corners are rounded. */
+    .segmented {
+      display: flex;
+      align-items: stretch;
+      height: var(--di-toolbar-control-height);
+    }
+
+    .segmented uui-button {
+      --uui-button-border-radius: 0;
+    }
+
+    .segmented uui-button:first-child {
+      --uui-button-border-radius: var(--uui-border-radius) 0 0 var(--uui-border-radius);
+    }
+
+    .segmented uui-button:last-child {
+      --uui-button-border-radius: 0 var(--uui-border-radius) var(--uui-border-radius) 0;
+    }
+
     /* A fixed narrow width, so the toolbar row does not shuffle sideways as the readout goes
        from 27 to 100 to 400. This is what the old span's min-width was for. */
     .value {
-      width: 72px;
+      --di-number-field-border-radius: 0;
+      width: 56px;
+      height: 100%;
       font-size: 12px;
     }
   `;
