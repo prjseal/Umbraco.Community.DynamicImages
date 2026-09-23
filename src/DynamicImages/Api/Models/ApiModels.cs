@@ -87,6 +87,14 @@ public sealed record TemplateCollectionResponse(int Total, IReadOnlyList<Templat
 /// <summary>Null <c>TargetKey</c> is the Templates root.</summary>
 public sealed record MoveRequest(Guid? TargetKey);
 
+public sealed record SortItemRequest(Guid Key, int SortOrder);
+
+/// <summary>
+/// What the backoffice's sort modal sends: the children that were dragged, each with its index in
+/// the final list. <c>ParentKey</c> null is the root.
+/// </summary>
+public sealed record SortRequest(Guid? ParentKey, IReadOnlyList<SortItemRequest> Sorting);
+
 // ---------------------------------------------------------------- fonts
 
 public sealed record FontResponse(

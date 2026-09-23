@@ -1,5 +1,6 @@
 import {
   DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS, DI_MOVE_FOLDER_REPOSITORY_ALIAS, DI_MOVE_TEMPLATE_REPOSITORY_ALIAS,
+  DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS,
   DI_TEMPLATE_DETAIL_REPOSITORY_ALIAS, DI_TEMPLATE_DETAIL_STORE_ALIAS, DI_TEMPLATE_ENTITY_TYPE,
   DI_TEMPLATE_FOLDER_ENTITY_TYPE, DI_TEMPLATE_FOLDER_REPOSITORY_ALIAS, DI_TEMPLATE_ITEM_REPOSITORY_ALIAS,
   DI_TEMPLATE_ITEM_STORE_ALIAS, DI_TEMPLATE_ROOT_ENTITY_TYPE, DI_TEMPLATE_TREE_ALIAS, DI_TEMPLATE_TREE_REPOSITORY_ALIAS,
@@ -56,6 +57,12 @@ export const manifests: Array<UmbExtensionManifest> = [
     alias: DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
     name: "Dynamic Images Duplicate Template Repository",
     api: () => import("./duplicate-to-template.repository.js"),
+  },
+  {
+    type: "repository",
+    alias: DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS,
+    name: "Dynamic Images Sort Template Children Repository",
+    api: () => import("./sort/sort-template-children.repository.js"),
   },
 
   // ---------------------------------------------------------------- create
@@ -210,6 +217,17 @@ export const manifests: Array<UmbExtensionManifest> = [
     forEntityTypes: CONTAINERS,
     weight: 300,
     meta: { icon: "icon-page-up", label: "Import JSON", additionalOptions: true },
+  },
+  {
+    type: "entityAction",
+    kind: "sortChildrenOf",
+    alias: "DynamicImages.EntityAction.Template.SortChildren",
+    name: "Sort Dynamic Images Templates",
+    forEntityTypes: CONTAINERS,
+    meta: {
+      sortChildrenOfRepositoryAlias: DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS,
+      treeRepositoryAlias: DI_TEMPLATE_TREE_REPOSITORY_ALIAS,
+    },
   },
   {
     type: "entityAction",

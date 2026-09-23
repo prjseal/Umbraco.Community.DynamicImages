@@ -23,8 +23,14 @@ public interface ITemplateRepository
     /// </summary>
     Template? Update(Template template, DateTime? expectedUpdatedUtc, Guid? userKey);
 
-    /// <summary>Sets the template's folder (null for the root) without touching anything else.</summary>
-    bool Move(Guid key, Guid? parentKey);
+    /// <summary>
+    /// Sets the template's folder (null for the root) and its place there, without touching
+    /// anything else.
+    /// </summary>
+    bool Move(Guid key, Guid? parentKey, int sortOrder);
+
+    /// <summary>Writes sort orders from the tree's Sort action, in one transaction.</summary>
+    void SetSortOrders(IReadOnlyCollection<(Guid Key, int SortOrder)> sortOrders);
 
     /// <summary>
     /// Sets the enabled column and stamps <c>updatedUtc</c>, leaving everything else alone. The

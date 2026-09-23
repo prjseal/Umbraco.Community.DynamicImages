@@ -56,7 +56,10 @@ public class TemplateDto
     [Index(IndexTypes.NonClustered, Name = "IX_DynamicImages_Template_parentKey")]
     public Guid? ParentKey { get; set; }
 
-    /// <summary>Stored for a future sort action. Zero for everything today; the tree orders by name.</summary>
+    /// <summary>
+    /// Its place among its siblings, set by the tree's Sort action and by appending on create and
+    /// move. Rows from before sorting are all 0, which orders them folders first, then by name.
+    /// </summary>
     [Column("sortOrder")]
     [Constraint(Default = "0")]
     public int SortOrder { get; set; }

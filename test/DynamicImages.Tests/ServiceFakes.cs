@@ -105,19 +105,30 @@ internal sealed class InMemoryTemplateRepository : ITemplateRepository
 
     public Template? Update(Template template, DateTime? expectedUpdatedUtc, Guid? userKey)
     {
-        if (!_rows.ContainsKey(template.Key)) return null;
+        if (!_rows.TryGetValue(template.Key, out var existing)) return null;
 
+        // As the real one: only a move or a sort changes the order.
+        template.SortOrder = existing.SortOrder;
         template.UpdatedUtc = DateTime.UtcNow;
         _rows[template.Key] = Copy(template);
         return template;
     }
 
-    public bool Move(Guid key, Guid? parentKey)
+    public bool Move(Guid key, Guid? parentKey, int sortOrder)
     {
         if (!_rows.TryGetValue(key, out var row)) return false;
 
         row.ParentKey = parentKey;
+        row.SortOrder = sortOrder;
         return true;
+    }
+
+    public void SetSortOrders(IReadOnlyCollection<(Guid Key, int SortOrder)> sortOrders)
+    {
+        foreach (var (key, sortOrder) in sortOrders)
+        {
+            if (_rows.TryGetValue(key, out var row)) row.SortOrder = sortOrder;
+        }
     }
 
     public bool SetEnabled(Guid key, bool isEnabled)
@@ -137,6 +148,8 @@ internal sealed class InMemoryTemplateRepository : ITemplateRepository
     {
         var json = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default);
         var copy = JsonSerializer.Deserialize<Template>(json, DynamicImagesJsonOptions.Default)!;
+        // Not in the JSON, as in the real table: carried across by hand.
+        copy.SortOrder = template.SortOrder;
         copy.UpdatedUtc = template.UpdatedUtc;
         return copy;
     }

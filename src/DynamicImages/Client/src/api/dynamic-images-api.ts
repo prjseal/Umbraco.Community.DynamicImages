@@ -188,6 +188,16 @@ export async function moveFolder(key: string, targetKey: string | null, getToken
   await request(`/folders/${key}/move`, getToken, { method: "PUT", json: { targetKey } });
 }
 
+/**
+ * The sort modal's result: the dragged children of `parentKey` (null is the root), each with its
+ * final index. The server fills in the rest.
+ */
+export async function sortTreeChildren(
+  parentKey: string | null, sorting: Array<{ key: string; sortOrder: number }>, getToken: TokenGetter,
+): Promise<void> {
+  await request("/tree/sort", getToken, { method: "PUT", json: { parentKey, sorting } });
+}
+
 // ---------------------------------------------------------------- fonts
 
 export const fetchFonts = async (getToken: TokenGetter): Promise<DiFont[]> =>

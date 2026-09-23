@@ -31,6 +31,9 @@ public sealed partial class TemplateService(
         // the template at the root rather than failing the create or orphaning it.
         if (template.ParentKey is { } parentKey && folderRepository.Get(parentKey) is null) template.ParentKey = null;
 
+        // Last among its new siblings, as core appends a new node.
+        template.SortOrder = Tree().NextSortOrder(template.ParentKey);
+
         var validation = await validator.ValidateAsync(template, cancellationToken);
         if (!validation.IsValid) return SaveResult.Failed(SaveOutcome.Invalid, validation);
 
@@ -89,7 +92,7 @@ public sealed partial class TemplateService(
     public async Task<TreeOperationOutcome> MoveAsync(Guid key, Guid? targetKey, CancellationToken cancellationToken = default)
     {
         if (targetKey is { } target && folderRepository.Get(target) is null) return TreeOperationOutcome.TargetNotFound;
-        if (!repository.Move(key, targetKey)) return TreeOperationOutcome.NotFound;
+        if (!repository.Move(key, targetKey, Tree().NextSortOrder(targetKey))) return TreeOperationOutcome.NotFound;
 
         Notify(key);
 
@@ -146,6 +149,34 @@ public sealed partial class TemplateService(
         return EnableOutcome.Changed;
     }
 
+    public async Task<TreeOperationOutcome> SortChildrenAsync(
+        Guid? parentKey, IReadOnlyList<(Guid Key, int SortOrder)> sorting, CancellationToken cancellationToken = default)
+    {
+        if (parentKey is { } parent && folderRepository.Get(parent) is null) return TreeOperationOutcome.NotFound;
+
+        var changes = Tree().ApplySort(parentKey, sorting);
+
+        repository.SetSortOrders(changes.Where(c => !c.IsFolder).Select(c => (c.Key, c.SortOrder)).ToList());
+        Notify(parentKey ?? Guid.Empty);
+
+        // Folders carry their sort order in their uSync file, so each one that moved is saved -
+        // which publishes the notification that re-exports it.
+        foreach (var change in changes.Where(c => c.IsFolder))
+        {
+            var folder = folderRepository.Get(change.Key);
+            if (folder is null || folder.SortOrder == change.SortOrder) continue;
+
+            folder.SortOrder = change.SortOrder;
+            if (folderRepository.Update(folder) is { } saved)
+            {
+                await eventAggregator.PublishAsync(
+                    new DynamicImagesTemplateFolderSavedNotification(saved, new EventMessages()), cancellationToken);
+            }
+        }
+
+        return TreeOperationOutcome.Success;
+    }
+
     public string SuggestAlias(string name, Guid? exceptKey = null)
     {
         var candidate = ToCamelCase(name);
@@ -161,6 +192,9 @@ public sealed partial class TemplateService(
 
         return $"{candidate}{Guid.NewGuid():N}"[..40];
     }
+
+    /// <summary>The tree as it stands, for placing and ordering.</summary>
+    private TemplateTree Tree() => new(folderRepository.GetAll(), cache.GetAll());
 
     /// <summary>
     /// Drops the local cache immediately and asks every other server to do the same. Umbraco

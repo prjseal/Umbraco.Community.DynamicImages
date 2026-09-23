@@ -24,6 +24,7 @@ export const DI_TEMPLATE_DETAIL_STORE_ALIAS = "DynamicImages.Store.TemplateDetai
 export const DI_MOVE_TEMPLATE_REPOSITORY_ALIAS = "DynamicImages.Repository.MoveTemplate";
 export const DI_MOVE_FOLDER_REPOSITORY_ALIAS = "DynamicImages.Repository.MoveTemplateFolder";
 export const DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS = "DynamicImages.Repository.DuplicateTemplate";
+export const DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS = "DynamicImages.Repository.SortTemplateChildren";
 
 /** Icons for the three entity types. A disabled template is shown greyed via umb-icon's colour suffix. */
 export const DI_TEMPLATE_ICON = "icon-picture";

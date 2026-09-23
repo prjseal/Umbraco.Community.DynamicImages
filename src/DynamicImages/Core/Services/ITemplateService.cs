@@ -77,6 +77,15 @@ public interface ITemplateService
     /// </summary>
     Task<EnableOutcome> SetEnabledAsync(Guid key, bool isEnabled, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Reorders what is directly under <paramref name="parentKey"/> (null is the root), folders and
+    /// templates together, from what the backoffice's sort modal sends: the dragged children, each
+    /// with its final index. See <see cref="FolderTree{TFolder,TLeaf}.ApplySort"/>. A parent folder
+    /// that does not exist is <see cref="TreeOperationOutcome.NotFound"/>.
+    /// </summary>
+    Task<TreeOperationOutcome> SortChildrenAsync(
+        Guid? parentKey, IReadOnlyList<(Guid Key, int SortOrder)> sorting, CancellationToken cancellationToken = default);
+
     /// <summary>An alias derived from a name that no existing template is using.</summary>
     string SuggestAlias(string name, Guid? exceptKey = null);
 }

@@ -80,8 +80,10 @@ public sealed class TemplateRepository(
         dto.Id = existing.Id;
         dto.CreatedUtc = existing.CreatedUtc;
 
-        // Nothing sorts templates yet, so an ordinary save keeps whatever order the row has.
+        // Only a sort or a move changes the order; an ordinary save keeps the row's. The designer
+        // cannot send one anyway - SortOrder is not in the JSON.
         dto.SortOrder = existing.SortOrder;
+        template.SortOrder = existing.SortOrder;
         dto.UpdatedUtc = now;
 
         // Optimistic concurrency as a condition on the write itself, not a comparison against the
@@ -109,18 +111,32 @@ public sealed class TemplateRepository(
         return updated > 0 ? template : null;
     }
 
-    public bool Move(Guid key, Guid? parentKey)
+    public bool Move(Guid key, Guid? parentKey, int sortOrder)
     {
-        // Only the column. The JSON copy of parentKey is refreshed on the next save and is
+        // Only the columns. The JSON copy of parentKey is refreshed on the next save and is
         // overruled by the column on every read in the meantime. updatedUtc is deliberately left
         // alone: a move is not an edit, and bumping it would give anyone with the template open
         // in the designer a 412 on their next save for something they cannot see.
         using var scope = scopeProvider.CreateScope();
         var moved = scope.Database.Execute(
-            $"UPDATE {DynamicImagesConstants.TemplateTableName} SET parentKey = @0 WHERE [key] = @1", parentKey, key);
+            $"UPDATE {DynamicImagesConstants.TemplateTableName} SET parentKey = @0, sortOrder = @1 WHERE [key] = @2",
+            parentKey, sortOrder, key);
         scope.Complete();
 
         return moved > 0;
+    }
+
+    public void SetSortOrders(IReadOnlyCollection<(Guid Key, int SortOrder)> sortOrders)
+    {
+        // Like a move, not an edit: updatedUtc stays, so an open designer can still save.
+        using var scope = scopeProvider.CreateScope();
+        foreach (var (key, sortOrder) in sortOrders)
+        {
+            scope.Database.Execute(
+                $"UPDATE {DynamicImagesConstants.TemplateTableName} SET sortOrder = @0 WHERE [key] = @1", sortOrder, key);
+        }
+
+        scope.Complete();
     }
 
     public bool SetEnabled(Guid key, bool isEnabled)
@@ -167,6 +183,7 @@ public sealed class TemplateRepository(
         SchemaVersion = template.SchemaVersion,
         Json = JsonSerializer.Serialize(template, DynamicImagesJsonOptions.Default),
         DocTypeAliases = string.Join(',', template.DocTypeAliases),
+        SortOrder = template.SortOrder,
         UpdatedByUserKey = userKey
     };
 
@@ -188,6 +205,7 @@ public sealed class TemplateRepository(
             template.Name = dto.Name;
             template.IsEnabled = dto.IsEnabled;
             template.ParentKey = dto.ParentKey;
+            template.SortOrder = dto.SortOrder;
             template.UpdatedUtc = dto.UpdatedUtc;
 
             return template;
