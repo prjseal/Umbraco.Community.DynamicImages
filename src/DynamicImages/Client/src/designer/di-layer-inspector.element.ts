@@ -1328,10 +1328,17 @@ export class DiLayerInspectorElement extends UmbLitElement {
       flex: 1 1 auto;
     }
 
+    /* The same space above and below every field as the umb-property-layout ones get, so a
+       dropdown never sits tight against the one before or after it. */
     .field {
       display: grid;
-      gap: 2px;
-      margin-bottom: var(--uui-size-space-3);
+      gap: var(--uui-size-space-1);
+      padding: var(--uui-size-space-3) 0;
+    }
+
+    /* The box already pads its top edge. */
+    .field:first-child {
+      padding-top: 0;
     }
 
     .field > span {
@@ -1339,8 +1346,19 @@ export class DiLayerInspectorElement extends UmbLitElement {
       color: var(--uui-color-text-alt);
     }
 
+    /* Core's property layout, tightened for a 320px panel: its own padding (--uui-size-layout-1
+       above and below) is sized for a full-width workspace, and stacked field after field it read
+       as a gap rather than as spacing. The label-to-editor distance stays core's own. */
+    umb-property-layout {
+      padding: var(--uui-size-space-3) 0;
+    }
+
+    umb-property-layout:first-child {
+      padding-top: 0;
+    }
+
     /* One hop per line, each full width; every hop after the first sits behind a 2px rule, as
-       the relative-position axes do. */
+       the relative-position axes do, with room either side of it. */
     .path {
       display: flex;
       flex-direction: column;
@@ -1351,14 +1369,17 @@ export class DiLayerInspectorElement extends UmbLitElement {
     .hop {
       display: flex;
       flex-direction: column;
-      gap: var(--uui-size-space-1);
-      padding-left: var(--uui-size-space-3);
+      gap: var(--uui-size-space-2);
+      margin-left: var(--uui-size-space-1);
+      padding: var(--uui-size-space-1) 0 var(--uui-size-space-1) var(--uui-size-space-4);
       border-left: 2px solid var(--uui-color-border);
       min-width: 0;
     }
 
     .hop-caption {
       color: var(--uui-color-text-alt);
+      font-size: var(--uui-type-small-size, 12px);
+      line-height: 1.3;
     }
 
     .property-select {
