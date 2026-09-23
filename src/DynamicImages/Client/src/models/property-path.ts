@@ -3,8 +3,8 @@
  * content reference in its first segment and reads the last segment on the node it lands on.
  *
  * This is the client's half of `Core/Rendering/PropertyPath.cs`, kept deliberately small: it only
- * has to split a stored alias into the two dropdowns the inspector shows and put it back together.
- * The server is what actually resolves a path.
+ * has to split a stored alias into the dropdowns the inspector shows - one per hop - and put it
+ * back together. The server is what actually resolves a path.
  */
 
 /** How many content references a path may follow. Mirrors `PropertyPath.MaxHops`. */
@@ -39,6 +39,13 @@ export function joinPath(root: string, tail: string | null | undefined): string 
 
   return trimmedTail ? `${trimmedRoot}.${trimmedTail}` : trimmedRoot;
 }
+
+/** Every segment of a stored alias: `"a.b.c"` gives `["a", "b", "c"]`. */
+export const pathSegments = (alias: string | null | undefined): string[] => segmentsOf(alias);
+
+/** The first `count` segments, joined back into an alias - the key each hop's properties live under. */
+export const pathPrefix = (segments: readonly string[], count: number): string =>
+  segments.slice(0, Math.max(0, count)).join(".");
 
 /** Empty segments are dropped, so `"author."` degrades to the bare alias - defensive, not a feature. */
 const segmentsOf = (alias: string | null | undefined): string[] =>

@@ -19,6 +19,8 @@ import type {
 import { createTemplate } from "../models/layer-factories.js";
 import { detach, referenceOn } from "../models/relative-layout.js";
 import { History } from "../designer/history.js";
+import { MAX_HOPS } from "../models/property-path.js";
+import { linkedCaption } from "../models/property-options.js";
 
 export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
 
@@ -40,6 +42,9 @@ export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
  * that long is not usable anyway.
  */
 const MAX_LINKED_ROOTS = 12;
+
+/** How many dotted prefixes the linked-property walk may load in all, across every depth. */
+const MAX_LINKED_PREFIXES = 36;
 
 export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBase<DiTemplate> {
   /**
@@ -64,6 +69,10 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
    */
   #linkedProperties = new UmbObjectState<Record<string, DiProperty[]>>({});
   readonly linkedProperties = this.#linkedProperties.asObservable();
+
+  /** Per dotted prefix, the caption over its dropdown: "Property on the linked Author". */
+  #linkedCaptions = new UmbObjectState<Record<string, string>>({});
+  readonly linkedCaptions = this.#linkedCaptions.asObservable();
 
   #fonts = new UmbArrayState<DiFont>([], (font) => font.key);
   readonly fonts = this.#fonts.asObservable();
@@ -272,27 +281,37 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
   /**
    * What each content-classified property points at, loaded eagerly rather than on demand. Lazy
-   * loading would leave the second dropdown empty for the moment right after the editor picks a
-   * root - the exact moment they are looking at it - and would need event plumbing back from the
+   * loading would leave the next dropdown empty for the moment right after the editor picks a
+   * hop - the exact moment they are looking at it - and would need event plumbing back from the
    * inspector for no gain.
    *
-   * Mirrors {@link #loadProperties}: one request per (docTypeAlias, rootAlias) pair, each
-   * swallowing its own failure, then flattened and de-duped by alias with the first winning.
+   * Keyed by the dotted prefix the properties sit behind - `author`, then `author.employer` - and
+   * walked breadth first down to `MAX_HOPS` references, so every hop the renderer follows gets its
+   * own dropdown. Each (docTypeAlias, prefix) request swallows its own failure; the lists are
+   * flattened and de-duped by alias with the first winning. `MAX_LINKED_PREFIXES` caps the walk,
+   * so a model where everything references everything cannot fan out without bound.
    */
   async #loadLinkedProperties(
     docTypeAliases: string[], properties: DiProperty[],
   ): Promise<Record<string, DiProperty[]>> {
-    const roots = properties
+    const result: Record<string, DiProperty[]> = {};
+    const captions: Record<string, string> = {};
+    if (docTypeAliases.length === 0) return result;
+
+    let frontier = properties
       .filter((property) => property.classification === "content")
-      .slice(0, MAX_LINKED_ROOTS);
+      .slice(0, MAX_LINKED_ROOTS)
+      .map((property) => property.alias);
+    let loaded = 0;
 
-    if (roots.length === 0 || docTypeAliases.length === 0) return {};
+    for (let depth = 1; depth <= MAX_HOPS && frontier.length > 0 && loaded < MAX_LINKED_PREFIXES; depth++) {
+      const batch = frontier.slice(0, MAX_LINKED_PREFIXES - loaded);
+      loaded += batch.length;
 
-    const loaded = await Promise.all(
-      roots.map(async (root) => {
+      const levels = await Promise.all(batch.map(async (prefix) => {
         const responses = await Promise.all(
           docTypeAliases.map((alias) =>
-            fetchLinkedProperties(alias, root.alias, this.getToken).catch(() => null)),
+            fetchLinkedProperties(alias, prefix, this.getToken).catch(() => null)),
         );
 
         const seen = new Map<string, DiProperty>();
@@ -300,11 +319,30 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
           if (!seen.has(property.alias)) seen.set(property.alias, property);
         }
 
-        return [root.alias, [...seen.values()]] as [string, DiProperty[]];
-      }),
-    );
+        const answered = responses.filter((response) => response !== null);
+        const targetNames = [...new Set(answered.flatMap((response) => response!.targetDocTypes.map((type) => type.name)))];
+        const inference = answered.some((response) => response!.inference === "all") ? "all" : answered[0]?.inference;
 
-    return Object.fromEntries(loaded.filter(([, list]) => list.length > 0));
+        return { prefix, properties: [...seen.values()], caption: linkedCaption(targetNames, inference) };
+      }));
+
+      frontier = [];
+      for (const level of levels) {
+        if (level.properties.length === 0) continue;
+
+        result[level.prefix] = level.properties;
+        captions[level.prefix] = level.caption;
+
+        if (depth < MAX_HOPS) {
+          frontier.push(...level.properties
+            .filter((property) => property.classification === "content" && !property.isSystem)
+            .map((property) => `${level.prefix}.${property.alias}`));
+        }
+      }
+    }
+
+    this.#linkedCaptions.setValue(captions);
+    return result;
   }
 
   /**

@@ -1,3 +1,4 @@
+using Umbraco.Community.DynamicImages.Api.Controllers;
 using Umbraco.Community.DynamicImages.Core.Rendering;
 using Xunit;
 
@@ -126,5 +127,81 @@ public class PropertyPathTests
         // tail lives on a document type it would have to guess at.
         Assert.Equal("author", PropertyPath.Parse("author.employer.logo").First);
         Assert.Equal("title", PropertyPath.Parse("title").First);
+    }
+
+    // ------------------------------------------------------------ multi-hop linked properties
+    //
+    // The linked-properties endpoint walks a dotted path a reference at a time. Modelled here as a
+    // tiny schema: a document type is a name, a property is "alias -> target types" (null when it
+    // is not a content reference).
+
+    private static readonly Dictionary<string, Dictionary<string, string[]?>> Schema = new()
+    {
+        ["article"] = new() { ["title"] = null, ["author"] = ["person"] },
+        ["person"] = new() { ["name"] = null, ["employer"] = ["company"], ["pets"] = [] },
+        ["company"] = new() { ["logo"] = null, ["parent"] = ["company"] },
+    };
+
+    private static Task<LinkedPathResult<string, string>> Walk(string path)
+        => LinkedPath.WalkAsync<string, string>(
+            ["article"],
+            path.Split('.'),
+            (owners, alias) => owners.FirstOrDefault(o => Schema[o].ContainsKey(alias)) is { } owner ? (owner, alias) : null,
+            (owner, property) => Task.FromResult<(IReadOnlyList<string>?, string)>(
+                (Schema[owner][property], Schema[owner][property] is null ? "none" : "filter")));
+
+    [Fact]
+    public async Task A_one_hop_path_lands_on_the_first_reference()
+    {
+        var result = await Walk("author");
+
+        Assert.Equal(LinkedPathOutcome.Found, result.Outcome);
+        Assert.Equal(("article", "author"), (result.Owner, result.Property));
+    }
+
+    [Fact]
+    public async Task A_two_hop_path_follows_the_first_reference_to_the_second()
+    {
+        var result = await Walk("author.employer");
+
+        Assert.Equal(LinkedPathOutcome.Found, result.Outcome);
+        Assert.Equal(("person", "employer"), (result.Owner, result.Property));
+        Assert.Equal("filter", result.Inference);
+    }
+
+    [Fact]
+    public async Task A_three_hop_path_reaches_the_third_document_type()
+    {
+        var result = await Walk("author.employer.parent");
+
+        Assert.Equal(LinkedPathOutcome.Found, result.Outcome);
+        Assert.Equal(("company", "parent"), (result.Owner, result.Property));
+    }
+
+    [Fact]
+    public async Task A_hop_through_something_that_is_not_a_reference_stops()
+    {
+        var result = await Walk("title.anything");
+
+        Assert.Equal(LinkedPathOutcome.NotAReference, result.Outcome);
+        Assert.Equal("title", result.FailedSegment);
+    }
+
+    [Fact]
+    public async Task A_segment_the_reached_type_does_not_have_is_missing()
+    {
+        var result = await Walk("author.logo");
+
+        Assert.Equal(LinkedPathOutcome.PropertyMissing, result.Outcome);
+        Assert.Equal("logo", result.FailedSegment);
+    }
+
+    [Fact]
+    public async Task A_reference_with_no_inferable_targets_says_so()
+    {
+        var result = await Walk("author.pets.name");
+
+        Assert.Equal(LinkedPathOutcome.NoTargets, result.Outcome);
+        Assert.Equal("pets", result.FailedSegment);
     }
 }

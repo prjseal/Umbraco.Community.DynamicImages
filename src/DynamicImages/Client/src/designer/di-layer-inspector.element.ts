@@ -1,4 +1,4 @@
-import { css, customElement, html, nothing, property, repeat } from "@umbraco-cms/backoffice/external/lit";
+import { css, customElement, html, ifDefined, nothing, property, repeat } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type {
   Anchor, DiBadgesLayer, DiFont, DiGradient, DiImageLayer, DiLayer, DiPosition, DiProperty, DiRectLayer,
@@ -8,7 +8,8 @@ import { reanchor } from "../models/anchor.js";
 import { canvasFill, withAlpha, type CanvasFill } from "../models/canvas-fill.js";
 import { createGradient } from "../models/layer-factories.js";
 import { DEFAULT_RELATIVE_GAP, isTracked, referenceOn, type Axis } from "../models/relative-layout.js";
-import { joinPath, splitPath } from "../models/property-path.js";
+import { MAX_HOPS, pathPrefix, pathSegments } from "../models/property-path.js";
+import { propertyOptions } from "../models/property-options.js";
 import { normalise } from "../models/rotation.js";
 import { MAX_INNER_RATIO, MAX_SIDES, MIN_INNER_RATIO, MIN_SIDES } from "../models/shape-geometry.js";
 import "../inputs/di-colour-input.element.js";
@@ -43,11 +44,16 @@ export class DiLayerInspectorElement extends UmbLitElement {
   properties: DiProperty[] = [];
 
   /**
-   * The properties reachable through each content-classified root, keyed by that root's alias.
-   * Loaded eagerly by the workspace context, so it is already here when the editor picks a root.
+   * The properties reachable through each content reference, keyed by the dotted prefix they sit
+   * behind - `author`, then `author.employer`. Loaded eagerly by the workspace context, so each
+   * hop's list is already here when the editor picks the hop before it.
    */
   @property({ type: Object })
   linkedProperties: Record<string, DiProperty[]> = {};
+
+  /** Per dotted prefix, the caption over its hop: "Property on the linked Author". */
+  @property({ type: Object })
+  linkedCaptions: Record<string, string> = {};
 
   @property({ type: Array })
   fonts: DiFont[] = [];
@@ -332,11 +338,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
         </label>
 
         ${binding.kind === "property" || binding.kind === "date" || binding.kind === "readingTime"
-          ? html`<label class="field">
-              <span>Property</span>
-              ${this.#propertyPathSelect(binding.propertyAlias ?? "", (alias) =>
-                this.#patch({ binding: { ...binding, propertyAlias: alias } } as Partial<DiLayer>))}
-            </label>`
+          ? this.#field("Property", this.#propertyPathSelect(binding.propertyAlias ?? "", (alias) =>
+              this.#patch({ binding: { ...binding, propertyAlias: alias } } as Partial<DiLayer>)))
           : nothing}
 
         ${binding.kind === "date"
@@ -521,17 +524,14 @@ export class DiLayerInspectorElement extends UmbLitElement {
         </label>
 
         ${source.kind === "property"
-          ? html`<label class="field">
-              <span>Property</span>
-              ${this.#propertyPathSelect(
-                source.propertyAlias ?? "",
-                (alias) => this.#patch({ source: { ...source, propertyAlias: alias } } as Partial<DiLayer>),
-                // The root widens from media to media + content, and the media filter moves to the
-                // tail: that is exactly the author.mainImage case, and it never offers a text
-                // property as an image source.
-                { root: ["media", "content"], tail: "media" },
-              )}
-            </label>`
+          ? this.#field("Property", this.#propertyPathSelect(
+              source.propertyAlias ?? "",
+              (alias) => this.#patch({ source: { ...source, propertyAlias: alias } } as Partial<DiLayer>),
+              // The root widens from media to media + content, and the media filter moves to the
+              // tail: that is exactly the author.mainImage case, and it never offers a text
+              // property as an image source.
+              { root: ["media", "content"], tail: "media" },
+            ))
           : nothing}
 
         ${source.kind === "path"
@@ -1176,73 +1176,85 @@ export class DiLayerInspectorElement extends UmbLitElement {
   // ------------------------------------------------------------------ shared field helpers
 
   /**
-   * Root and tail: the second dropdown reads the property on whatever node the first one's
-   * reference points at, and the two compose into the dotted alias the server resolves.
+   * One inspector field: core's label / description / editor layout, stacked, so every field in
+   * every panel has the same spacing and none of them sits beside another.
+   */
+  #field(label: string, editor: unknown, description?: string) {
+    return html`
+      <umb-property-layout orientation="vertical" label=${label} description=${ifDefined(description)}>
+        <div slot="editor" class="editor">${editor}</div>
+      </umb-property-layout>
+    `;
+  }
+
+  /**
+   * One dropdown per hop, stacked: the first reads a property on this node, and each one after it
+   * reads a property on whatever node the hop above points at, up to `MAX_HOPS` references. They
+   * compose into the dotted alias the server resolves.
    *
-   * Two composition rules. Changing the root replaces the whole alias, which clears the tail - the
-   * new root's properties are a different set, and carrying the old tail over would produce a path
-   * that resolves to nothing. `- none -` in the tail gives the bare reference, which a text layer
-   * draws as the linked node's name.
+   * Composition rules. Changing a hop replaces everything below it, which clears the lower hops -
+   * the new hop's target has a different set of properties, and carrying the old ones over would
+   * produce a path that resolves to nothing. `- none -` below the first gives the bare reference,
+   * which a text layer draws as the linked node's name.
    *
-   * Decoding is `splitPath` on every render, with no stored state in the element, so it survives a
-   * layer-selection change for free.
+   * Decoding is `pathSegments` on every render, with no stored state in the element, so it
+   * survives a layer-selection change for free.
    */
   #propertyPathSelect(
     value: string,
     onChange: (alias: string) => void,
     filters: { root?: Classification; tail?: Classification } = {},
   ) {
-    const { root, tail } = splitPath(value);
-    const linked = this.linkedProperties[root] ?? [];
+    const segments = pathSegments(value);
+    const hops: unknown[] = [];
 
-    // The tail appears when the root is content-classified *or* when one is already stored, so an
-    // existing path is never silently flattened by a palette that has not finished loading.
-    const isContentRoot = this.properties.some(
-      (property) => property.alias === root && property.classification === "content",
-    );
-    const showTail = Boolean(root) && (isContentRoot || Boolean(tail));
+    for (let index = 0; index <= MAX_HOPS; index++) {
+      const prefix = pathPrefix(segments, index);
+      const list = index === 0 ? this.properties : this.linkedProperties[prefix] ?? [];
+      const current = segments[index] ?? "";
 
-    const rootSelect = this.#selectFrom(
-      filterByClassification(this.properties, filters.root), root, (newRoot) => onChange(newRoot));
+      // A hop below appears when the one above is a content reference *or* when the stored path
+      // already goes further, so an existing path is never silently flattened by a palette that
+      // has not finished loading.
+      if (index > 0) {
+        const above = index === 1 ? this.properties : this.linkedProperties[pathPrefix(segments, index - 1)] ?? [];
+        const aboveIsReference = above.some(
+          (property) => property.alias === segments[index - 1] && property.classification === "content",
+        );
+        if (!segments[index - 1] || (!aboveIsReference && !current)) break;
+      }
 
-    if (!showTail) return rootSelect;
+      const select = this.#selectFrom(
+        filterByClassification(list, index === 0 ? filters.root : filters.tail),
+        current,
+        (chosen) => onChange([...segments.slice(0, index), chosen].filter(Boolean).join(".")),
+      );
 
-    return html`
-      <div class="path">
-        ${rootSelect}
-        <span class="path-hop" aria-hidden="true">›</span>
-        ${this.#selectFrom(
-          filterByClassification(linked, filters.tail), tail, (newTail) => onChange(joinPath(root, newTail)))}
-      </div>
-    `;
+      hops.push(index === 0
+        ? select
+        : html`<div class="hop">
+            <span class="hop-caption">${this.linkedCaptions[prefix] ?? "Property on the linked item"}</span>
+            ${select}
+          </div>`);
+    }
+
+    return hops.length === 1 ? hops[0] : html`<div class="path">${hops}</div>`;
   }
 
   /**
-   * The one dropdown implementation both of the above use.
-   *
-   * A stored alias that is not in the list still renders as a selected option. A `uui-select`
-   * whose value is not among its options renders blank, and the next change event writes that
-   * blank straight back over the editor's binding - so a stale alias, or one the palette has not
-   * loaded yet, would silently destroy itself just by being looked at.
+   * The one property dropdown: full width, grouped "Tab › Group" in document type order, each
+   * option labelled by the property's name. `uui-select` has no per-option title, so the alias of
+   * whatever is selected is the select's own title instead. See `propertyOptions` for why a stale
+   * alias is kept as a selected option.
    */
   #selectFrom(list: DiProperty[], value: string, onChange: (alias: string) => void) {
-    const options = [
-      { name: "- none -", value: "" },
-      ...list.map((property) => ({
-        name: `${property.name} (${property.alias})`,
-        value: property.alias,
-        selected: property.alias === value,
-      })),
-    ];
-
-    if (value && !list.some((property) => property.alias === value)) {
-      options.push({ name: `${value} (not in this list)`, value, selected: true });
-    }
-
     return html`
       <uui-select
+        class="property-select"
+        label="Property"
+        title=${value || "No property"}
         .value=${value}
-        .options=${options}
+        .options=${propertyOptions(list, value)}
         @change=${(event: Event) => onChange((event.target as HTMLSelectElement).value)}>
       </uui-select>
     `;
@@ -1327,15 +1339,31 @@ export class DiLayerInspectorElement extends UmbLitElement {
       color: var(--uui-color-text-alt);
     }
 
+    /* One hop per line, each full width; every hop after the first sits behind a 2px rule, as
+       the relative-position axes do. */
     .path {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: var(--uui-size-space-1);
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-4);
+      min-width: 0;
     }
 
-    .path-hop {
+    .hop {
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-1);
+      padding-left: var(--uui-size-space-3);
+      border-left: 2px solid var(--uui-color-border);
+      min-width: 0;
+    }
+
+    .hop-caption {
       color: var(--uui-color-text-alt);
+    }
+
+    .property-select {
+      width: 100%;
+      min-width: 0;
     }
 
     .field.inline {

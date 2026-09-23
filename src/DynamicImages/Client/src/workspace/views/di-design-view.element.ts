@@ -55,6 +55,9 @@ export class DiDesignViewElement extends UmbLitElement {
   private _linkedProperties: Record<string, DiProperty[]> = {};
 
   @state()
+  private _linkedCaptions: Record<string, string> = {};
+
+  @state()
   private _fonts: DiFont[] = [];
 
   @state()
@@ -119,6 +122,9 @@ export class DiDesignViewElement extends UmbLitElement {
       });
       this.observe(context.properties, (properties) => {
         this._properties = properties ?? [];
+      });
+      this.observe(context.linkedCaptions, (captions) => {
+        this._linkedCaptions = captions ?? {};
       });
       this.observe(context.linkedProperties, (linked) => {
         this._linkedProperties = linked ?? {};
@@ -520,6 +526,7 @@ export class DiDesignViewElement extends UmbLitElement {
             .layer=${this.#selectedLayer}
             .properties=${this._properties}
             .linkedProperties=${this._linkedProperties}
+            .linkedCaptions=${this._linkedCaptions}
             .fonts=${this._fonts}>
           </di-layer-inspector>
 

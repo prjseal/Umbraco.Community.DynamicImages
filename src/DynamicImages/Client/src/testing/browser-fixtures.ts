@@ -1,3 +1,7 @@
+// The UUI design tokens (--uui-size-*, --uui-color-*), which the backoffice defines on :root.
+// Without them every var() in a component's styles is invalid, so paddings, gaps and borders
+// collapse to nothing and a layout assertion measures a page no editor ever sees.
+import "@umbraco-ui/uui-css/dist/custom-properties.css";
 import { css, html } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { DiTemplateWorkspaceContext } from "../workspace/di-template-workspace.context.js";

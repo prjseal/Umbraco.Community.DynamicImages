@@ -151,13 +151,23 @@ public sealed record UpdateFontRequest(
 /// A property as the designer's palette shows it. <see cref="Classification"/> is what decides
 /// which layer type a dragged chip creates.
 /// </summary>
+/// <para>
+/// <see cref="Tab"/> and the three sort orders say where the property sits on the document type -
+/// tab, then group, then property - so the inspector can group and order its dropdown the way the
+/// Document Type editor shows it. <see cref="Group"/> is the group's name, or the tab's name for a
+/// property placed directly on a tab. The system pseudo-properties have no tab and sort first.
+/// </para>
 public sealed record DocumentTypePropertyResponse(
     string Alias,
     string Name,
     string Group,
     string EditorAlias,
     string Classification,
-    bool IsSystem);
+    bool IsSystem,
+    string? Tab = null,
+    int TabSortOrder = -1,
+    int GroupSortOrder = -1,
+    int SortOrder = -1);
 
 public sealed record DocumentTypeResponse(Guid Key, string Alias, string Name, string Icon);
 

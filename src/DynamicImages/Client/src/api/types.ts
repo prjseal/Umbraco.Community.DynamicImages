@@ -391,10 +391,17 @@ export interface DiLinkedProperties {
 export interface DiProperty {
   alias: string;
   name: string;
+  /** The group's name, or the tab's for a property placed directly on a tab. */
   group: string;
   editorAlias: string;
   classification: PropertyClassification;
   isSystem: boolean;
+  /** The tab the group is on, when it is on one. */
+  tab?: string | null;
+  /** Where the property sits on its document type; -1 sorts first. Absent from older servers. */
+  tabSortOrder?: number;
+  groupSortOrder?: number;
+  sortOrder?: number;
 }
 
 export interface DiSampleContentItem {
