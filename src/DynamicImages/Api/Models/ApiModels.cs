@@ -112,6 +112,7 @@ public sealed record SortRequest(Guid? ParentKey, IReadOnlyList<SortItemRequest>
 public sealed record FontResponse(
     Guid Key,
     string FamilyName,
+    Guid? FamilyKey,
     string SourceKind,
     Guid? MediaKey,
     string? Path,
@@ -127,6 +128,7 @@ public sealed record FontResponse(
     public static FontResponse From(FontDefinition font, int usedBy) => new(
         font.Key,
         font.FamilyName,
+        font.FamilyKey,
         font.SourceKind switch
         {
             ImageSourceKind.Path => "path",
@@ -145,7 +147,8 @@ public sealed record FontResponse(
         usedBy);
 }
 
-public sealed record RegisterFontPathRequest(string Path);
+/// <summary><c>FamilyKey</c> and <c>ParentKey</c> place the new variant in the Fonts tree; see <c>FontPlacement</c>.</summary>
+public sealed record RegisterFontPathRequest(string Path, Guid? FamilyKey = null, Guid? ParentKey = null);
 
 /// <summary>
 /// <c>Provider</c> is google, bunny or direct. Google and Bunny take <c>Family</c>, <c>Weights</c>
@@ -156,7 +159,9 @@ public sealed record RegisterWebFontRequest(
     string? Family,
     List<int>? Weights,
     bool IncludeItalic,
-    string? Url);
+    string? Url,
+    Guid? FamilyKey = null,
+    Guid? ParentKey = null);
 
 /// <summary>The rows created, and one message per variant that was not.</summary>
 public sealed record RegisterWebFontResponse(IReadOnlyList<FontResponse> Fonts, IReadOnlyList<string> Errors);
@@ -172,6 +177,72 @@ public sealed record UpdateFontRequest(
     List<FontStyleDefinition> Styles,
     int? Weight = null,
     bool? IsItalic = null);
+
+/// <summary>
+/// One row of the Fonts tree. <c>EntityType</c> is <c>"folder"</c>, <c>"family"</c> or
+/// <c>"font"</c> (a variant); the client maps it to its own entity types. <c>IsUrlFont</c> is what
+/// the Refresh action's condition reads.
+/// </summary>
+public sealed record FontTreeItemResponse(
+    Guid Key,
+    string Name,
+    string EntityType,
+    Guid? ParentKey,
+    bool HasChildren,
+    bool IsUrlFont,
+    int VariantCount)
+{
+    public static FontTreeItemResponse From(FontTreeNode node) => new(
+        node.Key,
+        node.Name,
+        EntityTypeOf(node.EntityType),
+        node.ParentKey,
+        node.HasChildren,
+        node.Font?.SourceKind == ImageSourceKind.Url,
+        node.VariantCount);
+
+    public static string EntityTypeOf(FontTreeEntityType type) => type switch
+    {
+        FontTreeEntityType.Folder => "folder",
+        FontTreeEntityType.Family => "family",
+        _ => "font"
+    };
+}
+
+public sealed record FontTreeResponse(int Total, IReadOnlyList<FontTreeItemResponse> Items);
+
+/// <summary>
+/// One row of a Fonts collection: a folder or a family under the root or a folder, or a variant
+/// under a family. The fields that do not apply are null.
+/// </summary>
+public sealed record FontCollectionItemResponse(
+    Guid Key,
+    string EntityType,
+    string Name,
+    Guid? ParentKey,
+    int? VariantCount,
+    int? UsedByTemplateCount,
+    string? FamilyName,
+    int? Weight,
+    bool? IsItalic,
+    string? SourceKind,
+    string? Provider);
+
+public sealed record FontCollectionResponse(int Total, IReadOnlyList<FontCollectionItemResponse> Items);
+
+public sealed record FontFolderResponse(Guid Key, string Name, Guid? ParentKey)
+{
+    public static FontFolderResponse From(FontFolder folder) => new(folder.Key, folder.Name, folder.ParentKey);
+}
+
+public sealed record FontFamilyResponse(Guid Key, string Name, Guid? ParentKey, int VariantCount, int UsedByTemplateCount);
+
+public sealed record UpdateFontFamilyRequest(string Name);
+
+/// <summary>A template that uses a font, as the delete modal's reference list shows it.</summary>
+public sealed record FontReferenceResponse(Guid Key, string Name, bool IsEnabled);
+
+public sealed record FontReferencesResponse(int Total, IReadOnlyList<FontReferenceResponse> Items);
 
 // ---------------------------------------------------------------- document types
 

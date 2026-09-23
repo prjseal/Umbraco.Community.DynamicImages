@@ -154,3 +154,117 @@ internal sealed class InMemoryTemplateRepository : ITemplateRepository
         return copy;
     }
 }
+
+/// <summary>An in-memory <see cref="IFontRepository"/>, copying rows in and out.</summary>
+internal sealed class InMemoryFontRepository : IFontRepository
+{
+    private readonly Dictionary<Guid, FontDefinition> _rows = [];
+
+    public IReadOnlyList<FontDefinition> GetAll() => _rows.Values.Select(Copy).ToList();
+
+    public FontDefinition? Get(Guid key) => _rows.TryGetValue(key, out var row) ? Copy(row) : null;
+
+    public FontDefinition Insert(FontDefinition font)
+    {
+        _rows[font.Key] = Copy(font);
+        return font;
+    }
+
+    public FontDefinition? Update(FontDefinition font)
+    {
+        if (!_rows.ContainsKey(font.Key)) return null;
+
+        _rows[font.Key] = Copy(font);
+        return font;
+    }
+
+    public bool Delete(Guid key) => _rows.Remove(key);
+
+    public void SetFamily(Guid familyKey, string familyName)
+    {
+        foreach (var row in _rows.Values.Where(r => r.FamilyKey == familyKey)) row.FamilyName = familyName;
+    }
+
+    private static FontDefinition Copy(FontDefinition font) => new()
+    {
+        Key = font.Key, FamilyName = font.FamilyName, FamilyKey = font.FamilyKey, SortOrder = font.SortOrder,
+        SourceKind = font.SourceKind, MediaKey = font.MediaKey, Path = font.Path, SourceUrl = font.SourceUrl,
+        Provider = font.Provider, ProviderFamily = font.ProviderFamily, Weight = font.Weight, IsItalic = font.IsItalic,
+        Styles = font.Styles.ToList(), ContentHash = font.ContentHash
+    };
+}
+
+/// <summary>An in-memory row store for folders and families, which share a shape.</summary>
+internal abstract class InMemoryTreeRows<T> where T : class, ITreeEntity
+{
+    private readonly Dictionary<Guid, T> _rows = [];
+
+    public IReadOnlyList<T> GetAll() => _rows.Values.Select(Copy).ToList();
+
+    public T? Get(Guid key) => _rows.TryGetValue(key, out var row) ? Copy(row) : null;
+
+    public T Insert(T row)
+    {
+        _rows[row.Key] = Copy(row);
+        return row;
+    }
+
+    public T? Update(T row)
+    {
+        if (!_rows.ContainsKey(row.Key)) return null;
+
+        _rows[row.Key] = Copy(row);
+        return row;
+    }
+
+    public bool Delete(Guid key) => _rows.Remove(key);
+
+    protected abstract T Copy(T row);
+}
+
+internal sealed class InMemoryFontFolderRepository : InMemoryTreeRows<FontFolder>, IFontFolderRepository
+{
+    protected override FontFolder Copy(FontFolder row)
+        => new() { Key = row.Key, Name = row.Name, ParentKey = row.ParentKey, SortOrder = row.SortOrder };
+}
+
+internal sealed class InMemoryFontFamilyRepository : InMemoryTreeRows<FontFamily>, IFontFamilyRepository
+{
+    protected override FontFamily Copy(FontFamily row)
+        => new() { Key = row.Key, Name = row.Name, ParentKey = row.ParentKey, SortOrder = row.SortOrder };
+}
+
+/// <summary>
+/// The real <see cref="FontService"/> over in-memory rows. Everything it reaches only for files -
+/// the media library, the web font fetchers, the registry - is a stub, so the tree and family
+/// operations can be driven without a site.
+/// </summary>
+internal sealed class FontServiceFixture
+{
+    public InMemoryFontRepository Fonts { get; } = new();
+
+    public InMemoryFontFamilyRepository Families { get; } = new();
+
+    public InMemoryFontFolderRepository Folders { get; } = new();
+
+    public InMemoryTemplateRepository Templates { get; } = new();
+
+    public FontService Service() => new(
+        Fonts, Families, Folders,
+        new RepositoryTemplateCache(Templates),
+        Stub<Core.Fonts.IFontRegistry>.Create(),
+        Stub<Core.Fonts.IFontFileProvider>.Create(),
+        Stub<Core.Fonts.Remote.IWebFontResolver>.Create(),
+        Stub<Core.Fonts.Remote.IRemoteFontFetcher>.Create(),
+        Stub<Umbraco.Cms.Core.Services.IMediaService>.Create(),
+        Stub<Umbraco.Cms.Core.Services.IMediaTypeService>.Create(),
+        null!,
+        null!,
+        Stub<Umbraco.Cms.Core.Strings.IShortStringHelper>.Create(),
+        Stub<Umbraco.Cms.Core.Services.IContentTypeBaseServiceProvider>.Create(),
+        ServiceFakes.DistributedCache(),
+        new NullEventAggregator(),
+        Microsoft.Extensions.Logging.Abstractions.NullLogger<FontService>.Instance);
+
+    public FontFolderService FolderService() => new(Folders, Families, Fonts, new NullEventAggregator());
+}

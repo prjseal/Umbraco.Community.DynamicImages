@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using SixLabors.Fonts;
+using FontFamily = Umbraco.Community.DynamicImages.Core.Models.FontFamily;
 using SixLabors.Fonts.WellKnownIds;
 using Umbraco.Cms.Core;
 using Umbraco.Cms.Core.Cache;
@@ -25,6 +26,8 @@ namespace Umbraco.Community.DynamicImages.Core.Services;
 
 public sealed partial class FontService(
     IFontRepository repository,
+    IFontFamilyRepository familyRepository,
+    IFontFolderRepository folderRepository,
     ITemplateCache templateCache,
     IFontRegistry registry,
     IFontFileProvider fileProvider,
@@ -47,11 +50,13 @@ public sealed partial class FontService(
     /// <summary>Weights × italic; 9 weights, both slants. Anything beyond that is a typo, not a request.</summary>
     private const int MaxWebFontVariants = 18;
 
+    private const int MaxFamilyNameLength = 255;
+
     public IReadOnlyList<FontDefinition> GetAll() => repository.GetAll();
 
     public FontDefinition? Get(Guid key) => repository.Get(key);
 
-    public async Task<FontUploadResult> UploadAsync(Stream fileStream, string fileName, CancellationToken cancellationToken = default)
+    public async Task<FontUploadResult> UploadAsync(Stream fileStream, string fileName, FontPlacement? placement = null, CancellationToken cancellationToken = default)
     {
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
         if (!AllowedExtensions.Contains(extension))
@@ -94,9 +99,11 @@ public sealed partial class FontService(
                 $"The font file could not be saved to the media library. Check that '{extension.TrimStart('.')}' is in Umbraco:CMS:Content:AllowedUploadedFileExtensions.");
         }
 
+        var family = ResolveFamily(described.Value.Family, placement);
         var font = repository.Insert(new FontDefinition
         {
-            FamilyName = described.Value.Family,
+            FamilyName = family.Name,
+            FamilyKey = family.Key,
             SourceKind = ImageSourceKind.Media,
             MediaKey = media.Key,
             Weight = described.Value.Weight,
@@ -109,7 +116,7 @@ public sealed partial class FontService(
         return new FontUploadResult(font, null);
     }
 
-    public async Task<FontUploadResult> RegisterPathAsync(string path, CancellationToken cancellationToken = default)
+    public async Task<FontUploadResult> RegisterPathAsync(string path, FontPlacement? placement = null, CancellationToken cancellationToken = default)
     {
         if (!fileProvider.IsPathSafe(path))
         {
@@ -133,9 +140,11 @@ public sealed partial class FontService(
             return new FontUploadResult(null, $"The file at '{path}' could not be read as a font.");
         }
 
+        var family = ResolveFamily(described.Value.Family, placement);
         var font = repository.Insert(new FontDefinition
         {
-            FamilyName = described.Value.Family,
+            FamilyName = family.Name,
+            FamilyKey = family.Key,
             SourceKind = ImageSourceKind.Path,
             Path = path,
             Weight = described.Value.Weight,
@@ -148,7 +157,7 @@ public sealed partial class FontService(
         return new FontUploadResult(font, null);
     }
 
-    public async Task<WebFontRegistrationResult> RegisterWebFontAsync(WebFontRegistration request, CancellationToken cancellationToken = default)
+    public async Task<WebFontRegistrationResult> RegisterWebFontAsync(WebFontRegistration request, FontPlacement? placement = null, CancellationToken cancellationToken = default)
     {
         var provider = WebFontProviders.Get(request.Provider);
         if (provider is null)
@@ -157,11 +166,11 @@ public sealed partial class FontService(
         }
 
         return provider.CssUrl is null
-            ? await RegisterDirectAsync(provider, request.Url, cancellationToken)
-            : await RegisterFromProviderAsync(provider, request, cancellationToken);
+            ? await RegisterDirectAsync(provider, request.Url, placement, cancellationToken)
+            : await RegisterFromProviderAsync(provider, request, placement, cancellationToken);
     }
 
-    private async Task<WebFontRegistrationResult> RegisterDirectAsync(WebFontProvider provider, string? url, CancellationToken cancellationToken)
+    private async Task<WebFontRegistrationResult> RegisterDirectAsync(WebFontProvider provider, string? url, FontPlacement? placement, CancellationToken cancellationToken)
     {
         var problem = WebFontProviders.ValidateDirectUrl(url, out var uri);
         if (problem is not null || uri is null) return new WebFontRegistrationResult([], [problem ?? "Enter the URL of a font file."]);
@@ -179,9 +188,11 @@ public sealed partial class FontService(
         var described = Describe(fetched.Bytes);
         if (described is null) return new WebFontRegistrationResult([], [$"The file at '{uri}' could not be read as a font. Static .ttf, .otf, .woff2 or .woff files only."]);
 
+        var family = ResolveFamily(described.Value.Family, placement);
         var font = repository.Insert(new FontDefinition
         {
-            FamilyName = described.Value.Family,
+            FamilyName = family.Name,
+            FamilyKey = family.Key,
             SourceKind = ImageSourceKind.Url,
             SourceUrl = uri.ToString(),
             Provider = provider.Name,
@@ -196,7 +207,8 @@ public sealed partial class FontService(
         return new WebFontRegistrationResult([font], []);
     }
 
-    private async Task<WebFontRegistrationResult> RegisterFromProviderAsync(WebFontProvider provider, WebFontRegistration request, CancellationToken cancellationToken)
+    private async Task<WebFontRegistrationResult> RegisterFromProviderAsync(
+        WebFontProvider provider, WebFontRegistration request, FontPlacement? placement, CancellationToken cancellationToken)
     {
         var family = request.Family?.Trim() ?? string.Empty;
         if (!FamilyPattern().IsMatch(family))
@@ -222,6 +234,10 @@ public sealed partial class FontService(
 
         var existing = repository.GetAll().Where(f => f.SourceKind == ImageSourceKind.Url).ToList();
         var fonts = new List<FontDefinition>();
+
+        // Found or made on the first variant that downloads, so a request where every variant
+        // fails leaves no empty family behind.
+        FontFamily? target = null;
         var errors = new List<string>();
         var notFound = 0;
 
@@ -268,9 +284,11 @@ public sealed partial class FontService(
                 continue;
             }
 
+            target ??= ResolveFamily(family, placement);
             var font = repository.Insert(new FontDefinition
             {
-                FamilyName = family,
+                FamilyName = target.Name,
+                FamilyKey = target.Key,
                 SourceKind = ImageSourceKind.Url,
                 SourceUrl = url,
                 Provider = provider.Name,
@@ -346,7 +364,15 @@ public sealed partial class FontService(
         var font = repository.Get(key);
         if (font is null) return null;
 
-        if (!string.IsNullOrWhiteSpace(familyName)) font.FamilyName = familyName;
+        // The family's name is the family's: a variant cannot drift from it. Only a row that has
+        // no family yet takes the name it is given, and joins the family of that name.
+        if (font.FamilyKey is not { } familyKey || familyRepository.Get(familyKey) is not { } family)
+        {
+            family = ResolveFamily(string.IsNullOrWhiteSpace(familyName) ? font.FamilyName : familyName, null);
+        }
+
+        font.FamilyKey = family.Key;
+        font.FamilyName = family.Name;
         font.Styles = styles.ToList();
 
         // A detected weight is a guess read out of the file's names; this is how it is corrected.
@@ -372,6 +398,13 @@ public sealed partial class FontService(
         if (UpsertProblem(font) is { } problem) throw new ArgumentException(problem, nameof(font));
 
         if (font.Key == Guid.Empty) font.Key = Guid.NewGuid();
+
+        // An export from before families carries none, and one whose family did not come across
+        // names one that is not here: either way it joins the family of its name.
+        var family = font.FamilyKey is { } familyKey ? familyRepository.Get(familyKey) : null;
+        family ??= ResolveFamily(font.FamilyName, null);
+        font.FamilyKey = family.Key;
+        font.FamilyName = family.Name;
 
         var existing = repository.Get(font.Key);
         var saved = existing is null ? repository.Insert(font) : repository.Update(font) ?? font;
@@ -426,6 +459,173 @@ public sealed partial class FontService(
 
     public IReadOnlyList<Template> TemplatesUsing(Guid fontKey)
         => templateCache.GetAll().Where(template => template.Layers.Any(layer => UsesFont(layer, fontKey))).ToList();
+
+    // ------------------------------------------------------------ families
+
+    public IReadOnlyList<FontFamily> GetFamilies() => familyRepository.GetAll();
+
+    public FontFamily? GetFamily(Guid key) => familyRepository.Get(key);
+
+    public FontFamily? RenameFamily(Guid key, string name, out TreeOperationOutcome outcome)
+    {
+        var trimmed = name?.Trim() ?? string.Empty;
+        if (trimmed.Length == 0 || trimmed.Length > MaxFamilyNameLength)
+        {
+            outcome = TreeOperationOutcome.InvalidName;
+            return null;
+        }
+
+        var family = familyRepository.Get(key);
+        if (family is null)
+        {
+            outcome = TreeOperationOutcome.NotFound;
+            return null;
+        }
+
+        family.Name = trimmed;
+        var saved = familyRepository.Update(family);
+        if (saved is null)
+        {
+            outcome = TreeOperationOutcome.NotFound;
+            return null;
+        }
+
+        RewriteVariantNames(saved);
+        FamilySaved(saved);
+
+        outcome = TreeOperationOutcome.Success;
+        return saved;
+    }
+
+    public TreeOperationOutcome MoveFamily(Guid key, Guid? folderKey)
+    {
+        var family = familyRepository.Get(key);
+        if (family is null) return TreeOperationOutcome.NotFound;
+        if (folderKey is { } target && folderRepository.Get(target) is null) return TreeOperationOutcome.TargetNotFound;
+
+        family.ParentKey = folderKey;
+        family.SortOrder = Tree().NextSortOrder(folderKey);
+        var saved = familyRepository.Update(family);
+        if (saved is null) return TreeOperationOutcome.NotFound;
+
+        FamilySaved(saved);
+        return TreeOperationOutcome.Success;
+    }
+
+    public FontFamilyDeleteResult DeleteFamily(Guid key)
+    {
+        var family = familyRepository.Get(key);
+        if (family is null) return new FontFamilyDeleteResult(TreeOperationOutcome.NotFound, []);
+
+        // All or nothing: checked across every variant before any is deleted, so a family is never
+        // left half-gone with the variants a template still needs.
+        var inUse = TemplatesUsingFamily(key);
+        if (inUse.Count > 0) return new FontFamilyDeleteResult(TreeOperationOutcome.InUse, inUse);
+
+        foreach (var variant in VariantsOf(key)) Delete(variant.Key);
+
+        if (!familyRepository.Delete(key)) return new FontFamilyDeleteResult(TreeOperationOutcome.NotFound, []);
+
+        eventAggregator.Publish(new DynamicImagesFontFamilyDeletedNotification(family, new EventMessages()));
+        return new FontFamilyDeleteResult(TreeOperationOutcome.Success, []);
+    }
+
+    public TreeOperationOutcome SortChildren(Guid? parentKey, IReadOnlyList<(Guid Key, int SortOrder)> sorting)
+    {
+        if (parentKey is { } parent && folderRepository.Get(parent) is null) return TreeOperationOutcome.NotFound;
+
+        foreach (var change in Tree().ApplySort(parentKey, sorting))
+        {
+            if (change.IsFolder)
+            {
+                var folder = folderRepository.Get(change.Key);
+                if (folder is null || folder.SortOrder == change.SortOrder) continue;
+
+                folder.SortOrder = change.SortOrder;
+                if (folderRepository.Update(folder) is { } saved)
+                    eventAggregator.Publish(new DynamicImagesFontFolderSavedNotification(saved, new EventMessages()));
+            }
+            else
+            {
+                var family = familyRepository.Get(change.Key);
+                if (family is null || family.SortOrder == change.SortOrder) continue;
+
+                family.SortOrder = change.SortOrder;
+                if (familyRepository.Update(family) is { } saved) FamilySaved(saved);
+            }
+        }
+
+        return TreeOperationOutcome.Success;
+    }
+
+    public IReadOnlyList<Template> TemplatesUsingFamily(Guid familyKey)
+    {
+        var variantKeys = VariantsOf(familyKey).Select(v => v.Key).ToHashSet();
+
+        return variantKeys.Count == 0
+            ? []
+            : templateCache.GetAll().Where(t => t.Layers.Any(layer => variantKeys.Any(k => UsesFont(layer, k)))).ToList();
+    }
+
+    public FontFamily UpsertFamily(FontFamily family)
+    {
+        if (family.Key == Guid.Empty) family.Key = Guid.NewGuid();
+        if (family.ParentKey is { } parent && folderRepository.Get(parent) is null) family.ParentKey = null;
+        family.Name = family.Name?.Trim() is { Length: > 0 } name ? name : "Unnamed font";
+
+        var existing = familyRepository.Get(family.Key);
+        var saved = existing is null ? familyRepository.Insert(family) : familyRepository.Update(family) ?? family;
+
+        if (existing is not null && existing.Name != saved.Name) RewriteVariantNames(saved);
+
+        FamilySaved(saved);
+        return saved;
+    }
+
+    /// <summary>
+    /// The family a new variant goes into: the one <see cref="FontPlacement.FamilyKey"/> names, or
+    /// the one of the same name (trimmed, ignoring case) in the placement's folder - or anywhere,
+    /// preferring the root, with no placement - or else a new one there.
+    /// </summary>
+    private FontFamily ResolveFamily(string? familyName, FontPlacement? placement)
+    {
+        if (placement?.FamilyKey is { } key && familyRepository.Get(key) is { } chosen) return chosen;
+
+        var tree = Tree();
+        var wanted = FontFamilyGrouping.Normalise(familyName);
+        var sameName = tree.Families.Where(f => FontFamilyGrouping.Normalise(f.Name) == wanted);
+        var parent = placement is null ? null : tree.EffectiveParent(placement.ParentKey);
+
+        var found = placement is null
+            ? sameName.OrderBy(f => tree.EffectiveParent(f.ParentKey) is null ? 0 : 1).FirstOrDefault()
+            : sameName.FirstOrDefault(f => tree.EffectiveParent(f.ParentKey) == parent);
+        if (found is not null) return found;
+
+        var family = familyRepository.Insert(new FontFamily
+        {
+            Key = Guid.NewGuid(),
+            Name = familyName?.Trim() is { Length: > 0 } name ? name : "Unnamed font",
+            ParentKey = parent,
+            SortOrder = tree.NextSortOrder(parent)
+        });
+
+        FamilySaved(family);
+        return family;
+    }
+
+    /// <summary>Carries a family's name onto its variants, and tells the caches and uSync each changed.</summary>
+    private void RewriteVariantNames(FontFamily family)
+    {
+        repository.SetFamily(family.Key, family.Name);
+        foreach (var variant in VariantsOf(family.Key)) Saved(variant);
+    }
+
+    private List<FontDefinition> VariantsOf(Guid familyKey) => repository.GetAll().Where(f => f.FamilyKey == familyKey).ToList();
+
+    private FontTree Tree() => new(folderRepository.GetAll(), familyRepository.GetAll(), repository.GetAll());
+
+    private void FamilySaved(FontFamily family)
+        => eventAggregator.Publish(new DynamicImagesFontFamilySavedNotification(family, new EventMessages()));
 
     public async Task<(byte[] Bytes, string ContentType, string? ETag)?> GetFileAsync(Guid key, CancellationToken cancellationToken = default)
     {

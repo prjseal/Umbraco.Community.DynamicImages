@@ -168,6 +168,7 @@ public class DynamicImagesComposer : IComposer
         // Scoped, because they compose the scoped repositories.
         builder.Services.AddScoped<ITemplateService, TemplateService>();
         builder.Services.AddScoped<ITemplateFolderService, TemplateFolderService>();
+        builder.Services.AddScoped<IFontFolderService, FontFolderService>();
         builder.Services.AddScoped<ITemplateValidator, TemplateValidator>();
         builder.Services.AddScoped<IFontService, FontService>();
         builder.Services.AddScoped<IRegenerationService, RegenerationService>();
