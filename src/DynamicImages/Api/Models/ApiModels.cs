@@ -27,6 +27,11 @@ public sealed record TemplateSaveResponse(Template Template, IReadOnlyList<Valid
 /// <summary>Where a duplicate goes: a folder, or the Templates root when <c>TargetKey</c> is null.</summary>
 public sealed record DuplicateRequest(Guid? TargetKey);
 
+public sealed record SetEnabledRequest(bool IsEnabled);
+
+/// <summary><c>Changed</c> is false when the template was already in that state.</summary>
+public sealed record SetEnabledResponse(bool IsEnabled, bool Changed);
+
 /// <summary><c>ParentKey</c> is the folder the import was started from; null is the Templates root.</summary>
 public sealed record TemplateImportRequest(string Json, string Mode = "create", Guid? ParentKey = null);
 

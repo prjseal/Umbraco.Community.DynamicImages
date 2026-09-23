@@ -11,7 +11,7 @@ const CONTAINERS = [DI_TEMPLATE_ROOT_ENTITY_TYPE, DI_TEMPLATE_FOLDER_ENTITY_TYPE
 
 /**
  * Every ⋯ action in the Templates tree and collection. Core kinds wherever one exists; `default`
- * only for the three that are this package's own (import, export, regenerate).
+ * only for the ones that are this package's own (import, export, regenerate, enable, disable).
  */
 export const manifests: Array<UmbExtensionManifest> = [
   // ---------------------------------------------------------------- repositories
@@ -126,6 +126,26 @@ export const manifests: Array<UmbExtensionManifest> = [
       treeAlias: DI_TEMPLATE_TREE_ALIAS,
       foldersOnly: true,
     },
+  },
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Enable",
+    name: "Enable Dynamic Images Template",
+    api: () => import("./enable-template.action.js"),
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
+    weight: 560,
+    meta: { icon: "icon-check", label: "Enable", additionalOptions: true },
+  },
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Disable",
+    name: "Disable Dynamic Images Template",
+    api: () => import("./disable-template.action.js"),
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
+    weight: 550,
+    meta: { icon: "icon-block", label: "Disable", additionalOptions: true },
   },
   {
     type: "entityAction",

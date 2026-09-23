@@ -79,4 +79,34 @@ public class TemplateServiceTests
 
         Assert.NotEqual(stored.Layers[0].Key, Assert.Single(copy.Layers).Key);
     }
+
+    // ------------------------------------------------------------ enable / disable
+
+    [Fact]
+    public async Task Disabling_writes_the_flag_and_bumps_updated_so_a_stale_save_conflicts()
+    {
+        var template = await Create("Card");
+        var loaded = _templates.Get(template.Key)!.UpdatedUtc;
+        await Task.Delay(5);
+
+        Assert.Equal(EnableOutcome.Changed, await Service().SetEnabledAsync(template.Key, false));
+
+        var stored = _templates.Get(template.Key)!;
+        Assert.False(stored.IsEnabled);
+        Assert.True(stored.UpdatedUtc > loaded);
+    }
+
+    [Fact]
+    public async Task Asking_for_the_state_a_template_is_already_in_changes_nothing()
+    {
+        var template = await Create("Card");
+        var before = _templates.Get(template.Key)!.UpdatedUtc;
+
+        Assert.Equal(EnableOutcome.Unchanged, await Service().SetEnabledAsync(template.Key, true));
+        Assert.Equal(before, _templates.Get(template.Key)!.UpdatedUtc);
+    }
+
+    [Fact]
+    public async Task Enabling_a_template_that_does_not_exist_is_not_found()
+        => Assert.Equal(EnableOutcome.NotFound, await Service().SetEnabledAsync(Guid.NewGuid(), true));
 }

@@ -126,6 +126,26 @@ public sealed partial class TemplateService(
         return await CreateAsync(source, userKey, cancellationToken);
     }
 
+    public async Task<EnableOutcome> SetEnabledAsync(Guid key, bool isEnabled, CancellationToken cancellationToken = default)
+    {
+        var existing = repository.Get(key);
+        if (existing is null) return EnableOutcome.NotFound;
+        if (existing.IsEnabled == isEnabled) return EnableOutcome.Unchanged;
+
+        if (!repository.SetEnabled(key, isEnabled)) return EnableOutcome.NotFound;
+
+        Notify(key);
+
+        // Published as a save, so uSync and file sync re-export the template.
+        if (repository.Get(key) is { } saved)
+        {
+            await eventAggregator.PublishAsync(
+                new DynamicImagesTemplateSavedNotification(saved, new EventMessages()), cancellationToken);
+        }
+
+        return EnableOutcome.Changed;
+    }
+
     public string SuggestAlias(string name, Guid? exceptKey = null)
     {
         var candidate = ToCamelCase(name);

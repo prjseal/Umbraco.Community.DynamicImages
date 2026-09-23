@@ -26,6 +26,12 @@ public interface ITemplateRepository
     /// <summary>Sets the template's folder (null for the root) without touching anything else.</summary>
     bool Move(Guid key, Guid? parentKey);
 
+    /// <summary>
+    /// Sets the enabled column and stamps <c>updatedUtc</c>, leaving everything else alone. The
+    /// JSON copy of the flag catches up on the next save; the column overrules it on every read.
+    /// </summary>
+    bool SetEnabled(Guid key, bool isEnabled);
+
     bool Delete(Guid key);
 
     int Count();

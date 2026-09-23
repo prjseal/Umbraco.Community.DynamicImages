@@ -92,6 +92,12 @@ export const duplicateTemplate = async (
 ): Promise<DiTemplateSaveResponse> =>
   json(await request(`/templates/${key}/duplicate`, getToken, { method: "POST", json: { targetKey } }));
 
+/** `changed` is false when the template was already in that state. */
+export const setTemplateEnabled = async (
+  key: string, isEnabled: boolean, getToken: TokenGetter,
+): Promise<{ isEnabled: boolean; changed: boolean }> =>
+  json(await request(`/templates/${key}/enabled`, getToken, { method: "PUT", json: { isEnabled } }));
+
 export async function exportTemplate(key: string, getToken: TokenGetter): Promise<Blob> {
   return (await request(`/templates/${key}/export`, getToken)).blob();
 }

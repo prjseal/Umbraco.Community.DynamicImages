@@ -123,6 +123,19 @@ public sealed class TemplateRepository(
         return moved > 0;
     }
 
+    public bool SetEnabled(Guid key, bool isEnabled)
+    {
+        // Unlike a move, this does stamp updatedUtc: enabling is an edit, and a designer holding
+        // the old value must not be able to save it back over the change without a 412.
+        using var scope = scopeProvider.CreateScope();
+        var updated = scope.Database.Execute(
+            $"UPDATE {DynamicImagesConstants.TemplateTableName} SET isEnabled = @0, updatedUtc = @1 WHERE [key] = @2",
+            isEnabled, DateTime.UtcNow, key);
+        scope.Complete();
+
+        return updated > 0;
+    }
+
     public bool Delete(Guid key)
     {
         using var scope = scopeProvider.CreateScope();

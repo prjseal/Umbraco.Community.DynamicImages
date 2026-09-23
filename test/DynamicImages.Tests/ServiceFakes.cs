@@ -120,6 +120,15 @@ internal sealed class InMemoryTemplateRepository : ITemplateRepository
         return true;
     }
 
+    public bool SetEnabled(Guid key, bool isEnabled)
+    {
+        if (!_rows.TryGetValue(key, out var row)) return false;
+
+        row.IsEnabled = isEnabled;
+        row.UpdatedUtc = DateTime.UtcNow;
+        return true;
+    }
+
     public bool Delete(Guid key) => _rows.Remove(key);
 
     public int Count() => _rows.Count;

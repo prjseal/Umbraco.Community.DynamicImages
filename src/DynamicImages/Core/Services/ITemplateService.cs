@@ -21,6 +21,17 @@ public enum SaveOutcome
     TargetNotFound
 }
 
+/// <summary>What <see cref="ITemplateService.SetEnabledAsync"/> did.</summary>
+public enum EnableOutcome
+{
+    Changed,
+
+    /// <summary>The template was already in the asked-for state; nothing was written.</summary>
+    Unchanged,
+
+    NotFound
+}
+
 public sealed record SaveResult(SaveOutcome Outcome, Template? Template, ValidationResult Validation)
 {
     public static SaveResult Saved(Template template, ValidationResult validation) => new(SaveOutcome.Saved, template, validation);
@@ -59,6 +70,12 @@ public interface ITemplateService
     /// <see cref="SaveOutcome.TargetNotFound"/>, not a silent move to the root.
     /// </summary>
     Task<SaveResult> DuplicateAsync(Guid key, Guid? targetKey, Guid? userKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Turns a template on or off without a full save. Bumps its <c>updatedUtc</c>, so a designer
+    /// that has it open gets a 412 on its next save rather than silently flipping it back.
+    /// </summary>
+    Task<EnableOutcome> SetEnabledAsync(Guid key, bool isEnabled, CancellationToken cancellationToken = default);
 
     /// <summary>An alias derived from a name that no existing template is using.</summary>
     string SuggestAlias(string name, Guid? exceptKey = null);

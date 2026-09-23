@@ -126,6 +126,20 @@ public class TemplatesController(
         _ => ValidationProblemFor(result)
     };
 
+    /// <summary>
+    /// The tree's Enable and Disable actions. Asking for the state a template is already in is not
+    /// an error: it comes back with <c>changed: false</c>, as core's publish on a published node.
+    /// </summary>
+    [HttpPut("templates/{key:guid}/enabled")]
+    [ProducesResponseType(typeof(SetEnabledResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetEnabled(Guid key, [FromBody] SetEnabledRequest request, CancellationToken cancellationToken)
+        => await templateService.SetEnabledAsync(key, request.IsEnabled, cancellationToken) switch
+        {
+            EnableOutcome.NotFound => TemplateNotFound(key),
+            var outcome => Ok(new SetEnabledResponse(request.IsEnabled, outcome == EnableOutcome.Changed))
+        };
+
     [HttpGet("templates/{key:guid}/export")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
