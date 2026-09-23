@@ -11,10 +11,9 @@ colour picker — use the real extension type or core component rather than a lo
 
 This plan covers eight changes (sections 1–8 below), each with its current state, target state,
 server-side impact, risks and size. The screenshots under `mockups/before/` were taken from
-`src/DynamicImages.TestSite.Clean`, running on this branch on 2026-09-23. **The "after" mock-ups
-the brief asked for were not produced in the planning session.** The target states below are
-specified in terms of the core components and kinds to use, and each names the core screen that
-is the visual reference.
+`src/DynamicImages.TestSite.Clean`, running on this branch on 2026-09-23. The "after" images under
+`mockups/after/` were captured from the same site at 1440×900 once the overhaul was implemented;
+they sit next to the matching "before" images below.
 
 ### Decisions made with the user
 
@@ -158,17 +157,19 @@ is the visual reference.
     any number of `ColorStop`s, so multi-stop costs nothing in the renderer itself.
   - The client mirror is `models/gradient-css.ts`.
 
-## Before
+## Before and after
 
-| Screen | File |
-|---|---|
-| Section landing / overview (template cards, Create, Import JSON) | ![](mockups/before/01-overview-dashboard.png) |
-| Settings: document type tags, media folder as a raw key | ![](mockups/before/04-settings.png) |
-| Designer: palette top, canvas panel with side-by-side fields | ![](mockups/before/05-designer-palette-top.png) |
-| Palette bottom: the Static group, Rectangle and Ellipse chips | ![](mockups/before/06-palette-static-group.png) |
-| Preview & test: no visible content picker | ![](mockups/before/07-preview.png) |
-| Property binding: nested select beside the first, clipped | ![](mockups/before/08-property-binding.png) |
-| Shape fill: colour swatch and hex side by side | ![](mockups/before/09-shape-fill.png) |
+| Screen | Before | After |
+|---|---|---|
+| Section landing / overview | ![](mockups/before/01-overview-dashboard.png) | ![](mockups/after/01-overview-dashboard.png) - stats and Needs attention only; the Templates tree is in the sidebar |
+| Templates: tree, root collection (list), ⋯ menu | (the template cards on the overview, above) | ![](mockups/after/02-templates-collection-list.png) ![](mockups/after/02b-tree-actions.png) |
+| Templates: grid with rendered thumbnails | - | ![](mockups/after/03-templates-collection-grid.png) |
+| Settings: document types and media folder | ![](mockups/before/04-settings.png) | ![](mockups/after/04-settings.png) |
+| Designer: palette top, canvas panel | ![](mockups/before/05-designer-palette-top.png) | ![](mockups/after/05-designer-palette-top.png) |
+| Palette: Static group / Elements and Add shape | ![](mockups/before/06-palette-static-group.png) | ![](mockups/after/06-palette-elements-shape-menu.png) |
+| Preview & test: content picker | ![](mockups/before/07-preview.png) | ![](mockups/after/07-preview.png) |
+| Property binding: the linked dropdown | ![](mockups/before/08-property-binding.png) | ![](mockups/after/08-property-binding.png) - also shows the strip's Preview content picker holding the page chosen in Preview & test |
+| Shape fill: colour and gradient | ![](mockups/before/09-shape-fill.png) | ![](mockups/after/09-shape-fill.png) ![](mockups/after/09b-gradient-editor.png) |
 
 ## Design
 
@@ -757,6 +758,9 @@ Each step leaves the build and tests green, with the bundle rebuilt.
     save round trip keeps aliases and the folder key
   - extend `linked-property.spec.ts` to assert the second select sits *below* the first
     (`boundingBox().y` greater, x equal)
+- **Result (2026-09-23):** `dotnet test` 809 passing; `npm test` 213, `npm run test:browser` 75;
+  the full E2E suite 32 of 32 against the booted Clean site, including the two new specs. The
+  manual checks below were made on that site; the after images above are from it.
 - **Manual, on the test site:**
   - The uSync-imported "Article OG image" appears under the Templates root after the migration.
   - The ⋯ and + menus match Settings → Document Types.
