@@ -23,9 +23,15 @@ public class DynamicImagesUSyncComposer : IComposer
         builder.AddNotificationAsyncHandler<DynamicImagesFontDeletedNotification, DynamicImagesFontHandler>();
         builder.AddNotificationAsyncHandler<DynamicImagesTemplateFolderSavedNotification, DynamicImagesTemplateFolderHandler>();
         builder.AddNotificationAsyncHandler<DynamicImagesTemplateFolderDeletedNotification, DynamicImagesTemplateFolderHandler>();
+        builder.AddNotificationAsyncHandler<DynamicImagesFontFolderSavedNotification, DynamicImagesFontFolderHandler>();
+        builder.AddNotificationAsyncHandler<DynamicImagesFontFolderDeletedNotification, DynamicImagesFontFolderHandler>();
+        builder.AddNotificationAsyncHandler<DynamicImagesFontFamilySavedNotification, DynamicImagesFontFamilyHandler>();
+        builder.AddNotificationAsyncHandler<DynamicImagesFontFamilyDeletedNotification, DynamicImagesFontFamilyHandler>();
 
         UdiParser.RegisterUdiType(DynamicImagesUSyncConstants.EntityTypes.Template, UdiType.GuidUdi);
         UdiParser.RegisterUdiType(DynamicImagesUSyncConstants.EntityTypes.Font, UdiType.GuidUdi);
         UdiParser.RegisterUdiType(DynamicImagesUSyncConstants.EntityTypes.TemplateFolder, UdiType.GuidUdi);
+        UdiParser.RegisterUdiType(DynamicImagesUSyncConstants.EntityTypes.FontFolder, UdiType.GuidUdi);
+        UdiParser.RegisterUdiType(DynamicImagesUSyncConstants.EntityTypes.FontFamily, UdiType.GuidUdi);
     }
 }
