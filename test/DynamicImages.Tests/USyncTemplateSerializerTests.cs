@@ -238,7 +238,7 @@ public class USyncTemplateSerializerTests
     {
         var (serializer, templates) = Build();
         var node = (await serializer.SerializeAsync(Sample(), new SyncSerializerOptions())).Item!;
-        node.Element("Info")!.Element("Parent")!.Value = Guid.NewGuid().ToString();
+        node.Element("Info")!.Add(new XElement("Parent", Guid.NewGuid()));
 
         var imported = await serializer.DeserializeAsync(node, new SyncSerializerOptions());
 
@@ -256,11 +256,27 @@ public class USyncTemplateSerializerTests
         await serializer.DeserializeAsync(node, new SyncSerializerOptions());
         Assert.Null(templates.Get(Sample().Key)!.ParentKey);
 
-        node.Element("Info")!.Element("Parent")!.Value = folder.Key.ToString();
+        node.Element("Info")!.Add(new XElement("Parent", folder.Key));
         await serializer.DeserializeAsync(node, new SyncSerializerOptions());
 
         Assert.Equal(folder.Key, templates.Get(Sample().Key)!.ParentKey);
         Assert.Equal(1, templates.Moves);
+    }
+
+    [Fact]
+    public async Task A_template_at_the_root_writes_no_parent_and_no_new_defaults()
+    {
+        // Every template exported before folders, shapes presets and gradient options existed is
+        // at the root with none of them set: its file must not change just because this did.
+        var (serializer, _) = Build();
+
+        var node = (await serializer.SerializeAsync(Sample(), new SyncSerializerOptions())).Item!;
+
+        Assert.Null(node.Element("Info")!.Element("Parent"));
+        var design = node.Element("Design")!.Value;
+        Assert.DoesNotContain("lockAspect", design, StringComparison.Ordinal);
+        Assert.DoesNotContain("extent", design, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"shape\": \"ellipse\"", design, StringComparison.Ordinal);
     }
 
     private static string JsonNodeWithSchemaVersion(Template template, int version)

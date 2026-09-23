@@ -53,9 +53,11 @@ public class DynamicImagesTemplateSerializer(
 
         var node = InitializeBaseNode(item, item.Alias, level);
 
+        // Parent only when there is one, so a template at the root - every template exported
+        // before folders existed - writes exactly the file it always did.
         node.Add(new XElement("Info",
             new XElement("Name", item.Name),
-            new XElement("Parent", parent?.ToString() ?? string.Empty),
+            parent is { } parentFolder ? new XElement("Parent", parentFolder) : null,
             new XElement("Enabled", item.IsEnabled),
             new XElement("SchemaVersion", item.SchemaVersion),
             new XElement("DocTypeAliases", string.Join(',', item.DocTypeAliases))));

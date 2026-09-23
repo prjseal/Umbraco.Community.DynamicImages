@@ -105,12 +105,14 @@ public class Gradient
     public float CentreY { get; set; } = 0.5f;
 
     /// <summary><see cref="GradientKind.Radial"/> only. Absent means an ellipse, as before.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public GradientShape Shape { get; set; } = GradientShape.Ellipse;
 
     /// <summary>Two or more stops, or null for <see cref="From"/> to <see cref="To"/>.</summary>
     public List<GradientStop>? Stops { get; set; }
 
     /// <summary><see cref="GradientKind.Radial"/> only. Absent means farthest-corner, as before.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public GradientExtent Extent { get; set; } = GradientExtent.FarthestCorner;
 }
 
@@ -178,5 +180,7 @@ public class RectLayer : LayerBase
     /// stay a circle. A designer-side rule only: the renderer draws the box it is given, and a
     /// square box already draws a circle. An older package ignores the property.
     /// </summary>
+    /// <remarks>Written only when on, so an existing template's JSON - and its uSync file - is unchanged.</remarks>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public bool LockAspect { get; set; }
 }
