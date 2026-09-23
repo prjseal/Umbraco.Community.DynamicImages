@@ -24,8 +24,11 @@ export class DiNumberFieldElement extends UmbLitElement {
   max?: number;
 
   /**
-   * The small inline label, for a toolbar. Without it the label is core's property layout, like
-   * every other inspector field.
+   * For a toolbar: no visible label - `label` is the input's accessible name only - and the field
+   * fills its host's height, so it can sit flush between buttons in one segmented control the
+   * way every design tool draws its zoom. A caption above the field pushed the input below the
+   * buttons beside it. Without it the label is core's property layout, like every other
+   * inspector field.
    */
   @property({ type: Boolean, reflect: true })
   compact = false;
@@ -77,11 +80,9 @@ export class DiNumberFieldElement extends UmbLitElement {
 
     // The label through core's property layout, like every other inspector field, so a number
     // reads the same as the select above it.
-    if (!this.label) return input;
+    if (!this.label || this.compact) return input;
 
-    return this.compact
-      ? html`<label class="compact-field"><span class="compact-label">${this.label}</span>${input}</label>`
-      : html`<umb-property-layout orientation="vertical" label=${this.label}>${input}</umb-property-layout>`;
+    return html`<umb-property-layout orientation="vertical" label=${this.label}>${input}</umb-property-layout>`;
   }
 
   static styles = css`
@@ -94,19 +95,30 @@ export class DiNumberFieldElement extends UmbLitElement {
       padding: var(--uui-size-space-3) 0;
     }
 
-    .compact-field {
-      display: grid;
-      gap: 2px;
-    }
-
-    .compact-label {
-      font-size: 11px;
-      color: var(--uui-color-text-alt);
+    :host([compact]) .input {
+      box-sizing: border-box;
+      height: 100%;
+      border-radius: var(--di-number-field-border-radius, var(--uui-border-radius));
     }
 
     :host([compact]) input {
       min-height: 0;
-      padding: 4px 6px;
+      height: 100%;
+      padding: 0 2px 0 var(--uui-size-space-2, 6px);
+      text-align: right;
+      /* The buttons either side already step it; the spinner only crowded the number. */
+      appearance: textfield;
+      -moz-appearance: textfield;
+    }
+
+    :host([compact]) input::-webkit-inner-spin-button,
+    :host([compact]) input::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    :host([compact]) .suffix {
+      padding-right: var(--uui-size-space-2, 6px);
     }
 
     .input {

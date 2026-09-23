@@ -90,6 +90,30 @@ describe("di-canvas-toolbar zoom controls", () => {
     expect(iconNameOf(buttonLabelled(toolbar, "Zoom in"))).toBe("icon-zoom-in");
   });
 
+  /**
+   * A "Zoom" caption above the field pushed it ~20px below the buttons either side, which read
+   * as broken. The three are one segmented control now: same top, same bottom, edge to edge.
+   */
+  it("lines the field up with the buttons as one segmented control", async () => {
+    const { toolbar } = await mountToolbar(0.27);
+    const { field } = await fieldOf(toolbar);
+
+    const out = buttonLabelled(toolbar, "Zoom out").getBoundingClientRect();
+    const box = field.shadowRoot!.querySelector(".input")!.getBoundingClientRect();
+    const zoomIn = buttonLabelled(toolbar, "Zoom in").getBoundingClientRect();
+
+    expect(box.height).toBeGreaterThan(20);
+    for (const button of [out, zoomIn]) {
+      expect(Math.abs(button.top - box.top), "tops differ").toBeLessThan(1);
+      expect(Math.abs(button.bottom - box.bottom), "bottoms differ").toBeLessThan(1);
+    }
+    expect(Math.abs(out.right - box.left), "gap before the field").toBeLessThan(1);
+    expect(Math.abs(box.right - zoomIn.left), "gap after the field").toBeLessThan(1);
+
+    expect(field.shadowRoot!.textContent, "no visible caption above the number").not.toContain("Zoom");
+    expect(field.shadowRoot!.querySelector("input")!.getAttribute("aria-label")).toBe("Zoom");
+  });
+
   it("steps out and in from the effective scale", async () => {
     const { toolbar, events } = await mountToolbar(0.4);
 
