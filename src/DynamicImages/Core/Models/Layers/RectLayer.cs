@@ -99,4 +99,11 @@ public class RectLayer : LayerBase
     public float InnerRatio { get; set; } = 0.5f;
 
     public ShapeBorder? Border { get; set; }
+
+    /// <summary>
+    /// Keep the box's width:height ratio when it is resized in the designer - what makes a circle
+    /// stay a circle. A designer-side rule only: the renderer draws the box it is given, and a
+    /// square box already draws a circle. An older package ignores the property.
+    /// </summary>
+    public bool LockAspect { get; set; }
 }

@@ -799,6 +799,44 @@ export class DiLayerInspectorElement extends UmbLitElement {
     `;
   }
 
+  /**
+   * "Circle" is an ellipse with its aspect locked, squared up to its width as it is chosen; any
+   * other shape keeps whatever lock the layer already has, except leaving Circle, which lets go.
+   */
+  #setShape(layer: DiRectLayer, choice: string) {
+    if (choice === "circle") {
+      const side = layer.size.width ?? layer.size.height ?? 200;
+      this.#patch({ shape: "ellipse", lockAspect: true, size: { ...layer.size, width: side, height: side } } as Partial<DiLayer>);
+      return;
+    }
+
+    const leavingCircle = shapeChoice(layer) === "circle";
+    this.#patch({
+      shape: choice as ShapeKind,
+      ...(leavingCircle ? { lockAspect: false } : {}),
+    } as Partial<DiLayer>);
+  }
+
+  /**
+   * Width or height, keeping the other in proportion when a shape's aspect is locked. The ratio
+   * comes from the box as it is, so a locked 2:1 rectangle stays 2:1.
+   */
+  #setSize(layer: DiLayer, dimension: "width" | "height", value: number | null) {
+    const locked = layer.type === "rect" && layer.lockAspect === true;
+    const { width, height } = layer.size;
+
+    if (!locked || value === null || !width || !height) {
+      this.#patch({ size: { ...layer.size, [dimension]: value } } as Partial<DiLayer>);
+      return;
+    }
+
+    const size = dimension === "width"
+      ? { width: value, height: Math.round((value * height) / width) }
+      : { width: Math.round((value * width) / height), height: value };
+
+    this.#patch({ size } as Partial<DiLayer>);
+  }
+
   #renderShape(layer: DiRectLayer) {
     const shape = layer.shape ?? "rectangle";
     const hasFill = layer.fill !== null && layer.fill !== undefined;
@@ -808,11 +846,20 @@ export class DiLayerInspectorElement extends UmbLitElement {
         <label class="field">
           <span>Shape</span>
           <uui-select
-            .value=${shape}
-            .options=${optionsFrom(["rectangle", "ellipse", "polygon", "star"], shape)}
-            @change=${(event: Event) =>
-              this.#patch({ shape: (event.target as HTMLSelectElement).value as ShapeKind } as Partial<DiLayer>)}>
+            .value=${shapeChoice(layer)}
+            .options=${optionsFrom(["rectangle", "circle", "ellipse", "polygon", "star"], shapeChoice(layer))}
+            @change=${(event: Event) => this.#setShape(layer, (event.target as HTMLSelectElement).value)}>
           </uui-select>
+        </label>
+
+        <label class="field inline">
+          <span>Lock aspect ratio</span>
+          <uui-toggle
+            label="Lock aspect ratio"
+            ?checked=${layer.lockAspect === true}
+            @change=${(event: Event) =>
+              this.#patch({ lockAspect: (event.target as HTMLInputElement).checked } as Partial<DiLayer>)}>
+          </uui-toggle>
         </label>
 
         ${shape === "polygon" || shape === "star"
@@ -964,8 +1011,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
             label="Width"
             placeholder="Auto"
             .value=${layer.size.width ?? null}
-            @change=${(event: CustomEvent) =>
-              this.#patch({ size: { ...layer.size, width: event.detail.value } } as Partial<DiLayer>)}>
+            @change=${(event: CustomEvent) => this.#setSize(layer, "width", event.detail.value)}>
           </di-number-field>
           <di-number-field
             .min=${INSPECTOR_BOUNDS.height.min}
@@ -973,8 +1019,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
             label="Height"
             placeholder="Auto"
             .value=${layer.size.height ?? null}
-            @change=${(event: CustomEvent) =>
-              this.#patch({ size: { ...layer.size, height: event.detail.value } } as Partial<DiLayer>)}>
+            @change=${(event: CustomEvent) => this.#setSize(layer, "height", event.detail.value)}>
           </di-number-field>
         </div>
       </uui-box>
@@ -1454,4 +1499,10 @@ declare global {
   interface HTMLElementTagNameMap {
     "di-layer-inspector": DiLayerInspectorElement;
   }
+}
+
+/** What the Shape select shows: an ellipse with its aspect locked is a Circle. */
+export function shapeChoice(layer: DiRectLayer): string {
+  const shape = layer.shape ?? "rectangle";
+  return shape === "ellipse" && layer.lockAspect === true ? "circle" : shape;
 }

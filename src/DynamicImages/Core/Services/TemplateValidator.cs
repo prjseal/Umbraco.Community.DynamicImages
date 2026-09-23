@@ -341,6 +341,14 @@ public sealed partial class TemplateValidator(
                         $"Layer '{Describe(layer)}' asks for {rect.Sides} {what}; a shape has between {ShapeGeometry.MinSides} and {ShapeGeometry.MaxSides}, so it will be drawn with {ShapeGeometry.ClampSides(rect.Sides)}.", layer.Key));
                 }
 
+                // Only reachable through JSON: the designer keeps a locked circle square.
+                if (rect.LockAspect && rect.Shape == ShapeKind.Ellipse &&
+                    rect.Size.Width is { } width && rect.Size.Height is { } height && Math.Abs(width - height) > 0.5f)
+                {
+                    issues.Add(new ValidationIssue(ValidationSeverity.Warning, "LockAspectNotSquare",
+                        $"Layer '{Describe(layer)}' is a circle with its aspect locked, but is {width} × {height}, so it draws an ellipse.", layer.Key));
+                }
+
                 if (rect.Shape == ShapeKind.Star && rect.InnerRatio != ShapeGeometry.ClampInnerRatio(rect.InnerRatio))
                 {
                     issues.Add(new ValidationIssue(ValidationSeverity.Warning, "ShapeInnerRatioInvalid",

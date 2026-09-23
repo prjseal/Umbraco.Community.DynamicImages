@@ -181,6 +181,38 @@ public class TemplateValidatorTests
         Assert.Equal("Layer 'Scrim' has the colour 'nonsense', which is not #RRGGBB or #RRGGBBAA.", issue.Message);
     }
 
+    [Theory]
+    [InlineData(200, 200, false)]
+    [InlineData(200, 120, true)]
+    public async Task A_locked_circle_that_is_not_square_is_warned_about(float width, float height, bool warned)
+    {
+        var template = Template();
+        template.Layers =
+        [
+            new RectLayer
+            {
+                Name = "Dot", Fill = "#FFFFFF", Shape = ShapeKind.Ellipse, LockAspect = true,
+                Size = new LayerSize { Width = width, Height = height }
+            }
+        ];
+
+        var issues = await Validate(template);
+
+        Assert.Equal(warned, issues.Any(i => i.Code == "LockAspectNotSquare"));
+    }
+
+    [Fact]
+    public async Task An_unlocked_ellipse_may_be_any_shape()
+    {
+        var template = Template();
+        template.Layers =
+        [
+            new RectLayer { Name = "Oval", Fill = "#FFFFFF", Shape = ShapeKind.Ellipse, Size = new LayerSize { Width = 300, Height = 100 } }
+        ];
+
+        Assert.DoesNotContain(await Validate(template), i => i.Code == "LockAspectNotSquare");
+    }
+
     /// <summary>
     /// A stand-in for an Umbraco service these templates never reach into. Hand-writing one of
     /// those interfaces would cost more than the warnings under test are worth, and a member that

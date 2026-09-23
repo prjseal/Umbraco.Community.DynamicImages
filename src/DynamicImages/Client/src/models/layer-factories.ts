@@ -115,28 +115,63 @@ export function createBadgesLayer(context: NewLayerContext, name: string, itemsP
   };
 }
 
-export function createRectLayer(context: NewLayerContext, name = "Shape", shape: ShapeKind = "rectangle"): DiRectLayer {
+/** The shapes the palette's Add shape menu offers: every renderer shape, plus presets of them. */
+export type ShapePreset =
+  | "rectangle" | "roundedRectangle" | "circle" | "ellipse" | "polygon" | "triangle" | "star";
+
+interface ShapePresetDefinition {
+  label: string;
+  icon: string;
+  shape: ShapeKind;
+  size: { width: number; height: number };
+  cornerRadius?: number;
+  sides?: number;
+  innerRatio?: number;
+  lockAspect?: boolean;
+}
+
+/** In menu order. A circle is a locked, square ellipse; a triangle is a three-sided polygon. */
+export const SHAPE_PRESETS: Record<ShapePreset, ShapePresetDefinition> = {
+  rectangle: { label: "Rectangle", icon: "icon-shape-rectangle-horizontal", shape: "rectangle", size: { width: 400, height: 200 }, cornerRadius: 0 },
+  roundedRectangle: {
+    label: "Rounded rectangle", icon: "icon-shape-square", shape: "rectangle", size: { width: 400, height: 200 }, cornerRadius: 24,
+  },
+  circle: { label: "Circle", icon: "icon-shape-circle", shape: "ellipse", size: { width: 200, height: 200 }, lockAspect: true },
+  ellipse: { label: "Ellipse", icon: "icon-record", shape: "ellipse", size: { width: 300, height: 180 } },
+  polygon: { label: "Polygon", icon: "icon-shape-hexagon", shape: "polygon", size: { width: 220, height: 220 }, sides: 6 },
+  triangle: { label: "Triangle", icon: "icon-shape-triangle", shape: "polygon", size: { width: 220, height: 200 }, sides: 3 },
+  star: { label: "Star", icon: "icon-star", shape: "star", size: { width: 220, height: 220 }, sides: 5, innerRatio: 0.5 },
+};
+
+export const SHAPE_PRESET_ORDER = Object.keys(SHAPE_PRESETS) as ShapePreset[];
+
+/**
+ * A shape layer from one of the Add shape presets. A bare `ShapeKind` is accepted too, as the
+ * preset of the same name, so a stored palette payload from before presets still drops.
+ */
+export function createRectLayer(context: NewLayerContext, name = "Shape", preset: ShapePreset = "rectangle"): DiRectLayer {
   const { x, y } = centre(context);
+  const definition = SHAPE_PRESETS[preset] ?? SHAPE_PRESETS.rectangle;
 
   return {
     type: "rect",
     key: newKey(),
-    name: shape === "ellipse" && name === "Shape" ? "Ellipse" : name,
+    name: name === "Shape" ? definition.label : name,
     isVisible: true,
     isLocked: false,
     opacity: 1,
     position: { x, y, anchor: "middleCentre" },
-    // A circle is the ellipse people reach for; a scrim is wide.
-    size: shape === "ellipse" ? { width: 200, height: 200 } : { width: 400, height: 200 },
+    size: { ...definition.size },
     rotation: 0,
     visibility: { rule: "always" },
-    shape,
+    shape: definition.shape,
     fill: "#00000099",
     gradient: null,
-    cornerRadius: 0,
-    sides: 5,
-    innerRatio: 0.5,
+    cornerRadius: definition.cornerRadius ?? 0,
+    sides: definition.sides ?? 5,
+    innerRatio: definition.innerRatio ?? 0.5,
     border: null,
+    ...(definition.lockAspect ? { lockAspect: true } : {}),
   };
 }
 

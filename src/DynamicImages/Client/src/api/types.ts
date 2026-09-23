@@ -202,6 +202,8 @@ export interface DiRectLayer extends DiLayerBase {
   innerRatio: number;
   /** Drawn inside the box, like an image border. */
   border?: { width: number; colour: string } | null;
+  /** Keep width:height when resized - what keeps a circle a circle. Designer-only; absent means off. */
+  lockAspect?: boolean;
 }
 
 export type DiLayer = DiTextLayer | DiImageLayer | DiBadgesLayer | DiRectLayer;

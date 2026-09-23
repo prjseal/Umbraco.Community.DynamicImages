@@ -286,7 +286,7 @@ export class DiDesignViewElement extends UmbLitElement {
         : payload.layerType === "badges"
           ? createBadgesLayer(context, "Badges", "")
           : payload.layerType === "rect"
-            ? createRectLayer(context, "Shape", payload.shape)
+            ? createRectLayer(context, "Shape", payload.preset)
             : createTextLayer(context, "Text", { kind: "static", text: "Text" });
 
     this.#context.addLayer(layer);
