@@ -1,5 +1,4 @@
 # Native tree actions for Templates, and a Fonts tree — plan
-> nothing is implemented here.
 
 ## Context
 
