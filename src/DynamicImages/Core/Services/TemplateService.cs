@@ -103,10 +103,17 @@ public sealed partial class TemplateService(
         return TreeOperationOutcome.Success;
     }
 
-    public async Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default)
+    public async Task<SaveResult> DuplicateAsync(Guid key, Guid? targetKey, Guid? userKey, CancellationToken cancellationToken = default)
     {
         var source = repository.Get(key);
         if (source is null) return SaveResult.Failed(SaveOutcome.NotFound);
+
+        // Checked here rather than left to CreateAsync, which roots a template whose folder is
+        // missing: that is right for an import from another environment, but a duplicate asked
+        // to go somewhere specific should say it could not rather than land somewhere else.
+        if (targetKey is { } target && folderRepository.Get(target) is null) return SaveResult.Failed(SaveOutcome.TargetNotFound);
+
+        source.ParentKey = targetKey;
 
         source.Key = Guid.NewGuid();
         source.Name = $"{source.Name} (copy)";

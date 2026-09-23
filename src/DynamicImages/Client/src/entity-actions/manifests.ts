@@ -55,7 +55,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     type: "repository",
     alias: DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
     name: "Dynamic Images Duplicate Template Repository",
-    api: () => import("./duplicate-template.repository.js"),
+    api: () => import("./duplicate-to-template.repository.js"),
   },
 
   // ---------------------------------------------------------------- create
@@ -116,15 +116,15 @@ export const manifests: Array<UmbExtensionManifest> = [
   },
   {
     type: "entityAction",
-    kind: "duplicate",
-    alias: "DynamicImages.EntityAction.Template.Duplicate",
-    name: "Duplicate Dynamic Images Template",
+    kind: "duplicateTo",
+    alias: "DynamicImages.EntityAction.Template.DuplicateTo",
+    name: "Duplicate Dynamic Images Template To",
     forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
     meta: {
-      icon: "icon-documents",
-      label: "Duplicate",
       duplicateRepositoryAlias: DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
       treeRepositoryAlias: DI_TEMPLATE_TREE_REPOSITORY_ALIAS,
+      treeAlias: DI_TEMPLATE_TREE_ALIAS,
+      foldersOnly: true,
     },
   },
   {

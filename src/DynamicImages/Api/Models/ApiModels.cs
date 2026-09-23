@@ -24,6 +24,9 @@ public sealed record TemplateListResponse(int Total, IReadOnlyList<TemplateSumma
 /// <summary>A save's outcome, so the designer can show validation warnings on a successful save too.</summary>
 public sealed record TemplateSaveResponse(Template Template, IReadOnlyList<ValidationIssue> Warnings);
 
+/// <summary>Where a duplicate goes: a folder, or the Templates root when <c>TargetKey</c> is null.</summary>
+public sealed record DuplicateRequest(Guid? TargetKey);
+
 /// <summary><c>ParentKey</c> is the folder the import was started from; null is the Templates root.</summary>
 public sealed record TemplateImportRequest(string Json, string Mode = "create", Guid? ParentKey = null);
 

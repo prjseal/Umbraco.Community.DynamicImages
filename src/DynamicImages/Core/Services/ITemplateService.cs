@@ -15,7 +15,10 @@ public enum SaveOutcome
     NotFound,
 
     /// <summary>Another template already uses the alias.</summary>
-    AliasInUse
+    AliasInUse,
+
+    /// <summary>The folder a duplicate was asked to go into does not exist.</summary>
+    TargetNotFound
 }
 
 public sealed record SaveResult(SaveOutcome Outcome, Template? Template, ValidationResult Validation)
@@ -50,8 +53,12 @@ public interface ITemplateService
     /// </summary>
     Task<TreeOperationOutcome> MoveAsync(Guid key, Guid? targetKey, CancellationToken cancellationToken = default);
 
-    /// <summary>Copies a template under a new key, alias and name.</summary>
-    Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Copies a template under a new key, alias and name into <paramref name="targetKey"/>: a
+    /// folder, or the Templates root when null. A target that is not an existing folder is
+    /// <see cref="SaveOutcome.TargetNotFound"/>, not a silent move to the root.
+    /// </summary>
+    Task<SaveResult> DuplicateAsync(Guid key, Guid? targetKey, Guid? userKey, CancellationToken cancellationToken = default);
 
     /// <summary>An alias derived from a name that no existing template is using.</summary>
     string SuggestAlias(string name, Guid? exceptKey = null);

@@ -86,8 +86,11 @@ export async function deleteTemplate(key: string, getToken: TokenGetter): Promis
   await request(`/templates/${key}`, getToken, { method: "DELETE" });
 }
 
-export const duplicateTemplate = async (key: string, getToken: TokenGetter): Promise<DiTemplateSaveResponse> =>
-  json(await request(`/templates/${key}/duplicate`, getToken, { method: "POST" }));
+/** `targetKey` is the folder the copy goes into; null is the Templates root. */
+export const duplicateTemplate = async (
+  key: string, targetKey: string | null, getToken: TokenGetter,
+): Promise<DiTemplateSaveResponse> =>
+  json(await request(`/templates/${key}/duplicate`, getToken, { method: "POST", json: { targetKey } }));
 
 export async function exportTemplate(key: string, getToken: TokenGetter): Promise<Blob> {
   return (await request(`/templates/${key}/export`, getToken)).blob();

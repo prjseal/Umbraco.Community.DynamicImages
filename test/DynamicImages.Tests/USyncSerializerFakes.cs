@@ -80,7 +80,7 @@ internal sealed class FakeTemplateService : ITemplateService
         return Task.FromResult(TreeOperationOutcome.Success);
     }
 
-    public Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default)
+    public Task<SaveResult> DuplicateAsync(Guid key, Guid? targetKey, Guid? userKey, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 
     public string SuggestAlias(string name, Guid? exceptKey = null) => name;

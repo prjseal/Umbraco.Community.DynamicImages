@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Community.DynamicImages.Api.Models;
 using Umbraco.Community.DynamicImages.Core.Json;
@@ -93,20 +94,37 @@ public class TemplatesController(
     public IActionResult Delete(Guid key)
         => templateService.Delete(key) ? Ok() : TemplateNotFound(key);
 
+    /// <summary>
+    /// Copies a template into the folder <see cref="DuplicateRequest.TargetKey"/> names, or the
+    /// root when it is null. No body at all keeps the copy beside the original, which is what
+    /// this endpoint did before Duplicate to existed.
+    /// </summary>
     [HttpPost("templates/{key:guid}/duplicate")]
     [ProducesResponseType(typeof(TemplateSaveResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Duplicate(Guid key, CancellationToken cancellationToken)
+    public async Task<IActionResult> Duplicate(
+        Guid key,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] DuplicateRequest? request,
+        CancellationToken cancellationToken)
     {
-        var result = await templateService.DuplicateAsync(key, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
+        var source = templateService.Get(key);
+        if (source is null) return TemplateNotFound(key);
 
-        return result.Outcome switch
-        {
-            SaveOutcome.Saved => Created($"templates/{result.Template!.Key}", new TemplateSaveResponse(result.Template, Warnings(result))),
-            SaveOutcome.NotFound => TemplateNotFound(key),
-            _ => ValidationProblemFor(result)
-        };
+        var targetKey = request is null ? source.ParentKey : request.TargetKey;
+        var result = await templateService.DuplicateAsync(key, targetKey, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
+
+        return DuplicateResult(result, key);
     }
+
+    private IActionResult DuplicateResult(SaveResult result, Guid key) => result.Outcome switch
+    {
+        SaveOutcome.Saved => Created($"templates/{result.Template!.Key}", new TemplateSaveResponse(result.Template, Warnings(result))),
+        SaveOutcome.NotFound => TemplateNotFound(key),
+        SaveOutcome.TargetNotFound => Problem(title: "The target folder was not found",
+            detail: "Choose the Templates root or an existing folder.", statusCode: StatusCodes.Status400BadRequest),
+        _ => ValidationProblemFor(result)
+    };
 
     [HttpGet("templates/{key:guid}/export")]
     [ProducesResponseType(StatusCodes.Status200OK)]
