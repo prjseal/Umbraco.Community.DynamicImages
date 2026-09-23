@@ -31,6 +31,11 @@ export const DI_MOVE_FONT_FAMILY_REPOSITORY_ALIAS = "DynamicImages.Repository.Mo
 export const DI_MOVE_FONT_FOLDER_REPOSITORY_ALIAS = "DynamicImages.Repository.MoveFontFolder";
 export const DI_BULK_MOVE_FONTS_REPOSITORY_ALIAS = "DynamicImages.Repository.BulkMoveFonts";
 export const DI_SORT_FONT_CHILDREN_REPOSITORY_ALIAS = "DynamicImages.Repository.SortFontChildren";
+/** Deletes whatever a Fonts collection selection holds: folders, families or variants. */
+export const DI_FONT_BULK_DELETE_REPOSITORY_ALIAS = "DynamicImages.Repository.FontBulkDelete";
+
+/** Permits an action only on a variant fetched from the web, the only kind Refresh applies to. */
+export const DI_IS_WEB_FONT_CONDITION_ALIAS = "DynamicImages.Condition.IsWebFont";
 
 export const DI_FONT_COLLECTION_ALIAS = "DynamicImages.Collection.Fonts";
 export const DI_FONT_COLLECTION_REPOSITORY_ALIAS = "DynamicImages.Repository.FontCollection";
