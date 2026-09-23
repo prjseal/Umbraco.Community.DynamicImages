@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { login, openSection, openTemplate, openView } from "./helpers.js";
+import { choosePreviewContent, field, login, openSection, openTemplate, openView } from "./helpers.js";
 
 /**
  * Following a content reference into a linked node, end to end.
@@ -47,16 +47,7 @@ function recordLayouts(page: Page): LayoutRender[] {
 
 /** Picks a real content node in Preview & test, so the render is against content rather than samples. */
 async function pickSampleNode(page: Page): Promise<void> {
-  const picker = page.locator("di-preview-view uui-button[label='Choose content to preview against']");
-  await expect(picker).toBeVisible({ timeout: 60_000 });
-  await picker.click();
-
-  const modal = page.locator("di-sample-node-picker-modal");
-  await expect(modal).toBeVisible({ timeout: 60_000 });
-
-  // Clicking the node submits the modal; there is no separate confirm button.
-  await modal.locator(`uui-ref-node[name='${SAMPLE_NODE}']`).click();
-  await expect(picker).toContainText(SAMPLE_NODE, { timeout: 60_000 });
+  await choosePreviewContent(page, SAMPLE_NODE);
 }
 
 /**
@@ -73,7 +64,7 @@ async function resolvedTextOf(renders: LayoutRender[], key: string): Promise<str
   return matching().at(-1)!.layers.find((layer) => layer.key === key)!.resolvedText ?? "";
 }
 
-const FIELD = (label: string) => `di-layer-inspector label.field:has(> span:text-is("${label}"))`;
+const FIELD = (label: string) => field("di-layer-inspector", label);
 
 /** The native controls inside the binding field's `uui-select`s: root first, then tail. */
 const pathSelects = (page: Page) => page.locator(`${FIELD("Property")} uui-select select`);
@@ -156,4 +147,21 @@ test("changing the root clears the tail", async ({ page }) => {
   // A text property is not a reference, so there is nothing left to follow.
   await expect(pathSelects(page)).toHaveCount(1);
   await expect(pathSelects(page).first()).toHaveValue("title");
+});
+
+test("the linked dropdown sits below the first, at the same indent as every hop after it", async ({ page }) => {
+  await pathSelects(page).first().selectOption("author");
+  await expect(pathSelects(page)).toHaveCount(2);
+
+  const selects = page.locator(`${FIELD("Property")} uui-select`);
+  const root = (await selects.nth(0).boundingBox())!;
+  const linked = (await selects.nth(1).boundingBox())!;
+
+  // Below, never beside: the second dropdown used to share a row with the first and be clipped.
+  expect(linked.y).toBeGreaterThanOrEqual(root.y + root.height);
+
+  // Stacked in the same column, indented behind the hop's rule; its right edge lines up with the
+  // first's, so neither is cut off.
+  expect(linked.x).toBeGreaterThanOrEqual(root.x);
+  expect(Math.round(linked.x + linked.width)).toBe(Math.round(root.x + root.width));
 });

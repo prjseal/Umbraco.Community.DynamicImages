@@ -5,6 +5,10 @@ import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_DISCARD_CHANGES_MODAL, umbOpenModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
+import { UMB_ACTION_EVENT_CONTEXT } from "@umbraco-cms/backoffice/action";
+import {
+  UmbRequestReloadChildrenOfEntityEvent, UmbRequestReloadStructureForEntityEvent,
+} from "@umbraco-cms/backoffice/entity-action";
 import {
   DiApiError, createTemplate as apiCreate, fetchFonts, fetchLinkedProperties, fetchProperties, fetchTemplate,
   hrefForTemplate, notifyTemplatesChanged, updateTemplate,
@@ -15,6 +19,8 @@ import type {
 import { createTemplate } from "../models/layer-factories.js";
 import { detach, referenceOn } from "../models/relative-layout.js";
 import { History } from "../designer/history.js";
+import { MAX_HOPS } from "../models/property-path.js";
+import { linkedCaption } from "../models/property-options.js";
 
 export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
 
@@ -36,6 +42,9 @@ export const DI_TEMPLATE_WORKSPACE_ALIAS = "DynamicImages.Workspace.Template";
  * that long is not usable anyway.
  */
 const MAX_LINKED_ROOTS = 12;
+
+/** How many dotted prefixes the linked-property walk may load in all, across every depth. */
+const MAX_LINKED_PREFIXES = 36;
 
 export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBase<DiTemplate> {
   /**
@@ -60,6 +69,10 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
    */
   #linkedProperties = new UmbObjectState<Record<string, DiProperty[]>>({});
   readonly linkedProperties = this.#linkedProperties.asObservable();
+
+  /** Per dotted prefix, the caption over its dropdown: "Property on the linked Author". */
+  #linkedCaptions = new UmbObjectState<Record<string, string>>({});
+  readonly linkedCaptions = this.#linkedCaptions.asObservable();
 
   #fonts = new UmbArrayState<DiFont>([], (font) => font.key);
   readonly fonts = this.#fonts.asObservable();
@@ -110,6 +123,16 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     // The routable workspace kind renders whichever of these matches the address bar. Both land
     // on the same editor element; only how the context is seeded differs.
     this.routes.setRoutes([
+      {
+        // Create… on a folder in the tree: the same shape as core's create routes, so the new
+        // template is saved into the folder it was started from.
+        path: "create/parent/:parentEntityType/:parentUnique",
+        component: () => import("./di-template-editor.element.js"),
+        setup: (_component, info) => {
+          const parent = info.match.params.parentUnique;
+          return this.createScaffold(undefined, parent && parent !== "null" ? parent : null);
+        },
+      },
       {
         path: "create",
         component: () => import("./di-template-editor.element.js"),
@@ -221,6 +244,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     try {
       const template = await fetchTemplate(key, this.getToken);
       this.#setTemplate(template, { resetHistory: true, persist: true });
+      this.#restoreSampleContentKey();
       this.setIsNew(false);
       await this.#loadSupportingData(template);
     } catch (error) {
@@ -230,13 +254,13 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     }
   }
 
-  async createScaffold(name = "New template"): Promise<void> {
+  async createScaffold(name = "New template", parentKey: string | null = null): Promise<void> {
     this.#loading.setValue(true);
     this.#isNew = true;
 
     // The scaffold is persisted as well as current, so opening Create and navigating straight
     // back out does not prompt over changes nobody made.
-    this.#setTemplate(createTemplate(name), { resetHistory: true, persist: true });
+    this.#setTemplate({ ...createTemplate(name), parentKey }, { resetHistory: true, persist: true });
     this.setIsNew(true);
     await this.#loadSupportingData(this._data.getCurrent()!);
 
@@ -257,27 +281,37 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
 
   /**
    * What each content-classified property points at, loaded eagerly rather than on demand. Lazy
-   * loading would leave the second dropdown empty for the moment right after the editor picks a
-   * root - the exact moment they are looking at it - and would need event plumbing back from the
+   * loading would leave the next dropdown empty for the moment right after the editor picks a
+   * hop - the exact moment they are looking at it - and would need event plumbing back from the
    * inspector for no gain.
    *
-   * Mirrors {@link #loadProperties}: one request per (docTypeAlias, rootAlias) pair, each
-   * swallowing its own failure, then flattened and de-duped by alias with the first winning.
+   * Keyed by the dotted prefix the properties sit behind - `author`, then `author.employer` - and
+   * walked breadth first down to `MAX_HOPS` references, so every hop the renderer follows gets its
+   * own dropdown. Each (docTypeAlias, prefix) request swallows its own failure; the lists are
+   * flattened and de-duped by alias with the first winning. `MAX_LINKED_PREFIXES` caps the walk,
+   * so a model where everything references everything cannot fan out without bound.
    */
   async #loadLinkedProperties(
     docTypeAliases: string[], properties: DiProperty[],
   ): Promise<Record<string, DiProperty[]>> {
-    const roots = properties
+    const result: Record<string, DiProperty[]> = {};
+    const captions: Record<string, string> = {};
+    if (docTypeAliases.length === 0) return result;
+
+    let frontier = properties
       .filter((property) => property.classification === "content")
-      .slice(0, MAX_LINKED_ROOTS);
+      .slice(0, MAX_LINKED_ROOTS)
+      .map((property) => property.alias);
+    let loaded = 0;
 
-    if (roots.length === 0 || docTypeAliases.length === 0) return {};
+    for (let depth = 1; depth <= MAX_HOPS && frontier.length > 0 && loaded < MAX_LINKED_PREFIXES; depth++) {
+      const batch = frontier.slice(0, MAX_LINKED_PREFIXES - loaded);
+      loaded += batch.length;
 
-    const loaded = await Promise.all(
-      roots.map(async (root) => {
+      const levels = await Promise.all(batch.map(async (prefix) => {
         const responses = await Promise.all(
           docTypeAliases.map((alias) =>
-            fetchLinkedProperties(alias, root.alias, this.getToken).catch(() => null)),
+            fetchLinkedProperties(alias, prefix, this.getToken).catch(() => null)),
         );
 
         const seen = new Map<string, DiProperty>();
@@ -285,11 +319,30 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
           if (!seen.has(property.alias)) seen.set(property.alias, property);
         }
 
-        return [root.alias, [...seen.values()]] as [string, DiProperty[]];
-      }),
-    );
+        const answered = responses.filter((response) => response !== null);
+        const targetNames = [...new Set(answered.flatMap((response) => response!.targetDocTypes.map((type) => type.name)))];
+        const inference = answered.some((response) => response!.inference === "all") ? "all" : answered[0]?.inference;
 
-    return Object.fromEntries(loaded.filter(([, list]) => list.length > 0));
+        return { prefix, properties: [...seen.values()], caption: linkedCaption(targetNames, inference) };
+      }));
+
+      frontier = [];
+      for (const level of levels) {
+        if (level.properties.length === 0) continue;
+
+        result[level.prefix] = level.properties;
+        captions[level.prefix] = level.caption;
+
+        if (depth < MAX_HOPS) {
+          frontier.push(...level.properties
+            .filter((property) => property.classification === "content" && !property.isSystem)
+            .map((property) => `${level.prefix}.${property.alias}`));
+        }
+      }
+    }
+
+    this.#linkedCaptions.setValue(captions);
+    return result;
   }
 
   /**
@@ -502,7 +555,40 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     this.#issues.setValue(issues);
   }
 
+  /**
+   * The page previews render against, or undefined for sample data. One value for the whole
+   * workspace, so the Preview & test picker and the designer strip's picker always agree - and
+   * remembered per template, so coming back to it does not mean choosing again.
+   */
   setSampleContentKey(key: string | undefined): void {
+    this.#sampleContentKey.setValue(key);
+    this.#useSampleData.setValue(!key);
+    this.#rememberSampleContentKey(key);
+  }
+
+  #sampleStorageKey(): string {
+    return `di:sample-node:${this._data.getCurrent()?.key ?? "new"}`;
+  }
+
+  #rememberSampleContentKey(key: string | undefined): void {
+    try {
+      if (key) localStorage.setItem(this.#sampleStorageKey(), JSON.stringify({ key }));
+      else localStorage.removeItem(this.#sampleStorageKey());
+    } catch {
+      // Private mode, blocked storage - not being able to remember the choice is not worth telling anyone about.
+    }
+  }
+
+  /** Accepts the older remembered shape too, which stored the whole picked item. */
+  #restoreSampleContentKey(): void {
+    let key: string | undefined;
+    try {
+      const raw = localStorage.getItem(this.#sampleStorageKey());
+      key = raw ? (JSON.parse(raw) as { key?: string }).key : undefined;
+    } catch {
+      key = undefined;
+    }
+
     this.#sampleContentKey.setValue(key);
     this.#useSampleData.setValue(!key);
   }
@@ -535,6 +621,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
       this.setIsNew(false);
 
       notifyTemplatesChanged();
+      await this.#reloadTree(response.template, wasNew);
 
       this.#notificationContext?.peek("positive", {
         data: { message: `'${response.template.name}' saved.` },
@@ -550,6 +637,25 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     } catch (error) {
       this.#notifyError("The template could not be saved", error);
       throw error;
+    }
+  }
+
+  /**
+   * Tells the Templates tree (and the collection) what changed, the way core's detail workspaces
+   * do: a new template reloads its parent's children, and a saved one reloads its own structure
+   * so a rename shows.
+   */
+  async #reloadTree(template: DiTemplate, created: boolean): Promise<void> {
+    const events = await this.getContext(UMB_ACTION_EVENT_CONTEXT).catch(() => undefined);
+    if (!events) return;
+
+    if (created) {
+      events.dispatchEvent(new UmbRequestReloadChildrenOfEntityEvent({
+        entityType: template.parentKey ? "di-template-folder" : "di-template-root",
+        unique: template.parentKey ?? null,
+      }));
+    } else {
+      events.dispatchEvent(new UmbRequestReloadStructureForEntityEvent({ entityType: "di-template", unique: template.key }));
     }
   }
 

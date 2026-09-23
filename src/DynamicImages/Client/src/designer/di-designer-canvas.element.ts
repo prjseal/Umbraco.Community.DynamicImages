@@ -333,13 +333,16 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     const lockY = isTracked(layer.position, "y");
     const rotation = drag.startRotation;
 
+    // A shape with its aspect locked (a circle, say) resizes as though Shift were held.
+    const keepAspect = event.shiftKey || (layer.type === "rect" && layer.lockAspect === true);
+
     if (drag.handle && rotation !== 0) {
-      this.#resizeRotated(layer, drag, drag.handle, deltaX, deltaY, event.shiftKey, lockX, lockY);
+      this.#resizeRotated(layer, drag, drag.handle, deltaX, deltaY, keepAspect, lockX, lockY);
       return;
     }
 
     let proposed = drag.handle
-      ? this.#resizeBox(drag.startBox, drag.handle, deltaX, deltaY, event.shiftKey)
+      ? this.#resizeBox(drag.startBox, drag.handle, deltaX, deltaY, keepAspect)
       : { ...drag.startBox, x: drag.startBox.x + deltaX, y: drag.startBox.y + deltaY };
 
     if (lockX) {

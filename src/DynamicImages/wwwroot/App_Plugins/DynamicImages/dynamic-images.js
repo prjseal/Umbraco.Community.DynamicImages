@@ -1,93 +1,129 @@
-var Ro = (e) => {
+var cr = (e) => {
   throw TypeError(e);
 };
-var as = (e, t, i) => t.has(e) || Ro("Cannot " + i);
-var c = (e, t, i) => (as(e, t, "read from private field"), i ? i.call(e) : t.get(e)), w = (e, t, i) => t.has(e) ? Ro("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), _ = (e, t, i, a) => (as(e, t, "write to private field"), a ? a.call(e, i) : t.set(e, i), i), T = (e, t, i) => (as(e, t, "access private method"), i);
-var ss = (e, t, i, a) => ({
+var ls = (e, t, i) => t.has(e) || cr("Cannot " + i);
+var d = (e, t, i) => (ls(e, t, "read from private field"), i ? i.call(e) : t.get(e)), x = (e, t, i) => t.has(e) ? cr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), b = (e, t, i, a) => (ls(e, t, "write to private field"), a ? a.call(e, i) : t.set(e, i), i), S = (e, t, i) => (ls(e, t, "access private method"), i);
+var cs = (e, t, i, a) => ({
   set _(s) {
-    _(e, t, s, i);
+    b(e, t, s, i);
   },
   get _() {
-    return c(e, t, a);
+    return d(e, t, a);
   }
 });
-import { nothing as m, html as r, css as I, state as f, customElement as R, repeat as B, property as y, classMap as on, styleMap as V } from "@umbraco-cms/backoffice/external/lit";
-import { UmbLitElement as F } from "@umbraco-cms/backoffice/lit-element";
-import { UMB_AUTH_CONTEXT as Ve } from "@umbraco-cms/backoffice/auth";
-import { UMB_NOTIFICATION_CONTEXT as Ge } from "@umbraco-cms/backoffice/notification";
-import { umbOpenModal as $c, UMB_DISCARD_CHANGES_MODAL as xc, umbConfirmModal as Xs, UmbModalToken as nn, UMB_MODAL_MANAGER_CONTEXT as Ua, UmbModalBaseElement as rn } from "@umbraco-cms/backoffice/modal";
-import { UMB_MEDIA_PICKER_MODAL as ln } from "@umbraco-cms/backoffice/media";
-import { UMB_DOCUMENT_TYPE_PICKER_MODAL as kc } from "@umbraco-cms/backoffice/document-type";
-import { UmbSubmittableWorkspaceContextBase as Sc, UmbEntityWorkspaceDataManager as Cc, UmbSubmitWorkspaceAction as Wo, UmbWorkspaceActionBase as Tc } from "@umbraco-cms/backoffice/workspace";
-import { UmbContextToken as Ec } from "@umbraco-cms/backoffice/context-api";
-import { UmbArrayState as vi, UmbStringState as No, UmbObjectState as Pc, UmbBooleanState as sa, UmbNumberState as Dc } from "@umbraco-cms/backoffice/observable-api";
-import { UmbEntityActionBase as Mc } from "@umbraco-cms/backoffice/entity-action";
-import { UmbPropertyActionBase as zc } from "@umbraco-cms/backoffice/property-action";
-import { UMB_PROPERTY_CONTEXT as Oc } from "@umbraco-cms/backoffice/property";
-import { UMB_DOCUMENT_WORKSPACE_CONTEXT as Ic } from "@umbraco-cms/backoffice/document";
+import { UmbSubmittableWorkspaceContextBase as ru, UmbEntityWorkspaceDataManager as nu, UmbSubmitWorkspaceAction as xs, UmbEntityNamedDetailWorkspaceContextBase as lu, UmbWorkspaceActionBase as cu } from "@umbraco-cms/backoffice/workspace";
+import { UmbContextToken as Ja, UmbContextConsumerController as uu } from "@umbraco-cms/backoffice/context-api";
+import { UmbDetailRepositoryBase as Qr, UmbItemRepositoryBase as du, UmbItemServerDataSourceBase as hu, UmbRepositoryBase as po } from "@umbraco-cms/backoffice/repository";
+import { UmbDetailStoreBase as en, UmbItemStoreBase as pu } from "@umbraco-cms/backoffice/store";
+import { UmbId as mu } from "@umbraco-cms/backoffice/id";
+import { UMB_BOOLEAN_VALUE_TYPE as yu, UMB_DATE_TIME_VALUE_TYPE as fu } from "@umbraco-cms/backoffice/value-type";
+import { nothing as p, html as n, css as A, state as y, customElement as M, ifDefined as ks, property as g, repeat as Z, classMap as tn, styleMap as W } from "@umbraco-cms/backoffice/external/lit";
+import { UmbLitElement as L } from "@umbraco-cms/backoffice/lit-element";
+import { UmbTreeServerDataSourceBase as gu, UmbTreeRepositoryBase as vu } from "@umbraco-cms/backoffice/tree";
+import { UMB_ACTION_EVENT_CONTEXT as mo } from "@umbraco-cms/backoffice/action";
+import { UmbRequestReloadChildrenOfEntityEvent as yo, UmbRequestReloadStructureForEntityEvent as bu, UmbEntityActionBase as Za } from "@umbraco-cms/backoffice/entity-action";
+import { UMB_NOTIFICATION_CONTEXT as pe } from "@umbraco-cms/backoffice/notification";
+import { UmbEntityCreateOptionActionBase as _u } from "@umbraco-cms/backoffice/entity-create-option-action";
+import { UMB_AUTH_CONTEXT as Le } from "@umbraco-cms/backoffice/auth";
+import { umbOpenModal as an, UMB_DISCARD_CHANGES_MODAL as wu, umbConfirmModal as fo, UmbModalToken as sn, UmbModalBaseElement as on, UMB_MODAL_MANAGER_CONTEXT as $u } from "@umbraco-cms/backoffice/modal";
 import "@umbraco-cms/backoffice/external/uui";
-const Ba = "dynamic-images", Xi = "di-template", Ca = "di:templates-changed", Ac = "/umbraco/management/api/v1/dynamic-images";
-class nt extends Error {
+import { UMB_ENTITY_CONTEXT as xu } from "@umbraco-cms/backoffice/entity";
+import { tryExecute as ku } from "@umbraco-cms/backoffice/resources";
+import { UmbDefaultCollectionContext as Tu } from "@umbraco-cms/backoffice/collection";
+import { UmbSelectedEvent as Su, UmbDeselectedEvent as Eu } from "@umbraco-cms/backoffice/event";
+import "@umbraco-cms/backoffice/document-type";
+import "@umbraco-cms/backoffice/media";
+import { UmbArrayState as vi, UmbStringState as ur, UmbObjectState as dr, UmbBooleanState as ca, UmbNumberState as Cu } from "@umbraco-cms/backoffice/observable-api";
+import { UmbPropertyActionBase as Du } from "@umbraco-cms/backoffice/property-action";
+import { UMB_PROPERTY_CONTEXT as Iu } from "@umbraco-cms/backoffice/property";
+import { UMB_DOCUMENT_WORKSPACE_CONTEXT as Ou } from "@umbraco-cms/backoffice/document";
+const Qa = "dynamic-images", es = "di-template", Ts = "di:templates-changed", Pu = "/umbraco/management/api/v1/dynamic-images";
+class ht extends Error {
   constructor(t, i, a) {
     super(t), this.status = i, this.detail = a, this.name = "DiApiError";
   }
 }
-async function S(e, t, i) {
+async function $(e, t, i) {
   const a = await t(), s = new Headers(i == null ? void 0 : i.headers);
   a && s.set("Authorization", `Bearer ${a}`);
   let o = i == null ? void 0 : i.body;
   (i == null ? void 0 : i.json) !== void 0 && (s.set("Content-Type", "application/json"), o = JSON.stringify(i.json));
-  const n = await fetch(`${Ac}${e}`, { ...i, headers: s, body: o });
-  if (!n.ok) throw await Lc(n);
-  return n;
+  const r = await fetch(`${Pu}${e}`, { ...i, headers: s, body: o });
+  if (!r.ok) throw await Au(r);
+  return r;
 }
-async function Lc(e) {
+async function Au(e) {
   let t = `Request failed (${e.status})`, i;
   try {
     const a = await e.json();
     a != null && a.title && (t = a.title), a != null && a.detail && (i = a.detail);
   } catch {
   }
-  return new nt(t, e.status, i);
+  return new ht(t, e.status, i);
 }
-const D = async (e) => e.json();
-async function Ys(e) {
-  const t = await S("/templates?take=500", e);
-  return (await D(t)).items;
+const T = async (e) => e.json();
+async function Mu(e) {
+  const t = await $("/templates?take=500", e);
+  return (await T(t)).items;
 }
-const cn = async (e, t) => D(await S(`/templates/${e}`, t)), un = async (e, t) => D(await S("/templates", t, { method: "POST", json: e })), hn = async (e, t) => D(await S(`/templates/${e.key}`, t, { method: "PUT", json: e }));
-async function dn(e, t) {
-  await S(`/templates/${e}`, t, { method: "DELETE" });
+const go = async (e, t) => T(await $(`/templates/${e}`, t)), Ru = async (e, t) => T(await $("/templates", t, { method: "POST", json: e })), zu = async (e, t) => T(await $(`/templates/${e.key}`, t, { method: "PUT", json: e }));
+async function Lu(e, t) {
+  await $(`/templates/${e}`, t, { method: "DELETE" });
 }
-const pn = async (e, t) => D(await S(`/templates/${e}/duplicate`, t, { method: "POST" }));
-async function mn(e, t) {
-  return (await S(`/templates/${e}/export`, t)).blob();
+const Fu = async (e, t) => T(await $(`/templates/${e}/duplicate`, t, { method: "POST" }));
+async function Wu(e, t) {
+  return (await $(`/templates/${e}/export`, t)).blob();
 }
-const fn = async (e, t, i) => D(await S("/templates/import", i, { method: "POST", json: { json: e, mode: t } })), Ei = async (e) => D(await S("/fonts", e));
-async function gn(e, t) {
+const Uu = async (e, t, i, a = null) => T(await $("/templates/import", i, { method: "POST", json: { json: e, mode: t, parentKey: a } }));
+function rn(e, t, i, a) {
+  const s = new URLSearchParams({ skip: String(e), take: String(t) });
+  return i && s.set("foldersOnly", "true"), a && s.set("parentKey", a), s.toString();
+}
+const hr = async (e, t, i, a) => T(await $(`/tree/root?${rn(e, t, i)}`, a)), Nu = async (e, t, i, a, s) => T(await $(`/tree/children?${rn(t, i, a, e)}`, s)), Bu = async (e, t) => T(await $(`/tree/ancestors?descendantKey=${encodeURIComponent(e)}`, t));
+async function nn(e, t) {
+  if (e.length === 0) return [];
+  const i = new URLSearchParams();
+  for (const a of e) i.append("key", a);
+  return T(await $(`/item?${i}`, t));
+}
+async function Ku(e, t) {
+  const i = new URLSearchParams({ skip: String(e.skip ?? 0), take: String(e.take ?? 100) });
+  return e.parentKey && i.set("parentKey", e.parentKey), e.filter && i.set("filter", e.filter), e.orderBy && i.set("orderBy", e.orderBy), T(await $(`/collection/templates?${i}`, t));
+}
+async function ju(e, t, i) {
+  return (await $(`/templates/${e}/thumbnail?width=${t}`, i)).blob();
+}
+const Vu = async (e, t) => T(await $("/folders", t, { method: "POST", json: e })), Gu = async (e, t) => T(await $(`/folders/${e}`, t)), qu = async (e, t, i) => T(await $(`/folders/${e}`, i, { method: "PUT", json: { name: t } }));
+async function Hu(e, t) {
+  await $(`/folders/${e}`, t, { method: "DELETE" });
+}
+async function Yu(e, t, i) {
+  await $(`/templates/${e}/move`, i, { method: "PUT", json: { targetKey: t } });
+}
+async function Xu(e, t, i) {
+  await $(`/folders/${e}/move`, i, { method: "PUT", json: { targetKey: t } });
+}
+const Aa = async (e) => T(await $("/fonts", e));
+async function Ju(e, t) {
   const i = new FormData();
-  return i.append("file", e), D(await S("/fonts", t, { method: "POST", body: i }));
+  return i.append("file", e), T(await $("/fonts", t, { method: "POST", body: i }));
 }
-const yn = async (e, t) => D(await S("/fonts/register-path", t, { method: "POST", json: { path: e } })), vn = async (e, t) => D(await S("/fonts/register-web", t, { method: "POST", json: e })), bn = async (e, t) => D(await S(`/fonts/${e}/refresh`, t, { method: "POST" })), _n = async (e, t, i, a, s) => D(await S(`/fonts/${e}`, a, {
+const Zu = async (e, t) => T(await $("/fonts/register-path", t, { method: "POST", json: { path: e } })), Qu = async (e, t) => T(await $("/fonts/register-web", t, { method: "POST", json: e })), ed = async (e, t) => T(await $(`/fonts/${e}/refresh`, t, { method: "POST" })), td = async (e, t, i, a, s) => T(await $(`/fonts/${e}`, a, {
   method: "PUT",
   json: { familyName: t, styles: i, weight: (s == null ? void 0 : s.weight) ?? null, isItalic: (s == null ? void 0 : s.isItalic) ?? null }
 }));
-async function wn(e, t) {
-  await S(`/fonts/${e}`, t, { method: "DELETE" });
+async function id(e, t) {
+  await $(`/fonts/${e}`, t, { method: "DELETE" });
 }
-async function $n(e, t) {
-  return (await S(`/fonts/${e}/file`, t)).arrayBuffer();
+async function ad(e, t) {
+  return (await $(`/fonts/${e}/file`, t)).arrayBuffer();
 }
-const Rc = async (e) => D(await S("/document-types", e)), xn = async (e, t) => D(await S(`/document-types/${encodeURIComponent(e)}/properties`, t)), kn = async (e, t, i) => D(await S(
+const ln = async (e) => T(await $("/document-types", e)), sd = async (e, t) => T(await $(`/document-types/${encodeURIComponent(e)}/properties`, t)), od = async (e, t, i) => T(await $(
   `/document-types/${encodeURIComponent(e)}/properties/${encodeURIComponent(t)}/linked`,
   i
 ));
-async function Sn(e, t, i, a, s) {
-  const o = new URLSearchParams({ skip: String(i), take: String(a) });
-  return t && o.set("query", t), D(await S(`/document-types/${encodeURIComponent(e)}/content?${o}`, s));
-}
-async function qs(e, t, i) {
-  return (await S("/preview", i, {
+async function cn(e, t, i) {
+  return (await $("/preview", i, {
     method: "POST",
     signal: t.signal,
     json: {
@@ -98,7 +134,7 @@ async function qs(e, t, i) {
     }
   })).blob();
 }
-const Js = async (e, t, i) => D(await S("/preview/layout", i, {
+const un = async (e, t, i) => T(await $("/preview/layout", i, {
   method: "POST",
   signal: t.signal,
   json: {
@@ -106,83 +142,41 @@ const Js = async (e, t, i) => D(await S("/preview/layout", i, {
     contentKey: t.contentKey ?? null,
     useSampleData: t.useSampleData ?? !1
   }
-})), Zs = async (e, t) => D(await S(`/media/${e}/image-info`, t)), Ka = async (e, t) => D(await S(`/documents/${e}/regenerate`, t, { method: "POST" })), Cn = async (e, t, i) => D(await S(`/templates/${e}/regenerate`, i, { method: "POST", json: { onlyMissing: t } })), Tn = async (e, t) => D(await S(`/jobs/${e}`, t));
-async function En(e, t) {
-  await S(`/jobs/${e}/cancel`, t, { method: "POST" });
+})), dn = async (e, t) => T(await $(`/media/${e}/image-info`, t)), vo = async (e, t) => T(await $(`/documents/${e}/regenerate`, t, { method: "POST" })), hn = async (e, t, i) => T(await $(`/templates/${e}/regenerate`, i, { method: "POST", json: { onlyMissing: t } })), rd = async (e, t) => T(await $(`/jobs/${e}`, t));
+async function nd(e, t) {
+  await $(`/jobs/${e}/cancel`, t, { method: "POST" });
 }
-const Pn = async (e, t) => D(await S(`/templates/${e}/usage`, t)), Va = async (e) => D(await S("/health", e)), Dn = async (e) => D(await S("/sync/status", e)), Mn = async (e) => D(await S("/sync/export", e, { method: "POST" })), zn = async (e) => D(await S("/sync/import", e, { method: "POST" }));
-function ci(e) {
-  const t = `section/${Ba}/workspace/${Xi}/edit/${e}`;
+const ld = async (e, t) => T(await $(`/templates/${e}/usage`, t)), pn = async (e) => T(await $("/health", e)), cd = async (e) => T(await $("/sync/status", e)), ud = async (e) => T(await $("/sync/export", e, { method: "POST" })), dd = async (e) => T(await $("/sync/import", e, { method: "POST" }));
+function bo(e) {
+  const t = `section/${Qa}/workspace/${es}/edit/${e}`;
   return new URL(t, document.baseURI).pathname;
 }
-function Ga() {
-  return new URL(`section/${Ba}/workspace/${Xi}/create`, document.baseURI).pathname;
+function hd(e) {
+  const t = e ? `/parent/${e.entityType}/${e.unique ?? "null"}` : "";
+  return new URL(`section/${Qa}/workspace/${es}/create${t}`, document.baseURI).pathname;
 }
-function On(e) {
-  return new URL(`section/${Ba}/dashboard/${e}`, document.baseURI).pathname;
+function mn(e, t) {
+  const i = t ? `/edit/${t}` : "";
+  return new URL(`section/${Qa}/workspace/${e}${i}`, document.baseURI).pathname;
 }
-function ms() {
-  const e = window.location.pathname.split(`/workspace/${Xi}/edit/`)[1];
-  return e ? decodeURIComponent(e.split("/")[0]) : "";
+function pd(e) {
+  return new URL(`section/${Qa}/dashboard/${e}`, document.baseURI).pathname;
 }
-function Yi() {
-  window.dispatchEvent(new CustomEvent(Ca));
+function md() {
+  window.dispatchEvent(new CustomEvent(Ts));
 }
-const Wc = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  DiApiError: nt,
-  SECTION_PATHNAME: Ba,
-  TEMPLATES_CHANGED_EVENT: Ca,
-  TEMPLATE_ENTITY_TYPE: Xi,
-  cancelJob: En,
-  createTemplate: un,
-  deleteFont: wn,
-  deleteTemplate: dn,
-  duplicateTemplate: pn,
-  exportTemplate: mn,
-  fetchDocumentTypes: Rc,
-  fetchFontFile: $n,
-  fetchFonts: Ei,
-  fetchHealth: Va,
-  fetchImageInfo: Zs,
-  fetchJob: Tn,
-  fetchLayout: Js,
-  fetchLinkedProperties: kn,
-  fetchPreview: qs,
-  fetchProperties: xn,
-  fetchSampleContent: Sn,
-  fetchSyncStatus: Dn,
-  fetchTemplate: cn,
-  fetchTemplates: Ys,
-  fetchUsage: Pn,
-  hrefForCreate: Ga,
-  hrefForDashboard: On,
-  hrefForTemplate: ci,
-  importTemplate: fn,
-  notifyTemplatesChanged: Yi,
-  refreshFont: bn,
-  regenerateDocument: Ka,
-  regenerateTemplate: Cn,
-  registerFontPath: yn,
-  registerWebFont: vn,
-  runSyncExport: Mn,
-  runSyncImport: zn,
-  templateKeyFromLocation: ms,
-  updateFont: _n,
-  updateTemplate: hn,
-  uploadFont: gn
-}, Symbol.toStringTag, { value: "Module" })), Ha = () => crypto.randomUUID();
-function ja(e) {
+const ts = () => crypto.randomUUID();
+function is(e) {
   return {
     x: Math.round(e.x ?? e.template.canvas.width / 2),
     y: Math.round(e.y ?? e.template.canvas.height / 2)
   };
 }
-function In(e, t, i) {
-  const { x: a, y: s } = ja(e);
+function yn(e, t, i) {
+  const { x: a, y: s } = is(e);
   return {
     type: "text",
-    key: Ha(),
+    key: ts(),
     name: t,
     isVisible: !0,
     isLocked: !1,
@@ -210,11 +204,11 @@ function In(e, t, i) {
     }
   };
 }
-function An(e, t, i) {
-  const { x: a, y: s } = ja(e);
+function fn(e, t, i) {
+  const { x: a, y: s } = is(e);
   return {
     type: "image",
-    key: Ha(),
+    key: ts(),
     name: t,
     isVisible: !0,
     isLocked: !1,
@@ -229,11 +223,11 @@ function An(e, t, i) {
     border: null
   };
 }
-function Ln(e, t, i) {
-  const { x: a, y: s } = ja(e);
+function gn(e, t, i) {
+  const { x: a, y: s } = is(e);
   return {
     type: "badges",
-    key: Ha(),
+    key: ts(),
     name: t,
     isVisible: !0,
     isLocked: !1,
@@ -263,30 +257,45 @@ function Ln(e, t, i) {
     }
   };
 }
-function Nc(e, t = "Shape", i = "rectangle") {
-  const { x: a, y: s } = ja(e);
+const Ri = {
+  rectangle: { label: "Rectangle", icon: "icon-shape-rectangle-horizontal", shape: "rectangle", size: { width: 400, height: 200 }, cornerRadius: 0 },
+  roundedRectangle: {
+    label: "Rounded rectangle",
+    icon: "icon-shape-square",
+    shape: "rectangle",
+    size: { width: 400, height: 200 },
+    cornerRadius: 24
+  },
+  circle: { label: "Circle", icon: "icon-shape-circle", shape: "ellipse", size: { width: 200, height: 200 }, lockAspect: !0 },
+  ellipse: { label: "Ellipse", icon: "icon-record", shape: "ellipse", size: { width: 300, height: 180 } },
+  polygon: { label: "Polygon", icon: "icon-shape-hexagon", shape: "polygon", size: { width: 220, height: 220 }, sides: 6 },
+  triangle: { label: "Triangle", icon: "icon-shape-triangle", shape: "polygon", size: { width: 220, height: 200 }, sides: 3 },
+  star: { label: "Star", icon: "icon-star", shape: "star", size: { width: 220, height: 220 }, sides: 5, innerRatio: 0.5 }
+}, yd = Object.keys(Ri);
+function fd(e, t = "Shape", i = "rectangle") {
+  const { x: a, y: s } = is(e), o = Ri[i] ?? Ri.rectangle;
   return {
     type: "rect",
-    key: Ha(),
-    name: i === "ellipse" && t === "Shape" ? "Ellipse" : t,
+    key: ts(),
+    name: t === "Shape" ? o.label : t,
     isVisible: !0,
     isLocked: !1,
     opacity: 1,
     position: { x: a, y: s, anchor: "middleCentre" },
-    // A circle is the ellipse people reach for; a scrim is wide.
-    size: i === "ellipse" ? { width: 200, height: 200 } : { width: 400, height: 200 },
+    size: { ...o.size },
     rotation: 0,
     visibility: { rule: "always" },
-    shape: i,
+    shape: o.shape,
     fill: "#00000099",
     gradient: null,
-    cornerRadius: 0,
-    sides: 5,
-    innerRatio: 0.5,
-    border: null
+    cornerRadius: o.cornerRadius ?? 0,
+    sides: o.sides ?? 5,
+    innerRatio: o.innerRatio ?? 0.5,
+    border: null,
+    ...o.lockAspect ? { lockAspect: !0 } : {}
   };
 }
-function Fc(e) {
+function gd(e) {
   switch (e) {
     case "media":
       return "image";
@@ -301,25 +310,25 @@ function Fc(e) {
       return "text";
   }
 }
-function Uc(e, t) {
+function vd(e, t) {
   if (e.classification === "boolean")
     return { kind: "condition", propertyAlias: e.alias, propertyName: e.name };
-  switch (Fc(e.classification)) {
+  switch (gd(e.classification)) {
     case "image":
-      return { kind: "layer", layer: An(t, e.name, e.alias) };
+      return { kind: "layer", layer: fn(t, e.name, e.alias) };
     case "badges":
-      return { kind: "layer", layer: Ln(t, e.name, e.alias) };
+      return { kind: "layer", layer: gn(t, e.name, e.alias) };
     default:
-      return { kind: "layer", layer: In(t, e.name, Bc(e)) };
+      return { kind: "layer", layer: yn(t, e.name, bd(e)) };
   }
 }
-function Bc(e) {
+function bd(e) {
   return e.alias === "name" ? { kind: "nodeName" } : e.alias === "readingTime" ? { kind: "readingTime", propertyAlias: "mainContent" } : e.classification === "date" ? { kind: "date", propertyAlias: e.alias, format: "d MMMM yyyy" } : { kind: "property", propertyAlias: e.alias };
 }
-function Rn() {
+function vn() {
   return { kind: "linear", from: "#000000CC", to: "#00000000", angle: 180, centreX: 0.5, centreY: 0.5 };
 }
-function Kc(e) {
+function _d(e) {
   return {
     schemaVersion: 2,
     key: crypto.randomUUID(),
@@ -343,7 +352,7 @@ function Kc(e) {
     updatedUtc: (/* @__PURE__ */ new Date(0)).toISOString()
   };
 }
-const Wn = [
+const bn = [
   "topLeft",
   "topCentre",
   "topRight",
@@ -354,7 +363,7 @@ const Wn = [
   "bottomCentre",
   "bottomRight"
 ];
-function Pi(e) {
+function zi(e) {
   switch (e) {
     case "topLeft":
     case "middleLeft":
@@ -368,7 +377,7 @@ function Pi(e) {
       return 1;
   }
 }
-function Di(e) {
+function Li(e) {
   switch (e) {
     case "topLeft":
     case "topCentre":
@@ -382,315 +391,346 @@ function Di(e) {
       return 1;
   }
 }
-function fs(e, t) {
+function Ss(e, t) {
   const i = e < 0.25 ? 0 : e < 0.75 ? 1 : 2, a = t < 0.25 ? 0 : t < 0.75 ? 1 : 2;
-  return Wn[a * 3 + i];
+  return bn[a * 3 + i];
 }
-function Xa(e, t, i) {
+function as(e, t, i) {
   return {
-    x: e.x - t * Pi(e.anchor),
-    y: e.y - i * Di(e.anchor)
+    x: e.x - t * zi(e.anchor),
+    y: e.y - i * Li(e.anchor)
   };
 }
-function Qs(e, t, i, a, s) {
+function _o(e, t, i, a, s) {
   return {
-    x: e + i * Pi(s),
-    y: t + a * Di(s)
+    x: e + i * zi(s),
+    y: t + a * Li(s)
   };
 }
-function Vc(e, t, i, a) {
-  const s = Xa(e, t, i), o = Qs(s.x, s.y, t, i, a);
+function wd(e, t, i, a) {
+  const s = as(e, t, i), o = _o(s.x, s.y, t, i, a);
   return { ...e, x: Math.round(o.x), y: Math.round(o.y), anchor: a };
 }
-function Gc(e, t) {
-  const i = Qs(e.x, e.y, e.width, e.height, t.anchor);
+function $d(e, t) {
+  const i = _o(e.x, e.y, e.width, e.height, t.anchor);
   return { ...t, x: Math.round(i.x), y: Math.round(i.y) };
 }
-function Nn(e) {
+function _n(e) {
   let t = e % 360;
   return t > 180 ? t -= 360 : t <= -180 && (t += 360), t === 0 ? 0 : t;
 }
-function Kt(e, t, i, a, s) {
+function jt(e, t, i, a, s) {
   if (s === 0) return { x: e, y: t };
-  const o = s * Math.PI / 180, n = Math.cos(o), l = Math.sin(o), d = e - i, p = t - a;
-  return { x: i + d * n - p * l, y: a + d * l + p * n };
+  const o = s * Math.PI / 180, r = Math.cos(o), l = Math.sin(o), h = e - i, m = t - a;
+  return { x: i + h * r - m * l, y: a + h * l + m * r };
 }
-function Hc(e, t, i, a, s) {
-  return Kt(e, t, i, a, -s);
+function xd(e, t, i, a, s) {
+  return jt(e, t, i, a, -s);
 }
-function Fn(e, t, i, a) {
+function wn(e, t, i, a) {
   if (a === 0) return e;
   const s = [
-    Kt(e.x, e.y, t, i, a),
-    Kt(e.x + e.width, e.y, t, i, a),
-    Kt(e.x + e.width, e.y + e.height, t, i, a),
-    Kt(e.x, e.y + e.height, t, i, a)
-  ], o = Math.min(...s.map((p) => p.x)), n = Math.max(...s.map((p) => p.x)), l = Math.min(...s.map((p) => p.y)), d = Math.max(...s.map((p) => p.y));
-  return { x: o, y: l, width: n - o, height: d - l };
+    jt(e.x, e.y, t, i, a),
+    jt(e.x + e.width, e.y, t, i, a),
+    jt(e.x + e.width, e.y + e.height, t, i, a),
+    jt(e.x, e.y + e.height, t, i, a)
+  ], o = Math.min(...s.map((m) => m.x)), r = Math.max(...s.map((m) => m.x)), l = Math.min(...s.map((m) => m.y)), h = Math.max(...s.map((m) => m.y));
+  return { x: o, y: l, width: r - o, height: h - l };
 }
-const jc = 10;
-function Pe(e, t) {
+const kd = 10;
+function Re(e, t) {
   return t === "x" ? !!e.relativeX : !!e.relativeY;
 }
-function Un(e) {
+function $n(e) {
   return !!e.relativeX || !!e.relativeY;
 }
-function Ta(e, t) {
+function Ma(e, t) {
   return t === "x" ? e.relativeX : e.relativeY;
 }
-function Fo(e) {
+function pr(e) {
   return e === "below" || e === "above";
 }
-function Uo(e) {
+function mr(e) {
   const t = [];
   return e.relativeX && t.push(e.relativeX), e.relativeY && t.push(e.relativeY), t;
 }
-function Xc(e) {
+function Td(e) {
   const t = /* @__PURE__ */ new Map();
   for (const i of e)
     t.has(i.key) || t.set(i.key, i);
   return t;
 }
-function Yc(e, t) {
+function Sd(e, t) {
   const i = t.get(e);
   if (!i) return !1;
-  const a = /* @__PURE__ */ new Set(), s = Uo(i.position).map((o) => o.layerKey);
+  const a = /* @__PURE__ */ new Set(), s = mr(i.position).map((o) => o.layerKey);
   for (; s.length > 0; ) {
     const o = s.pop();
     if (o === e) return !0;
     if (a.has(o)) continue;
     a.add(o);
-    const n = t.get(o);
-    n && s.push(...Uo(n.position).map((l) => l.layerKey));
+    const r = t.get(o);
+    r && s.push(...mr(r.position).map((l) => l.layerKey));
   }
   return !1;
 }
-function qc(e, t, i) {
+function Ed(e, t, i) {
   const a = e.position;
-  if (!Un(a)) return a;
-  if (Yc(e.key, t))
+  if (!$n(a)) return a;
+  if (Sd(e.key, t))
     return { x: a.x, y: a.y, anchor: a.anchor };
-  let s = a.x, o = a.y, n = Pi(a.anchor), l = Di(a.anchor);
-  const d = Bo(e, a.relativeX, !1, t, i);
-  d && (s = d.coordinate, n = d.factor);
-  const p = Bo(e, a.relativeY, !0, t, i);
-  return p && (o = p.coordinate, l = p.factor), { x: s, y: o, anchor: fs(n, l) };
+  let s = a.x, o = a.y, r = zi(a.anchor), l = Li(a.anchor);
+  const h = yr(e, a.relativeX, !1, t, i);
+  h && (s = h.coordinate, r = h.factor);
+  const m = yr(e, a.relativeY, !0, t, i);
+  return m && (o = m.coordinate, l = m.factor), { x: s, y: o, anchor: Ss(r, l) };
 }
-function Bo(e, t, i, a, s) {
-  if (!t || Fo(t.edge) !== i) return;
+function yr(e, t, i, a, s) {
+  if (!t || pr(t.edge) !== i) return;
   const o = /* @__PURE__ */ new Set([e.key]);
-  let n = t.layerKey;
-  for (; !o.has(n); ) {
-    o.add(n);
-    const l = a.get(n);
+  let r = t.layerKey;
+  for (; !o.has(r); ) {
+    o.add(r);
+    const l = a.get(r);
     if (!l) return;
-    const d = s(n);
-    if (d)
+    const h = s(r);
+    if (h)
       switch (t.edge) {
         case "below":
-          return { coordinate: d.y + d.height + t.gap, factor: 0 };
+          return { coordinate: h.y + h.height + t.gap, factor: 0 };
         case "above":
-          return { coordinate: d.y - t.gap, factor: 1 };
+          return { coordinate: h.y - t.gap, factor: 1 };
         case "rightOf":
-          return { coordinate: d.x + d.width + t.gap, factor: 0 };
+          return { coordinate: h.x + h.width + t.gap, factor: 0 };
         default:
-          return { coordinate: d.x - t.gap, factor: 1 };
+          return { coordinate: h.x - t.gap, factor: 1 };
       }
-    const p = i ? l.position.relativeY : l.position.relativeX;
-    if (!p || Fo(p.edge) !== i) return;
-    n = p.layerKey;
+    const m = i ? l.position.relativeY : l.position.relativeX;
+    if (!m || pr(m.edge) !== i) return;
+    r = m.layerKey;
   }
 }
-function Jc(e, t, i) {
-  const a = Xc(e), s = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Set(), n = (l) => {
-    const d = s.get(l.key);
-    if (d) return d;
-    let p;
-    o.has(l.key) ? p = { x: l.position.x, y: l.position.y, anchor: l.position.anchor } : (o.add(l.key), p = qc(l, a, (qe) => {
-      const Oe = a.get(qe);
-      return Oe && !i(Oe) ? n(Oe).extent : void 0;
+function Cd(e, t, i) {
+  const a = Td(e), s = /* @__PURE__ */ new Map(), o = /* @__PURE__ */ new Set(), r = (l) => {
+    const h = s.get(l.key);
+    if (h) return h;
+    let m;
+    o.has(l.key) ? m = { x: l.position.x, y: l.position.y, anchor: l.position.anchor } : (o.add(l.key), m = Ed(l, a, (me) => {
+      const ye = a.get(me);
+      return ye && !i(ye) ? r(ye).extent : void 0;
     }), o.delete(l.key));
-    const k = t(l), Y = Xa(p, k.width, k.height), xe = { x: Y.x, y: Y.y, width: k.width, height: k.height }, ze = { position: p, box: xe, extent: Fn(xe, p.x, p.y, l.rotation ?? 0) };
-    return s.set(l.key, ze), ze;
+    const C = t(l), k = as(m, C.width, C.height), j = { x: k.x, y: k.y, width: C.width, height: C.height }, te = { position: m, box: j, extent: wn(j, m.x, m.y, l.rotation ?? 0) };
+    return s.set(l.key, te), te;
   };
-  for (const l of e) n(l);
+  for (const l of e) r(l);
   return s;
 }
-function gs(e, t, i) {
+function Es(e, t, i) {
   return t === "x" ? {
     ...e,
     relativeX: null,
     x: i ? Math.round(i.x) : e.x,
-    anchor: i ? fs(Pi(i.anchor), Di(e.anchor)) : e.anchor
+    anchor: i ? Ss(zi(i.anchor), Li(e.anchor)) : e.anchor
   } : {
     ...e,
     relativeY: null,
     y: i ? Math.round(i.y) : e.y,
-    anchor: i ? fs(Pi(e.anchor), Di(i.anchor)) : e.anchor
+    anchor: i ? Ss(zi(e.anchor), Li(i.anchor)) : e.anchor
   };
 }
-var re, Le, Se, tt;
-class Zc {
+var ne, Ue, Oe, st;
+class Dd {
   constructor(t = 100) {
-    w(this, re, []);
-    w(this, Le, []);
-    w(this, Se, 0);
-    w(this, tt);
+    x(this, ne, []);
+    x(this, Ue, []);
+    x(this, Oe, 0);
+    x(this, st);
     this.limit = t;
   }
   get canUndo() {
-    return c(this, re).length > 0;
+    return d(this, ne).length > 0;
   }
   get canRedo() {
-    return c(this, Le).length > 0;
+    return d(this, Ue).length > 0;
   }
   /** Records the state *before* a change. Ignored inside a transaction, which already took one. */
   push(t) {
-    c(this, Se) > 0 || (c(this, re).push(structuredClone(t)), c(this, re).length > this.limit && c(this, re).shift(), _(this, Le, []));
+    d(this, Oe) > 0 || (d(this, ne).push(structuredClone(t)), d(this, ne).length > this.limit && d(this, ne).shift(), b(this, Ue, []));
   }
   /**
    * Starts a coalesced change. Nested calls are counted, so a drag that internally begins another
    * transaction still ends up as one undo entry.
    */
   begin(t) {
-    c(this, Se) === 0 && _(this, tt, structuredClone(t)), ss(this, Se)._++;
+    d(this, Oe) === 0 && b(this, st, structuredClone(t)), cs(this, Oe)._++;
   }
   /**
    * Ends it. <paramref name="changed"/> false discards the snapshot, so a click that selected a
    * layer without moving it does not leave an empty undo step behind.
    */
   end(t = !0) {
-    c(this, Se) !== 0 && (ss(this, Se)._--, !(c(this, Se) > 0) && (t && c(this, tt) !== void 0 && (c(this, re).push(c(this, tt)), c(this, re).length > this.limit && c(this, re).shift(), _(this, Le, [])), _(this, tt, void 0)));
+    d(this, Oe) !== 0 && (cs(this, Oe)._--, !(d(this, Oe) > 0) && (t && d(this, st) !== void 0 && (d(this, ne).push(d(this, st)), d(this, ne).length > this.limit && d(this, ne).shift(), b(this, Ue, [])), b(this, st, void 0)));
   }
   undo(t) {
-    const i = c(this, re).pop();
+    const i = d(this, ne).pop();
     if (i !== void 0)
-      return c(this, Le).push(structuredClone(t)), i;
+      return d(this, Ue).push(structuredClone(t)), i;
   }
   redo(t) {
-    const i = c(this, Le).pop();
+    const i = d(this, Ue).pop();
     if (i !== void 0)
-      return c(this, re).push(structuredClone(t)), i;
+      return d(this, ne).push(structuredClone(t)), i;
   }
   clear() {
-    _(this, re, []), _(this, Le, []), _(this, Se, 0), _(this, tt, void 0);
+    b(this, ne, []), b(this, Ue, []), b(this, Oe, 0), b(this, st, void 0);
   }
 }
-re = new WeakMap(), Le = new WeakMap(), Se = new WeakMap(), tt = new WeakMap();
-const Qc = "DynamicImages.Workspace.Template", eu = 12;
-var Zt, it, xt, kt, St, Qt, ei, ti, Ct, ii, Re, ai, si, le, Vi, Tt, Ce, Et, $, Bn, oi, ni, ys, vs, bs, Ie, gt, _s, ws;
-class tu extends Sc {
+ne = new WeakMap(), Ue = new WeakMap(), Oe = new WeakMap(), st = new WeakMap();
+const Cs = 3, Id = (e) => Od(e), fr = (e, t) => e.slice(0, Math.max(0, t)).join("."), Od = (e) => (e ?? "").split(".").map((t) => t.trim()).filter((t) => t.length > 0), Pd = "Page";
+function Ad(e) {
+  return e.isSystem ? Pd : e.tab ? `${e.tab} › ${e.group}` : e.group;
+}
+const Nt = (e) => e ?? Number.MAX_SAFE_INTEGER;
+function Md(e) {
+  return e.map((t, i) => ({ property: t, index: i })).sort((t, i) => Number(i.property.isSystem) - Number(t.property.isSystem) || Nt(t.property.tabSortOrder) - Nt(i.property.tabSortOrder) || Nt(t.property.groupSortOrder) - Nt(i.property.groupSortOrder) || Nt(t.property.sortOrder) - Nt(i.property.sortOrder) || t.index - i.index).map(({ property: t }) => t);
+}
+function Rd(e, t) {
+  const i = Md(e).map((a) => ({
+    name: a.name,
+    value: a.alias,
+    group: Ad(a),
+    selected: a.alias === t
+  }));
+  return i.push({ name: "- none -", value: "", selected: !t }), t && !e.some((a) => a.alias === t) && i.push({ name: `${t} (not in this list)`, value: t, selected: !0 }), i;
+}
+function zd(e, t) {
+  return t === "all" || e.length === 0 ? "Property on the linked item" : `Property on the linked ${e.join(" or ")}`;
+}
+const Ld = "DynamicImages.Workspace.Template", Fd = 12, gr = 36;
+var Qt, ot, xt, kt, ei, Tt, ti, ii, St, rt, ai, Ne, si, oi, le, Ji, Et, Pe, Ct, _, xn, ri, ni, Ds, Is, Os, Fe, vt, Ps, ma, kn, Tn, Sn, As;
+class Wd extends ru {
   constructor(i) {
-    super(i, Qc);
-    w(this, $);
-    w(this, Zt);
-    w(this, it);
-    w(this, xt);
-    w(this, kt);
-    w(this, St);
-    w(this, Qt);
-    w(this, ei);
-    w(this, ti);
-    w(this, Ct);
-    w(this, ii);
-    w(this, Re);
-    w(this, ai);
-    w(this, si);
-    w(this, le);
-    w(this, Vi);
-    w(this, Tt);
-    w(this, Ce);
-    w(this, Et);
-    w(this, oi);
-    w(this, ni);
-    this._data = new Cc(this), this.template = this._data.current, _(this, Zt, new vi([], (a) => a.key)), this.layers = c(this, Zt).asObservable(), _(this, it, new No(void 0)), this.selectedLayerKey = c(this, it).asObservable(), _(this, xt, new vi([], (a) => a.alias)), this.properties = c(this, xt).asObservable(), _(this, kt, new Pc({})), this.linkedProperties = c(this, kt).asObservable(), _(this, St, new vi([], (a) => a.key)), this.fonts = c(this, St).asObservable(), _(this, Qt, new vi([], (a) => a.key)), this.serverBounds = c(this, Qt).asObservable(), _(this, ei, new vi([], (a) => `${a.code}:${a.layerKey ?? ""}:${a.message}`)), this.issues = c(this, ei).asObservable(), _(this, ti, new No(void 0)), this.sampleContentKey = c(this, ti).asObservable(), _(this, Ct, new sa(!0)), this.useSampleData = c(this, Ct).asObservable(), _(this, ii, new Dc(1)), this.zoom = c(this, ii).asObservable(), _(this, Re, new sa(!0)), this.loading = c(this, Re).asObservable(), this.unique = this._data.createObservablePartOfCurrent((a) => a == null ? void 0 : a.key), _(this, ai, new sa(!1)), this.canUndo = c(this, ai).asObservable(), _(this, si, new sa(!1)), this.canRedo = c(this, si).asObservable(), _(this, le, new Zc()), _(this, Ce, !1), _(this, Et, !1), this.getHasUnpersistedChanges = () => this._data.getHasUnpersistedChanges(), _(this, oi, async (a) => {
+    super(i, Ld);
+    x(this, _);
+    x(this, Qt);
+    x(this, ot);
+    x(this, xt);
+    x(this, kt);
+    x(this, ei);
+    x(this, Tt);
+    x(this, ti);
+    x(this, ii);
+    x(this, St);
+    x(this, rt);
+    x(this, ai);
+    x(this, Ne);
+    x(this, si);
+    x(this, oi);
+    x(this, le);
+    x(this, Ji);
+    x(this, Et);
+    x(this, Pe);
+    x(this, Ct);
+    x(this, ri);
+    x(this, ni);
+    this._data = new nu(this), this.template = this._data.current, b(this, Qt, new vi([], (a) => a.key)), this.layers = d(this, Qt).asObservable(), b(this, ot, new ur(void 0)), this.selectedLayerKey = d(this, ot).asObservable(), b(this, xt, new vi([], (a) => a.alias)), this.properties = d(this, xt).asObservable(), b(this, kt, new dr({})), this.linkedProperties = d(this, kt).asObservable(), b(this, ei, new dr({})), this.linkedCaptions = d(this, ei).asObservable(), b(this, Tt, new vi([], (a) => a.key)), this.fonts = d(this, Tt).asObservable(), b(this, ti, new vi([], (a) => a.key)), this.serverBounds = d(this, ti).asObservable(), b(this, ii, new vi([], (a) => `${a.code}:${a.layerKey ?? ""}:${a.message}`)), this.issues = d(this, ii).asObservable(), b(this, St, new ur(void 0)), this.sampleContentKey = d(this, St).asObservable(), b(this, rt, new ca(!0)), this.useSampleData = d(this, rt).asObservable(), b(this, ai, new Cu(1)), this.zoom = d(this, ai).asObservable(), b(this, Ne, new ca(!0)), this.loading = d(this, Ne).asObservable(), this.unique = this._data.createObservablePartOfCurrent((a) => a == null ? void 0 : a.key), b(this, si, new ca(!1)), this.canUndo = d(this, si).asObservable(), b(this, oi, new ca(!1)), this.canRedo = d(this, oi).asObservable(), b(this, le, new Dd()), b(this, Pe, !1), b(this, Ct, !1), this.getHasUnpersistedChanges = () => this._data.getHasUnpersistedChanges(), b(this, ri, async (a) => {
       const s = a.detail;
-      if (c(this, Et) || !(s != null && s.url) || !T(this, $, Bn).call(this, s.url) || !this.getHasUnpersistedChanges()) return !0;
+      if (d(this, Ct) || !(s != null && s.url) || !S(this, _, xn).call(this, s.url) || !this.getHasUnpersistedChanges()) return !0;
       a.preventDefault();
       try {
-        return await $c(this, xc), _(this, Et, !0), window.history.pushState({}, "", s.url instanceof URL ? s.url.href : s.url), !0;
+        return await an(this, wu), b(this, Ct, !0), window.history.pushState({}, "", s.url instanceof URL ? s.url.href : s.url), !0;
       } catch {
         return !1;
       }
-    }), _(this, ni, (a) => {
+    }), b(this, ni, (a) => {
       this.getHasUnpersistedChanges() && (a.preventDefault(), a.returnValue = "");
     }), this.getToken = () => {
       var a;
-      return (a = c(this, Vi)) == null ? void 0 : a.getLatestToken();
+      return (a = d(this, Ji)) == null ? void 0 : a.getLatestToken();
     }, this.getEntityType = () => "di-template", this.getUnique = () => {
       var a;
       return (a = this._data.getCurrent()) == null ? void 0 : a.key;
     }, this.getData = () => this._data.getCurrent(), this.routes.setRoutes([
       {
+        // Create… on a folder in the tree: the same shape as core's create routes, so the new
+        // template is saved into the folder it was started from.
+        path: "create/parent/:parentEntityType/:parentUnique",
+        component: () => Promise.resolve().then(() => ds),
+        setup: (a, s) => {
+          const o = s.match.params.parentUnique;
+          return this.createScaffold(void 0, o && o !== "null" ? o : null);
+        }
+      },
+      {
         path: "create",
-        component: () => Promise.resolve().then(() => Vo),
+        component: () => Promise.resolve().then(() => ds),
         setup: () => this.createScaffold()
       },
       {
         // `:unique` rather than `:key` so this workspace's route reads like every other one in
         // the backoffice, and so anything matching on the conventional param name finds it.
         path: "edit/:unique",
-        component: () => Promise.resolve().then(() => Vo),
+        component: () => Promise.resolve().then(() => ds),
         setup: (a, s) => this.load(s.match.params.unique)
       },
       {
         path: "",
         redirectTo: "create"
       }
-    ]), this.consumeContext(Ve, (a) => {
-      _(this, Vi, a);
-    }), this.consumeContext(Ge, (a) => {
-      _(this, Tt, a);
-    }), window.addEventListener("willchangestate", c(this, oi)), window.addEventListener("beforeunload", c(this, ni)), this.observe(this._data.createObservablePartOfCurrent((a) => a == null ? void 0 : a.name), (a) => {
+    ]), this.consumeContext(Le, (a) => {
+      b(this, Ji, a);
+    }), this.consumeContext(pe, (a) => {
+      b(this, Et, a);
+    }), window.addEventListener("willchangestate", d(this, ri)), window.addEventListener("beforeunload", d(this, ni)), this.observe(this._data.createObservablePartOfCurrent((a) => a == null ? void 0 : a.name), (a) => {
       this.view.setTitle(a || "New template");
     });
   }
   /** True until the first successful save. `isNew` itself is an observable on the base class. */
   get isUnsaved() {
-    return c(this, Ce);
+    return d(this, Pe);
   }
   // ------------------------------------------------------------------ loading
   async load(i) {
-    c(this, Re).setValue(!0), _(this, Ce, !1);
+    d(this, Ne).setValue(!0), b(this, Pe, !1);
     try {
-      const a = await cn(i, this.getToken);
-      T(this, $, gt).call(this, a, { resetHistory: !0, persist: !0 }), this.setIsNew(!1), await T(this, $, ys).call(this, a);
+      const a = await go(i, this.getToken);
+      S(this, _, vt).call(this, a, { resetHistory: !0, persist: !0 }), S(this, _, Tn).call(this), this.setIsNew(!1), await S(this, _, Ds).call(this, a);
     } catch (a) {
-      T(this, $, ws).call(this, "This template could not be loaded", a);
+      S(this, _, As).call(this, "This template could not be loaded", a);
     } finally {
-      c(this, Re).setValue(!1);
+      d(this, Ne).setValue(!1);
     }
   }
-  async createScaffold(i = "New template") {
-    c(this, Re).setValue(!0), _(this, Ce, !0), T(this, $, gt).call(this, Kc(i), { resetHistory: !0, persist: !0 }), this.setIsNew(!0), await T(this, $, ys).call(this, this._data.getCurrent()), c(this, Re).setValue(!1);
+  async createScaffold(i = "New template", a = null) {
+    d(this, Ne).setValue(!0), b(this, Pe, !0), S(this, _, vt).call(this, { ..._d(i), parentKey: a }, { resetHistory: !0, persist: !0 }), this.setIsNew(!0), await S(this, _, Ds).call(this, this._data.getCurrent()), d(this, Ne).setValue(!1);
   }
   async reloadProperties() {
     const i = this._data.getCurrent();
     if (!i) return;
-    const a = await T(this, $, bs).call(this, i.docTypeAliases);
-    c(this, xt).setValue(a), c(this, kt).setValue(await T(this, $, vs).call(this, i.docTypeAliases, a));
+    const a = await S(this, _, Os).call(this, i.docTypeAliases);
+    d(this, xt).setValue(a), d(this, kt).setValue(await S(this, _, Is).call(this, i.docTypeAliases, a));
   }
   async reloadFonts() {
-    c(this, St).setValue(await Ei(this.getToken).catch(() => []));
+    d(this, Tt).setValue(await Aa(this.getToken).catch(() => []));
   }
   updateTemplateFields(i) {
-    T(this, $, Ie).call(this, (a) => ({ ...a, ...i }));
+    S(this, _, Fe).call(this, (a) => ({ ...a, ...i }));
   }
   updateCanvas(i) {
-    T(this, $, Ie).call(this, (a) => ({ ...a, canvas: { ...a.canvas, ...i } }));
+    S(this, _, Fe).call(this, (a) => ({ ...a, canvas: { ...a.canvas, ...i } }));
   }
   updateOutput(i) {
-    T(this, $, Ie).call(this, (a) => ({ ...a, output: { ...a.output, ...i } }));
+    S(this, _, Fe).call(this, (a) => ({ ...a, output: { ...a.output, ...i } }));
   }
   updateTrigger(i) {
-    T(this, $, Ie).call(this, (a) => ({ ...a, trigger: { ...a.trigger, ...i } }));
+    S(this, _, Fe).call(this, (a) => ({ ...a, trigger: { ...a.trigger, ...i } }));
   }
   addLayer(i, a = !0) {
-    T(this, $, Ie).call(this, (s) => ({ ...s, layers: [...s.layers, i] })), a && this.selectLayer(i.key);
+    S(this, _, Fe).call(this, (s) => ({ ...s, layers: [...s.layers, i] })), a && this.selectLayer(i.key);
   }
   /** A shallow merge onto one layer. Nested objects are replaced wholesale by design. */
   updateLayer(i, a) {
-    T(this, $, Ie).call(this, (s) => ({
+    S(this, _, Fe).call(this, (s) => ({
       ...s,
       layers: s.layers.map((o) => o.key === i ? { ...o, ...a } : o)
     }));
@@ -702,18 +742,18 @@ class tu extends Sc {
    * stored coordinates.
    */
   removeLayer(i, a) {
-    T(this, $, Ie).call(this, (s) => ({
+    S(this, _, Fe).call(this, (s) => ({
       ...s,
       layers: s.layers.filter((o) => o.key !== i).map((o) => {
-        var l, d;
-        let n = o.position;
-        return ((l = Ta(n, "x")) == null ? void 0 : l.layerKey) === i && (n = gs(n, "x", a == null ? void 0 : a.get(o.key))), ((d = Ta(n, "y")) == null ? void 0 : d.layerKey) === i && (n = gs(n, "y", a == null ? void 0 : a.get(o.key))), n === o.position ? o : { ...o, position: n };
+        var l, h;
+        let r = o.position;
+        return ((l = Ma(r, "x")) == null ? void 0 : l.layerKey) === i && (r = Es(r, "x", a == null ? void 0 : a.get(o.key))), ((h = Ma(r, "y")) == null ? void 0 : h.layerKey) === i && (r = Es(r, "y", a == null ? void 0 : a.get(o.key))), r === o.position ? o : { ...o, position: r };
       })
-    })), c(this, it).getValue() === i && this.selectLayer(void 0);
+    })), d(this, ot).getValue() === i && this.selectLayer(void 0);
   }
   duplicateLayer(i) {
     var o;
-    const a = (o = this._data.getCurrent()) == null ? void 0 : o.layers.find((n) => n.key === i);
+    const a = (o = this._data.getCurrent()) == null ? void 0 : o.layers.find((r) => r.key === i);
     if (!a) return;
     const s = {
       ...structuredClone(a),
@@ -726,10 +766,10 @@ class tu extends Sc {
   }
   /** Moves a layer to an index in the array, which is its z-order. */
   moveLayer(i, a) {
-    T(this, $, Ie).call(this, (s) => {
-      const o = [...s.layers], n = o.findIndex((d) => d.key === i);
-      if (n < 0) return s;
-      const [l] = o.splice(n, 1);
+    S(this, _, Fe).call(this, (s) => {
+      const o = [...s.layers], r = o.findIndex((h) => h.key === i);
+      if (r < 0) return s;
+      const [l] = o.splice(r, 1);
       return o.splice(Math.max(0, Math.min(o.length, a)), 0, l), { ...s, layers: o };
     });
   }
@@ -740,49 +780,54 @@ class tu extends Sc {
     this.updateLayer(i, { isLocked: a });
   }
   selectLayer(i) {
-    c(this, it).setValue(i);
+    d(this, ot).setValue(i);
   }
   getSelectedLayer() {
     var a;
-    const i = c(this, it).getValue();
+    const i = d(this, ot).getValue();
     return i ? (a = this._data.getCurrent()) == null ? void 0 : a.layers.find((s) => s.key === i) : void 0;
   }
   // ------------------------------------------------------------------ transactions and history
   /** Opens a coalesced change - a whole drag becomes one undo entry rather than hundreds. */
   beginTransaction() {
     const i = this._data.getCurrent();
-    i && c(this, le).begin(i);
+    i && d(this, le).begin(i);
   }
   endTransaction(i = !0) {
-    c(this, le).end(i), T(this, $, _s).call(this);
+    d(this, le).end(i), S(this, _, Ps).call(this);
   }
   undo() {
     const i = this._data.getCurrent();
     if (!i) return;
-    const a = c(this, le).undo(i);
-    a && T(this, $, gt).call(this, a);
+    const a = d(this, le).undo(i);
+    a && S(this, _, vt).call(this, a);
   }
   redo() {
     const i = this._data.getCurrent();
     if (!i) return;
-    const a = c(this, le).redo(i);
-    a && T(this, $, gt).call(this, a);
+    const a = d(this, le).redo(i);
+    a && S(this, _, vt).call(this, a);
   }
   // ------------------------------------------------------------------ preview state
   setServerBounds(i) {
-    c(this, Qt).setValue(i);
+    d(this, ti).setValue(i);
   }
   setIssues(i) {
-    c(this, ei).setValue(i);
+    d(this, ii).setValue(i);
   }
+  /**
+   * The page previews render against, or undefined for sample data. One value for the whole
+   * workspace, so the Preview & test picker and the designer strip's picker always agree - and
+   * remembered per template, so coming back to it does not mean choosing again.
+   */
   setSampleContentKey(i) {
-    c(this, ti).setValue(i), c(this, Ct).setValue(!i);
+    d(this, St).setValue(i), d(this, rt).setValue(!i), S(this, _, kn).call(this, i);
   }
   setUseSampleData(i) {
-    c(this, Ct).setValue(i);
+    d(this, rt).setValue(i);
   }
   setZoom(i) {
-    c(this, ii).setValue(Math.max(0.1, Math.min(4, i)));
+    d(this, ai).setValue(Math.max(0.1, Math.min(4, i)));
   }
   // ------------------------------------------------------------------ saving
   async submit() {
@@ -790,27 +835,27 @@ class tu extends Sc {
     const i = this._data.getCurrent();
     if (!i) throw new Error("There is nothing to save.");
     try {
-      const o = c(this, Ce) ? await un(i, this.getToken) : await hn(i, this.getToken);
-      T(this, $, gt).call(this, o.template, { resetHistory: !0, persist: !0 });
-      const n = c(this, Ce);
-      _(this, Ce, !1), this.setIsNew(!1), Yi(), (a = c(this, Tt)) == null || a.peek("positive", {
+      const o = d(this, Pe) ? await Ru(i, this.getToken) : await zu(i, this.getToken);
+      S(this, _, vt).call(this, o.template, { resetHistory: !0, persist: !0 });
+      const r = d(this, Pe);
+      b(this, Pe, !1), this.setIsNew(!1), md(), await S(this, _, Sn).call(this, o.template, r), (a = d(this, Et)) == null || a.peek("positive", {
         data: { message: `'${o.template.name}' saved.` }
       });
       for (const l of o.warnings)
-        (s = c(this, Tt)) == null || s.peek("warning", { data: { message: l.message } });
-      n && window.history.replaceState({}, "", ci(o.template.key));
+        (s = d(this, Et)) == null || s.peek("warning", { data: { message: l.message } });
+      r && window.history.replaceState({}, "", bo(o.template.key));
     } catch (o) {
-      throw T(this, $, ws).call(this, "The template could not be saved", o), o;
+      throw S(this, _, As).call(this, "The template could not be saved", o), o;
     }
   }
   resetState() {
-    super.resetState(), this._data.clear(), _(this, Et, !1);
+    super.resetState(), this._data.clear(), b(this, Ct, !1);
   }
   destroy() {
-    window.removeEventListener("willchangestate", c(this, oi)), window.removeEventListener("beforeunload", c(this, ni)), c(this, le).clear(), super.destroy();
+    window.removeEventListener("willchangestate", d(this, ri)), window.removeEventListener("beforeunload", d(this, ni)), d(this, le).clear(), super.destroy();
   }
 }
-Zt = new WeakMap(), it = new WeakMap(), xt = new WeakMap(), kt = new WeakMap(), St = new WeakMap(), Qt = new WeakMap(), ei = new WeakMap(), ti = new WeakMap(), Ct = new WeakMap(), ii = new WeakMap(), Re = new WeakMap(), ai = new WeakMap(), si = new WeakMap(), le = new WeakMap(), Vi = new WeakMap(), Tt = new WeakMap(), Ce = new WeakMap(), Et = new WeakMap(), $ = new WeakSet(), /**
+Qt = new WeakMap(), ot = new WeakMap(), xt = new WeakMap(), kt = new WeakMap(), ei = new WeakMap(), Tt = new WeakMap(), ti = new WeakMap(), ii = new WeakMap(), St = new WeakMap(), rt = new WeakMap(), ai = new WeakMap(), Ne = new WeakMap(), si = new WeakMap(), oi = new WeakMap(), le = new WeakMap(), Ji = new WeakMap(), Et = new WeakMap(), Pe = new WeakMap(), Ct = new WeakMap(), _ = new WeakSet(), /**
  * True when the new URL leaves this workspace. Switching between the four workspace views keeps
  * the workspace's own path as a prefix (`…/edit/<key>/view/<pathname>`), so this is false for
  * those and the editor is never prompted for moving between Design and Preview & test.
@@ -824,32 +869,40 @@ Zt = new WeakMap(), it = new WeakMap(), xt = new WeakMap(), kt = new WeakMap(), 
  * did nothing on exactly the navigations it exists for, while passing every test that
  * dispatched the event by hand.
  */
-Bn = function(i) {
+xn = function(i) {
   return !(i instanceof URL ? i.href : i).includes(this.routes.getActiveLocalPath());
-}, oi = new WeakMap(), ni = new WeakMap(), ys = async function(i) {
+}, ri = new WeakMap(), ni = new WeakMap(), Ds = async function(i) {
   const [a, s] = await Promise.all([
-    Ei(this.getToken).catch(() => []),
-    T(this, $, bs).call(this, i.docTypeAliases)
+    Aa(this.getToken).catch(() => []),
+    S(this, _, Os).call(this, i.docTypeAliases)
   ]);
-  c(this, St).setValue(a), c(this, xt).setValue(s), c(this, kt).setValue(await T(this, $, vs).call(this, i.docTypeAliases, s));
-}, vs = async function(i, a) {
-  const s = a.filter((n) => n.classification === "content").slice(0, eu);
-  if (s.length === 0 || i.length === 0) return {};
-  const o = await Promise.all(
-    s.map(async (n) => {
-      const l = await Promise.all(
-        i.map((p) => kn(p, n.alias, this.getToken).catch(() => null))
-      ), d = /* @__PURE__ */ new Map();
-      for (const p of l.flatMap((k) => (k == null ? void 0 : k.properties) ?? []))
-        d.has(p.alias) || d.set(p.alias, p);
-      return [n.alias, [...d.values()]];
-    })
-  );
-  return Object.fromEntries(o.filter(([, n]) => n.length > 0));
-}, bs = async function(i) {
+  d(this, Tt).setValue(a), d(this, xt).setValue(s), d(this, kt).setValue(await S(this, _, Is).call(this, i.docTypeAliases, s));
+}, Is = async function(i, a) {
+  const s = {}, o = {};
+  if (i.length === 0) return s;
+  let r = a.filter((h) => h.classification === "content").slice(0, Fd).map((h) => h.alias), l = 0;
+  for (let h = 1; h <= Cs && r.length > 0 && l < gr; h++) {
+    const m = r.slice(0, gr - l);
+    l += m.length;
+    const C = await Promise.all(m.map(async (k) => {
+      var gi;
+      const j = await Promise.all(
+        i.map((ie) => od(ie, k, this.getToken).catch(() => null))
+      ), te = /* @__PURE__ */ new Map();
+      for (const ie of j.flatMap((be) => (be == null ? void 0 : be.properties) ?? []))
+        te.has(ie.alias) || te.set(ie.alias, ie);
+      const me = j.filter((ie) => ie !== null), ye = [...new Set(me.flatMap((ie) => ie.targetDocTypes.map((be) => be.name)))], Ut = me.some((ie) => ie.inference === "all") ? "all" : (gi = me[0]) == null ? void 0 : gi.inference;
+      return { prefix: k, properties: [...te.values()], caption: zd(ye, Ut) };
+    }));
+    r = [];
+    for (const k of C)
+      k.properties.length !== 0 && (s[k.prefix] = k.properties, o[k.prefix] = k.caption, h < Cs && r.push(...k.properties.filter((j) => j.classification === "content" && !j.isSystem).map((j) => `${k.prefix}.${j.alias}`)));
+  }
+  return d(this, ei).setValue(o), s;
+}, Os = async function(i) {
   if (i.length === 0) return [];
   const a = await Promise.all(
-    i.map((o) => xn(o, this.getToken).catch(() => []))
+    i.map((o) => sd(o, this.getToken).catch(() => []))
   ), s = /* @__PURE__ */ new Map();
   for (const o of a.flat())
     s.has(o.alias) || s.set(o.alias, o);
@@ -859,26 +912,51 @@ Bn = function(i) {
  * The single write path. Everything the designer changes goes through here, which is what makes
  * the undo stack, the dirty flag and the derived observables consistent by construction.
  */
-Ie = function(i, a = !0) {
+Fe = function(i, a = !0) {
   const s = this._data.getCurrent();
   if (!s) return;
-  a && c(this, le).push(s);
+  a && d(this, le).push(s);
   const o = i(structuredClone(s));
-  T(this, $, gt).call(this, o);
+  S(this, _, vt).call(this, o);
 }, /**
  * `persist` marks this template as the saved state too. Both halves get the *same* object, so
  * the JSON comparison behind `getHasUnpersistedChanges()` cannot report a false positive.
  */
-gt = function(i, a) {
-  a != null && a.resetHistory && c(this, le).clear(), this._data.setCurrent(i), a != null && a.persist && this._data.setPersisted(i), c(this, Zt).setValue(i.layers), T(this, $, _s).call(this);
-}, _s = function() {
-  c(this, ai).setValue(c(this, le).canUndo), c(this, si).setValue(c(this, le).canRedo);
-}, ws = function(i, a) {
+vt = function(i, a) {
+  a != null && a.resetHistory && d(this, le).clear(), this._data.setCurrent(i), a != null && a.persist && this._data.setPersisted(i), d(this, Qt).setValue(i.layers), S(this, _, Ps).call(this);
+}, Ps = function() {
+  d(this, si).setValue(d(this, le).canUndo), d(this, oi).setValue(d(this, le).canRedo);
+}, ma = function() {
+  var i;
+  return `di:sample-node:${((i = this._data.getCurrent()) == null ? void 0 : i.key) ?? "new"}`;
+}, kn = function(i) {
+  try {
+    i ? localStorage.setItem(S(this, _, ma).call(this), JSON.stringify({ key: i })) : localStorage.removeItem(S(this, _, ma).call(this));
+  } catch {
+  }
+}, /** Accepts the older remembered shape too, which stored the whole picked item. */
+Tn = function() {
+  let i;
+  try {
+    const a = localStorage.getItem(S(this, _, ma).call(this));
+    i = a ? JSON.parse(a).key : void 0;
+  } catch {
+    i = void 0;
+  }
+  d(this, St).setValue(i), d(this, rt).setValue(!i);
+}, Sn = async function(i, a) {
+  const s = await this.getContext(mo).catch(() => {
+  });
+  s && (a ? s.dispatchEvent(new yo({
+    entityType: i.parentKey ? "di-template-folder" : "di-template-root",
+    unique: i.parentKey ?? null
+  })) : s.dispatchEvent(new bu({ entityType: "di-template", unique: i.key })));
+}, As = function(i, a) {
   var o;
-  const s = a instanceof nt ? a.detail ?? a.message : a instanceof Error ? a.message : i;
-  console.error("[DynamicImages]", i, a), (o = c(this, Tt)) == null || o.peek("danger", { data: { headline: i, message: s } });
+  const s = a instanceof ht ? a.detail ?? a.message : a instanceof Error ? a.message : i;
+  console.error("[DynamicImages]", i, a), (o = d(this, Et)) == null || o.peek("danger", { data: { headline: i, message: s } });
 };
-const Nt = new Ec(
+const ft = new Ja(
   "UmbWorkspaceContext",
   void 0,
   // Discriminated on the workspace alias, so consuming it inside a document workspace (where the
@@ -887,7 +965,496 @@ const Nt = new Ec(
     var t;
     return ((t = e.getEntityType) == null ? void 0 : t.call(e)) === "di-template";
   }
-), iu = [
+), Mt = "di-template-root", X = "di-template-folder", ke = es, Ra = "DynamicImages.Tree.Templates", Ii = "DynamicImages.Repository.TemplateTree", Oi = "DynamicImages.Repository.TemplateFolder", Ud = "DynamicImages.Store.TemplateFolder", za = "DynamicImages.Workspace.TemplateFolder", En = "DynamicImages.Workspace.TemplateRoot", vr = "DynamicImages.Repository.TemplateItem", Nd = "DynamicImages.Store.TemplateItem", br = "DynamicImages.Repository.TemplateDetail", Bd = "DynamicImages.Store.TemplateDetail", _r = "DynamicImages.Repository.MoveTemplate", wr = "DynamicImages.Repository.MoveTemplateFolder", $r = "DynamicImages.Repository.DuplicateTemplate", Cn = "icon-picture", Dn = "icon-picture color-grey", In = "icon-folder", Ms = "DynamicImages.Collection.Templates", xr = "DynamicImages.Repository.TemplateCollection";
+async function N(e, t) {
+  const i = (async () => {
+    const a = await new uu(e, Le).asPromise().catch(() => {
+    });
+    try {
+      return { data: await t(() => a == null ? void 0 : a.getLatestToken()) };
+    } catch (s) {
+      throw s instanceof ht ? { type: "error", title: s.message, status: s.status, detail: s.detail } : s;
+    }
+  })();
+  return await ku(e, i);
+}
+var nt;
+class Kd {
+  constructor(t) {
+    x(this, nt);
+    b(this, nt, t);
+  }
+  async createScaffold(t) {
+    return { data: {
+      entityType: X,
+      unique: mu.new(),
+      name: "",
+      ...t
+    } };
+  }
+  async read(t) {
+    if (!t) throw new Error("Unique is missing");
+    const { data: i, error: a } = await N(d(this, nt), (s) => Gu(t, s));
+    return i ? { data: { entityType: X, unique: i.key, name: i.name } } : { error: a };
+  }
+  async create(t, i) {
+    if (!t.unique) throw new Error("Unique is missing");
+    if (!t.name) throw new Error("Name is missing");
+    const a = t.unique, { error: s } = await N(d(this, nt), (o) => Vu({ key: a, name: t.name, parentKey: i }, o));
+    return s ? { error: s } : this.read(a);
+  }
+  async update(t) {
+    if (!t.unique) throw new Error("Unique is missing");
+    if (!t.name) throw new Error("Folder name is missing");
+    const i = t.unique, { error: a } = await N(d(this, nt), (s) => qu(i, t.name, s));
+    return a ? { error: a } : this.read(i);
+  }
+  async delete(t) {
+    if (!t) throw new Error("Unique is missing");
+    return N(d(this, nt), (i) => Hu(t, i));
+  }
+}
+nt = new WeakMap();
+const wo = new Ja("DiTemplateFolderStore");
+class On extends en {
+  constructor(t) {
+    super(t, wo);
+  }
+}
+class kr extends Qr {
+  constructor(t) {
+    super(t, Kd, wo);
+  }
+}
+const jd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DI_TEMPLATE_FOLDER_STORE_CONTEXT: wo,
+  DiTemplateFolderRepository: kr,
+  DiTemplateFolderStore: On,
+  api: kr
+}, Symbol.toStringTag, { value: "Module" })), Vd = [
+  {
+    type: "repository",
+    alias: Oi,
+    name: "Dynamic Images Template Folder Repository",
+    api: () => Promise.resolve().then(() => jd)
+  },
+  {
+    type: "store",
+    alias: Ud,
+    name: "Dynamic Images Template Folder Store",
+    api: On
+  },
+  {
+    type: "entityAction",
+    kind: "folderUpdate",
+    alias: "DynamicImages.EntityAction.TemplateFolder.Rename",
+    name: "Rename Dynamic Images Template Folder",
+    forEntityTypes: [X],
+    meta: { folderRepositoryAlias: Oi }
+  },
+  {
+    type: "entityAction",
+    kind: "folderDelete",
+    alias: "DynamicImages.EntityAction.TemplateFolder.Delete",
+    name: "Delete Dynamic Images Template Folder",
+    forEntityTypes: [X],
+    meta: { folderRepositoryAlias: Oi }
+  },
+  {
+    type: "workspace",
+    kind: "routable",
+    alias: za,
+    name: "Dynamic Images Template Folder Workspace",
+    api: () => Promise.resolve().then(() => rh),
+    meta: { entityType: X }
+  },
+  {
+    type: "workspaceAction",
+    kind: "default",
+    alias: "DynamicImages.WorkspaceAction.TemplateFolder.Submit",
+    name: "Save Dynamic Images Template Folder",
+    api: xs,
+    meta: { label: "#buttons_save", look: "primary", color: "positive" },
+    conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: za }]
+  }
+], Gd = [
+  {
+    type: "repository",
+    alias: Ii,
+    name: "Dynamic Images Template Tree Repository",
+    api: () => Promise.resolve().then(() => ch)
+  },
+  {
+    type: "tree",
+    kind: "default",
+    alias: Ra,
+    name: "Dynamic Images Template Tree",
+    meta: { repositoryAlias: Ii }
+  },
+  {
+    type: "treeItem",
+    kind: "default",
+    alias: "DynamicImages.TreeItem.Templates",
+    name: "Dynamic Images Template Tree Item",
+    forEntityTypes: [Mt, X, ke]
+  },
+  {
+    type: "menuItem",
+    kind: "tree",
+    alias: "DynamicImages.MenuItem.Templates",
+    name: "Dynamic Images Templates Menu Item",
+    weight: 200,
+    meta: { label: "Templates", treeAlias: Ra, menus: ["DynamicImages.Menu"] }
+  },
+  {
+    // Selecting the root shows the collection of everything directly under it (collection/manifests.ts).
+    type: "workspace",
+    kind: "default",
+    alias: En,
+    name: "Dynamic Images Templates Root Workspace",
+    meta: { entityType: Mt, headline: "Templates" }
+  },
+  ...Vd
+], $o = new Ja("DiTemplateItemStore");
+class Pn extends pu {
+  constructor(t) {
+    super(t, $o);
+  }
+}
+class qd extends hu {
+  constructor(t) {
+    super(t, {
+      getItems: (i) => N(t, (a) => nn(i, a)),
+      mapper: (i) => ({
+        unique: i.key,
+        entityType: i.entityType === "folder" ? X : ke,
+        name: i.name,
+        isFolder: i.entityType === "folder",
+        isEnabled: i.isEnabled
+      })
+    });
+  }
+}
+class Tr extends du {
+  constructor(t) {
+    super(t, qd, $o);
+  }
+}
+const Hd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DI_TEMPLATE_ITEM_STORE_CONTEXT: $o,
+  DiTemplateItemRepository: Tr,
+  DiTemplateItemStore: Pn,
+  api: Tr
+}, Symbol.toStringTag, { value: "Module" })), xo = new Ja("DiTemplateDetailStore");
+class An extends en {
+  constructor(t) {
+    super(t, xo);
+  }
+}
+const us = () => Promise.resolve({ error: new Error("Templates are created and edited in the template workspace.") });
+var li;
+class Yd {
+  constructor(t) {
+    x(this, li);
+    this.createScaffold = us, this.create = us, this.update = us, b(this, li, t);
+  }
+  async read(t) {
+    const { data: i, error: a } = await N(d(this, li), (s) => go(t, s));
+    return i ? { data: { entityType: ke, unique: i.key, name: i.name } } : { error: a };
+  }
+  delete(t) {
+    return N(d(this, li), (i) => Lu(t, i));
+  }
+}
+li = new WeakMap();
+class Sr extends Qr {
+  constructor(t) {
+    super(t, Yd, xo);
+  }
+}
+const Xd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DI_TEMPLATE_DETAIL_STORE_CONTEXT: xo,
+  DiTemplateDetailRepository: Sr,
+  DiTemplateDetailStore: An,
+  api: Sr
+}, Symbol.toStringTag, { value: "Module" })), bi = [Mt, X], Jd = [
+  // ---------------------------------------------------------------- repositories
+  {
+    type: "repository",
+    alias: vr,
+    name: "Dynamic Images Template Item Repository",
+    api: () => Promise.resolve().then(() => Hd)
+  },
+  {
+    type: "itemStore",
+    alias: Nd,
+    name: "Dynamic Images Template Item Store",
+    api: Pn
+  },
+  {
+    type: "repository",
+    alias: br,
+    name: "Dynamic Images Template Detail Repository",
+    api: () => Promise.resolve().then(() => Xd)
+  },
+  {
+    type: "store",
+    alias: Bd,
+    name: "Dynamic Images Template Detail Store",
+    api: An
+  },
+  {
+    type: "repository",
+    alias: _r,
+    name: "Dynamic Images Move Template Repository",
+    api: () => Promise.resolve().then(() => hh)
+  },
+  {
+    type: "repository",
+    alias: wr,
+    name: "Dynamic Images Move Template Folder Repository",
+    api: () => Promise.resolve().then(() => ph)
+  },
+  {
+    type: "repository",
+    alias: $r,
+    name: "Dynamic Images Duplicate Template Repository",
+    api: () => Promise.resolve().then(() => mh)
+  },
+  // ---------------------------------------------------------------- create
+  {
+    type: "entityAction",
+    kind: "create",
+    alias: "DynamicImages.EntityAction.Template.Create",
+    name: "Create Dynamic Images Template",
+    weight: 1200,
+    forEntityTypes: bi,
+    meta: { icon: "icon-add", label: "#actions_createFor", additionalOptions: !0, headline: "Create under Templates" }
+  },
+  {
+    type: "entityCreateOptionAction",
+    alias: "DynamicImages.EntityCreateOptionAction.Template",
+    name: "Dynamic Images Template Create Option",
+    weight: 100,
+    api: () => Promise.resolve().then(() => yh),
+    forEntityTypes: bi,
+    meta: {
+      icon: "icon-picture",
+      label: "Template",
+      description: "A generated image design for one or more document types"
+    }
+  },
+  // Cast because 17.5's folder create option kind declares its manifest type in a file that no
+  // public entry point imports, so the global manifest map never learns about `kind: "folder"`.
+  // The kind itself is registered and works exactly as core's document type folder option.
+  {
+    type: "entityCreateOptionAction",
+    kind: "folder",
+    alias: "DynamicImages.EntityCreateOptionAction.TemplateFolder",
+    name: "Dynamic Images Template Folder Create Option",
+    weight: 90,
+    forEntityTypes: bi,
+    meta: {
+      icon: "icon-folder",
+      label: "#create_folder",
+      additionalOptions: !0,
+      folderRepositoryAlias: Oi
+    }
+  },
+  // ---------------------------------------------------------------- template
+  {
+    type: "entityAction",
+    kind: "moveTo",
+    alias: "DynamicImages.EntityAction.Template.MoveTo",
+    name: "Move Dynamic Images Template",
+    forEntityTypes: [ke],
+    meta: {
+      treeRepositoryAlias: Ii,
+      moveRepositoryAlias: _r,
+      treeAlias: Ra,
+      foldersOnly: !0,
+      additionalOptions: !0
+    }
+  },
+  {
+    type: "entityAction",
+    kind: "duplicate",
+    alias: "DynamicImages.EntityAction.Template.Duplicate",
+    name: "Duplicate Dynamic Images Template",
+    forEntityTypes: [ke],
+    meta: {
+      icon: "icon-documents",
+      label: "Duplicate",
+      duplicateRepositoryAlias: $r,
+      treeRepositoryAlias: Ii
+    }
+  },
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Export",
+    name: "Export Dynamic Images Template",
+    api: () => Promise.resolve().then(() => fh),
+    forEntityTypes: [ke],
+    weight: 500,
+    meta: { icon: "icon-download-alt", label: "Export JSON", additionalOptions: !0 }
+  },
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Regenerate",
+    name: "Regenerate every image for a Dynamic Images Template",
+    api: () => Promise.resolve().then(() => vh),
+    forEntityTypes: [ke],
+    weight: 400,
+    meta: { icon: "icon-sync", label: "Regenerate all", additionalOptions: !0 }
+  },
+  {
+    type: "entityAction",
+    kind: "delete",
+    alias: "DynamicImages.EntityAction.Template.Delete",
+    name: "Delete Dynamic Images Template",
+    forEntityTypes: [ke],
+    meta: {
+      itemRepositoryAlias: vr,
+      detailRepositoryAlias: br,
+      additionalOptions: !0,
+      confirm: {
+        headline: "Delete template",
+        message: "Delete <strong>{0}</strong>? Images it already generated stay in the media library."
+      }
+    }
+  },
+  // ---------------------------------------------------------------- folder
+  {
+    type: "entityAction",
+    kind: "moveTo",
+    alias: "DynamicImages.EntityAction.TemplateFolder.MoveTo",
+    name: "Move Dynamic Images Template Folder",
+    forEntityTypes: [X],
+    meta: {
+      treeRepositoryAlias: Ii,
+      moveRepositoryAlias: wr,
+      treeAlias: Ra,
+      foldersOnly: !0,
+      additionalOptions: !0
+    }
+  },
+  // ---------------------------------------------------------------- root and folder
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Import",
+    name: "Import a Dynamic Images Template",
+    api: () => Promise.resolve().then(() => wh),
+    forEntityTypes: bi,
+    weight: 300,
+    meta: { icon: "icon-page-up", label: "Import JSON", additionalOptions: !0 }
+  },
+  {
+    type: "entityAction",
+    kind: "reloadTreeItemChildren",
+    alias: "DynamicImages.EntityAction.Template.ReloadChildren",
+    name: "Reload Dynamic Images Templates",
+    forEntityTypes: bi
+  },
+  {
+    type: "modal",
+    alias: "DynamicImages.Modal.ImportTemplate",
+    name: "Dynamic Images Import Template",
+    element: () => Promise.resolve().then(() => Eh)
+  }
+], ua = [{ alias: "Umb.Condition.CollectionAlias", match: Ms }], Zd = [
+  {
+    type: "repository",
+    alias: xr,
+    name: "Dynamic Images Template Collection Repository",
+    api: () => Promise.resolve().then(() => Ch)
+  },
+  {
+    type: "collection",
+    kind: "default",
+    alias: Ms,
+    name: "Dynamic Images Template Collection",
+    api: () => Promise.resolve().then(() => Dh),
+    meta: { repositoryAlias: xr }
+  },
+  {
+    type: "collectionView",
+    kind: "table",
+    alias: "DynamicImages.CollectionView.Templates.Table",
+    name: "Dynamic Images Template Table View",
+    weight: 300,
+    meta: {
+      label: "List",
+      icon: "icon-list",
+      pathName: "list",
+      columns: [
+        { field: "docTypes", label: "Document types" },
+        { field: "targetProperty", label: "Target property" },
+        { field: "canvas", label: "Canvas" },
+        { field: "layers", label: "Layers" },
+        { field: "isEnabled", label: "Enabled", valueType: yu },
+        { field: "updated", label: "Last updated", valueType: fu }
+      ]
+    },
+    conditions: ua
+  },
+  {
+    type: "collectionView",
+    kind: "card",
+    alias: "DynamicImages.CollectionView.Templates.Grid",
+    name: "Dynamic Images Template Grid View",
+    weight: 200,
+    meta: { label: "Grid", icon: "icon-grid", pathName: "grid" },
+    conditions: ua
+  },
+  {
+    type: "entityCollectionItemCard",
+    alias: "DynamicImages.EntityCollectionItemCard.Template",
+    name: "Dynamic Images Template Card",
+    element: () => Promise.resolve().then(() => Ah),
+    forEntityTypes: [ke]
+  },
+  {
+    type: "collectionTextFilter",
+    kind: "default",
+    alias: "DynamicImages.CollectionTextFilter.Templates",
+    name: "Dynamic Images Template Collection Filter",
+    conditions: ua
+  },
+  {
+    type: "collectionAction",
+    kind: "create",
+    alias: "DynamicImages.CollectionAction.Templates.Create",
+    name: "Create in the Dynamic Images Template Collection",
+    conditions: ua
+  },
+  {
+    type: "workspaceView",
+    kind: "collection",
+    alias: "DynamicImages.WorkspaceView.Templates.Collection",
+    name: "Dynamic Images Templates Collection Workspace View",
+    meta: {
+      label: "Templates",
+      pathname: "templates",
+      icon: "icon-grid",
+      collectionAlias: Ms
+    },
+    conditions: [
+      {
+        alias: "Umb.Condition.WorkspaceAlias",
+        oneOf: [En, za]
+      }
+    ]
+  }
+], Qd = [
+  ...Gd,
+  ...Jd,
+  ...Zd,
   // ---------------------------------------------------------------- sidebar
   //
   // The sidebar app, the menu and the Fonts/Health link items are NOT here - they live in
@@ -895,22 +1462,14 @@ const Nt = new Ec(
   // bundle loads, so the section chrome paints immediately rather than after the entry point
   // has downloaded. None of them needs an element, so nothing is lost by moving them.
   //
-  // This one stays, because it has an element and so benefits from the compile-time safety the
-  // comment above argues for.
-  {
-    type: "menuItem",
-    alias: "DynamicImages.MenuItem.Templates",
-    name: "Dynamic Images Templates Menu Item",
-    element: () => Promise.resolve().then(() => mu),
-    weight: 200,
-    meta: { label: "Templates", menus: ["DynamicImages.Menu"] }
-  },
+  // The Templates tree's menu item is in tree/manifests.ts: a `tree` kind menu item, which needs
+  // the tree registered first.
   // ---------------------------------------------------------------- dashboards
   {
     type: "dashboard",
     alias: "DynamicImages.Dashboard.Overview",
     name: "Dynamic Images Overview",
-    element: () => Promise.resolve().then(() => vu),
+    element: () => Promise.resolve().then(() => Lh),
     weight: 100,
     meta: { label: "Overview", pathname: "overview" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }]
@@ -919,7 +1478,7 @@ const Nt = new Ec(
     type: "dashboard",
     alias: "DynamicImages.Dashboard.Fonts",
     name: "Dynamic Images Fonts",
-    element: () => Promise.resolve().then(() => Tu),
+    element: () => Promise.resolve().then(() => jh),
     weight: 90,
     meta: { label: "Fonts", pathname: "fonts" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }]
@@ -928,7 +1487,7 @@ const Nt = new Ec(
     type: "dashboard",
     alias: "DynamicImages.Dashboard.Health",
     name: "Dynamic Images Health",
-    element: () => Promise.resolve().then(() => Mu),
+    element: () => Promise.resolve().then(() => Hh),
     weight: 80,
     meta: { label: "Health", pathname: "health" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }]
@@ -939,14 +1498,14 @@ const Nt = new Ec(
     kind: "routable",
     alias: "DynamicImages.Workspace.Template",
     name: "Dynamic Images Template Workspace",
-    api: tu,
-    meta: { entityType: Xi }
+    api: Wd,
+    meta: { entityType: es }
   },
   {
     type: "workspaceView",
     alias: "DynamicImages.WorkspaceView.Design",
     name: "Dynamic Images Design View",
-    element: () => Promise.resolve().then(() => Gh),
+    element: () => Promise.resolve().then(() => bm),
     weight: 300,
     meta: { label: "Design", pathname: "design", icon: "icon-brush" },
     conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: "DynamicImages.Workspace.Template" }]
@@ -955,7 +1514,7 @@ const Nt = new Ec(
     type: "workspaceView",
     alias: "DynamicImages.WorkspaceView.Preview",
     name: "Dynamic Images Preview View",
-    element: () => Promise.resolve().then(() => Yh),
+    element: () => Promise.resolve().then(() => xm),
     weight: 200,
     meta: { label: "Preview & test", pathname: "preview", icon: "icon-eye" },
     conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: "DynamicImages.Workspace.Template" }]
@@ -964,7 +1523,7 @@ const Nt = new Ec(
     type: "workspaceView",
     alias: "DynamicImages.WorkspaceView.Settings",
     name: "Dynamic Images Settings View",
-    element: () => Promise.resolve().then(() => Qh),
+    element: () => Promise.resolve().then(() => Cm),
     weight: 100,
     meta: { label: "Settings", pathname: "settings", icon: "icon-settings" },
     conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: "DynamicImages.Workspace.Template" }]
@@ -973,7 +1532,7 @@ const Nt = new Ec(
     type: "workspaceView",
     alias: "DynamicImages.WorkspaceView.Usage",
     name: "Dynamic Images Usage View",
-    element: () => Promise.resolve().then(() => sd),
+    element: () => Promise.resolve().then(() => Am),
     weight: 50,
     meta: { label: "Usage", pathname: "usage", icon: "icon-documents" },
     conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: "DynamicImages.Workspace.Template" }]
@@ -984,7 +1543,7 @@ const Nt = new Ec(
     kind: "default",
     alias: "DynamicImages.WorkspaceAction.Save",
     name: "Dynamic Images Save",
-    api: () => Promise.resolve().then(() => od),
+    api: () => Promise.resolve().then(() => Mm),
     weight: 100,
     meta: { label: "Save", look: "primary", color: "positive" },
     conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: "DynamicImages.Workspace.Template" }]
@@ -994,7 +1553,7 @@ const Nt = new Ec(
     kind: "default",
     alias: "DynamicImages.WorkspaceAction.Regenerate",
     name: "Dynamic Images Regenerate",
-    api: () => Promise.resolve().then(() => rd),
+    api: () => Promise.resolve().then(() => Rm),
     weight: 90,
     meta: { label: "Regenerate all", look: "secondary", color: "default" },
     conditions: [{ alias: "Umb.Condition.WorkspaceAlias", match: "DynamicImages.Workspace.Template" }]
@@ -1005,7 +1564,7 @@ const Nt = new Ec(
     kind: "default",
     alias: "DynamicImages.EntityAction.RegenerateDocument",
     name: "Regenerate OG image",
-    api: () => Promise.resolve().then(() => ld),
+    api: () => Promise.resolve().then(() => zm),
     forEntityTypes: ["document"],
     weight: 100,
     meta: { icon: "icon-picture", label: "Regenerate OG image" }
@@ -1015,7 +1574,7 @@ const Nt = new Ec(
     kind: "default",
     alias: "DynamicImages.PropertyAction.Regenerate",
     name: "Regenerate OG image",
-    api: () => Promise.resolve().then(() => cd),
+    api: () => Promise.resolve().then(() => Lm),
     // A property action rather than a custom property editor UI, so adopting the package needs no
     // data type changes on anyone's existing document types.
     forPropertyEditorUis: ["Umb.PropertyEditorUi.MediaPicker"],
@@ -1024,30 +1583,24 @@ const Nt = new Ec(
   // ---------------------------------------------------------------- modals
   {
     type: "modal",
-    alias: "DynamicImages.Modal.SampleNodePicker",
-    name: "Dynamic Images Sample Node Picker",
-    element: () => Promise.resolve().then(() => pd)
-  },
-  {
-    type: "modal",
     alias: "DynamicImages.Modal.FontUpload",
     name: "Dynamic Images Font Upload",
-    element: () => Promise.resolve().then(() => _d)
+    element: () => Promise.resolve().then(() => jm)
   }
-], Rd = (e, t) => {
-  t.registerMany(iu);
+], $y = (e, t) => {
+  t.registerMany(Qd);
 };
-var au = Object.defineProperty, su = Object.getOwnPropertyDescriptor, Kn = (e) => {
+var eh = Object.defineProperty, th = Object.getOwnPropertyDescriptor, Mn = (e) => {
   throw TypeError(e);
-}, eo = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? su(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && au(t, i, s), s;
-}, to = (e, t, i) => t.has(e) || Kn("Cannot " + i), ou = (e, t, i) => (to(e, t, "read from private field"), t.get(e)), Ko = (e, t, i) => t.has(e) ? Kn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), nu = (e, t, i, a) => (to(e, t, "write to private field"), t.set(e, i), i), ru = (e, t, i) => (to(e, t, "access private method"), i), Ea, $s, Vn;
-let It = class extends F {
+}, ko = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? th(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && eh(t, i, s), s;
+}, To = (e, t, i) => t.has(e) || Mn("Cannot " + i), ih = (e, t, i) => (To(e, t, "read from private field"), t.get(e)), Er = (e, t, i) => t.has(e) ? Mn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ah = (e, t, i, a) => (To(e, t, "write to private field"), t.set(e, i), i), sh = (e, t, i) => (To(e, t, "access private method"), i), La, Rs, Rn;
+let Rt = class extends L {
   constructor() {
-    super(), Ko(this, $s), Ko(this, Ea), this._name = "", this._loading = !0, this.consumeContext(Nt, (e) => {
-      nu(this, Ea, e), e && (this.observe(e.template, (t) => {
+    super(), Er(this, Rs), Er(this, La), this._name = "", this._loading = !0, this.consumeContext(ft, (e) => {
+      ah(this, La, e), e && (this.observe(e.template, (t) => {
         this._name = (t == null ? void 0 : t.name) ?? "";
       }), this.observe(e.loading, (t) => {
         this._loading = t ?? !1;
@@ -1055,7 +1608,7 @@ let It = class extends F {
     });
   }
   render() {
-    return r`
+    return n`
       <umb-workspace-editor alias="DynamicImages.Workspace.Template" .loading=${this._loading}>
         <div slot="header" class="header">
           <uui-input
@@ -1063,22 +1616,22 @@ let It = class extends F {
             label="Template name"
             placeholder="Give this template a name"
             .value=${this._name}
-            @input=${ru(this, $s, Vn)}>
+            @input=${sh(this, Rs, Rn)}>
           </uui-input>
         </div>
       </umb-workspace-editor>
-      ${this._loading ? r`<uui-loader-bar></uui-loader-bar>` : m}
+      ${this._loading ? n`<uui-loader-bar></uui-loader-bar>` : p}
     `;
   }
 };
-Ea = /* @__PURE__ */ new WeakMap();
-$s = /* @__PURE__ */ new WeakSet();
-Vn = function(e) {
+La = /* @__PURE__ */ new WeakMap();
+Rs = /* @__PURE__ */ new WeakSet();
+Rn = function(e) {
   var i;
   const t = e.target.value;
-  (i = ou(this, Ea)) == null || i.updateTemplateFields({ name: t });
+  (i = ih(this, La)) == null || i.updateTemplateFields({ name: t });
 };
-It.styles = I`
+Rt.styles = A`
     :host {
       display: block;
       width: 100%;
@@ -1095,278 +1648,587 @@ It.styles = I`
       flex: 1 1 auto;
     }
   `;
-eo([
-  f()
-], It.prototype, "_name", 2);
-eo([
-  f()
-], It.prototype, "_loading", 2);
-It = eo([
-  R("di-template-editor")
-], It);
-const lu = It, Vo = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+ko([
+  y()
+], Rt.prototype, "_name", 2);
+ko([
+  y()
+], Rt.prototype, "_loading", 2);
+Rt = ko([
+  M("di-template-editor")
+], Rt);
+const oh = Rt, ds = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiTemplateEditorElement() {
-    return It;
+    return Rt;
   },
-  default: lu
+  default: oh
 }, Symbol.toStringTag, { value: "Module" }));
-var cu = Object.defineProperty, uu = Object.getOwnPropertyDescriptor, Gn = (e) => {
-  throw TypeError(e);
-}, pi = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? uu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && cu(t, i, s), s;
-}, io = (e, t, i) => t.has(e) || Gn("Cannot " + i), bt = (e, t, i) => (io(e, t, "read from private field"), t.get(e)), bi = (e, t, i) => t.has(e) ? Gn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), hu = (e, t, i, a) => (io(e, t, "write to private field"), t.set(e, i), i), la = (e, t, i) => (io(e, t, "access private method"), i), ca, Pa, ua, ha, Vt, xs, Hn, jn;
-let De = class extends F {
-  constructor() {
-    super(), bi(this, Vt), bi(this, ca), this._templates = [], this._issuesByTemplate = /* @__PURE__ */ new Map(), this._loading = !0, this._activeKey = ms(), this._expanded = !0, bi(this, Pa, () => {
-      var e;
-      return (e = bt(this, ca)) == null ? void 0 : e.getLatestToken();
-    }), bi(this, ua, () => {
-      this._activeKey = ms();
-    }), bi(this, ha, () => {
-      la(this, Vt, xs).call(this);
-    }), this.consumeContext(Ve, (e) => {
-      hu(this, ca, e), e && la(this, Vt, xs).call(this);
-    }), window.addEventListener("changestate", bt(this, ua)), window.addEventListener(Ca, bt(this, ha));
-  }
-  disconnectedCallback() {
-    super.disconnectedCallback(), window.removeEventListener("changestate", bt(this, ua)), window.removeEventListener(Ca, bt(this, ha));
-  }
-  render() {
-    return r`
-      <uui-menu-item
-        label="Templates"
-        has-children
-        ?loading=${this._loading}
-        ?show-children=${this._expanded}
-        @show-children=${() => {
-      this._expanded = !0;
-    }}
-        @hide-children=${() => {
-      this._expanded = !1;
-    }}>
-        <uui-icon slot="icon" name="icon-brush"></uui-icon>
-        ${la(this, Vt, Hn).call(this)}
-      </uui-menu-item>
-    `;
-  }
-};
-ca = /* @__PURE__ */ new WeakMap();
-Pa = /* @__PURE__ */ new WeakMap();
-ua = /* @__PURE__ */ new WeakMap();
-ha = /* @__PURE__ */ new WeakMap();
-Vt = /* @__PURE__ */ new WeakSet();
-xs = async function() {
-  this._loading = !0;
-  try {
-    const [e, t] = await Promise.all([
-      Ys(bt(this, Pa)),
-      Va(bt(this, Pa)).catch(() => {
-      })
+class Cr extends lu {
+  constructor(t) {
+    super(t, {
+      workspaceAlias: za,
+      entityType: X,
+      detailRepositoryAlias: Oi
+    }), this.routes.setRoutes([
+      {
+        path: "edit/:unique",
+        component: () => Promise.resolve().then(() => Hm),
+        setup: (i, a) => {
+          this.load(a.match.params.unique);
+        }
+      }
     ]);
-    this._templates = e, this._issuesByTemplate = du((t == null ? void 0 : t.issues) ?? []);
-  } catch (e) {
-    console.error("[DynamicImages] Failed to load the template list", e), this._templates = [];
-  } finally {
-    this._loading = !1;
   }
-};
-Hn = function() {
-  return this._loading ? r`<uui-loader></uui-loader>` : r`
-      ${B(
-    this._templates,
-    (e) => e.key,
-    (e) => la(this, Vt, jn).call(this, e)
-  )}
-      <uui-menu-item label="Create template" href=${Ga()}>
-        <uui-icon slot="icon" name="icon-add"></uui-icon>
-      </uui-menu-item>
-    `;
-};
-jn = function(e) {
-  const t = this._issuesByTemplate.get(e.key) ?? 0;
-  return r`
-      <uui-menu-item
-        label=${e.name}
-        href=${ci(e.key)}
-        ?active=${e.key === this._activeKey}>
-        <uui-icon
-          slot="icon"
-          name=${e.isEnabled ? "icon-picture" : "icon-block"}
-          class=${e.isEnabled ? "enabled" : "disabled"}>
-        </uui-icon>
-        ${t > 0 ? r`<uui-badge slot="badge" color="warning" look="primary" title="${t} issue(s)">${t}</uui-badge>` : m}
-      </uui-menu-item>
-    `;
-};
-De.styles = I`
-    :host {
-      display: block;
-    }
-
-    .disabled {
-      opacity: 0.5;
-    }
-
-    .enabled {
-      color: var(--uui-color-positive);
-    }
-  `;
-pi([
-  f()
-], De.prototype, "_templates", 2);
-pi([
-  f()
-], De.prototype, "_issuesByTemplate", 2);
-pi([
-  f()
-], De.prototype, "_loading", 2);
-pi([
-  f()
-], De.prototype, "_activeKey", 2);
-pi([
-  f()
-], De.prototype, "_expanded", 2);
-De = pi([
-  R("di-templates-menu-item")
-], De);
-function du(e) {
-  const t = /* @__PURE__ */ new Map();
-  for (const i of e)
-    !i.templateKey || i.severity === "info" || t.set(i.templateKey, (t.get(i.templateKey) ?? 0) + 1);
-  return t;
 }
-const pu = De, mu = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const rh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  get DiTemplatesMenuItemElement() {
-    return De;
-  },
-  default: pu
+  DiTemplateFolderWorkspaceContext: Cr,
+  api: Cr
 }, Symbol.toStringTag, { value: "Module" }));
-var fu = Object.defineProperty, gu = Object.getOwnPropertyDescriptor, Xn = (e) => {
-  throw TypeError(e);
-}, dt = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? gu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && fu(t, i, s), s;
-}, ao = (e, t, i) => t.has(e) || Xn("Cannot " + i), Ne = (e, t, i) => (ao(e, t, "read from private field"), i ? i.call(e) : t.get(e)), oa = (e, t, i) => t.has(e) ? Xn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Go = (e, t, i, a) => (ao(e, t, "write to private field"), t.set(e, i), i), P = (e, t, i) => (ao(e, t, "access private method"), i), da, Da, Fe, C, qi, Ue, Yn, qn, Jn, Zn, Qn, wi, er, tr, ir, ar, sr;
-let me = class extends F {
-  constructor() {
-    super(), oa(this, C), oa(this, da), oa(this, Da), this._templates = [], this._fonts = [], this._loading = !0, this._importing = !1, this._pasteJson = "", this._showPaste = !1, oa(this, Fe, () => {
-      var e;
-      return (e = Ne(this, da)) == null ? void 0 : e.getLatestToken();
-    }), this.consumeContext(Ge, (e) => {
-      Go(this, Da, e);
-    }), this.consumeContext(Ve, (e) => {
-      Go(this, da, e), e && P(this, C, qi).call(this);
+function hs(e) {
+  const t = e.paging;
+  return { skip: (t == null ? void 0 : t.skip) ?? e.skip ?? 0, take: (t == null ? void 0 : t.take) ?? e.take ?? 100 };
+}
+function nh(e) {
+  const t = e.entityType === "folder";
+  return {
+    unique: e.key,
+    parent: {
+      unique: e.parentKey,
+      entityType: e.parentKey ? X : Mt
+    },
+    name: e.name,
+    entityType: t ? X : ke,
+    hasChildren: e.hasChildren,
+    isFolder: t,
+    icon: t ? In : e.isEnabled ? Cn : Dn,
+    isEnabled: e.isEnabled
+  };
+}
+class lh extends gu {
+  constructor(t) {
+    super(t, {
+      getRootItems: (i) => {
+        const { skip: a, take: s } = hs(i);
+        return N(t, (o) => hr(a, s, i.foldersOnly ?? !1, o));
+      },
+      getChildrenOf: (i) => {
+        if (i.parent.unique === null) {
+          const { skip: r, take: l } = hs(i);
+          return N(t, (h) => hr(r, l, i.foldersOnly ?? !1, h));
+        }
+        const a = i.parent.unique, { skip: s, take: o } = hs(i);
+        return N(t, (r) => Nu(a, s, o, i.foldersOnly ?? !1, r));
+      },
+      getAncestorsOf: (i) => N(t, (a) => Bu(i.treeItem.unique, a)),
+      mapper: nh
     });
   }
+}
+class Dr extends vu {
+  constructor(t) {
+    super(t, lh);
+  }
+  async requestTreeRoot() {
+    const { data: t } = await this._treeSource.getRootItems({ skip: 0, take: 0, paging: { skip: 0, take: 0 } });
+    return { data: {
+      unique: null,
+      entityType: Mt,
+      name: "Templates",
+      icon: "icon-folder",
+      hasChildren: t ? t.total > 0 : !1,
+      isFolder: !0
+    } };
+  }
+}
+const ch = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiTemplateTreeRepository: Dr,
+  api: Dr
+}, Symbol.toStringTag, { value: "Module" }));
+class zn extends po {
+  async requestMoveTo(t) {
+    const { error: i } = await N(this, (a) => this.move(t.unique, t.destination.unique, a));
+    if (!i) {
+      const a = await this.getContext(pe);
+      a == null || a.peek("positive", { data: { message: "Moved" } });
+      const s = await this.getContext(mo).catch(() => {
+      }), o = t.destination.unique;
+      s == null || s.dispatchEvent(new yo({
+        entityType: o ? X : Mt,
+        unique: o
+      }));
+    }
+    return { error: i };
+  }
+}
+class uh extends zn {
+  constructor() {
+    super(...arguments), this.move = Yu;
+  }
+}
+class dh extends zn {
+  constructor() {
+    super(...arguments), this.move = Xu;
+  }
+}
+const hh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  api: uh
+}, Symbol.toStringTag, { value: "Module" })), ph = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  api: dh
+}, Symbol.toStringTag, { value: "Module" }));
+class Ir extends po {
+  async requestDuplicate(t) {
+    const { data: i, error: a } = await N(this, (s) => Fu(t.unique, s));
+    if (i) {
+      const s = await this.getContext(pe);
+      s == null || s.peek("positive", { data: { message: `'${i.template.name}' created` } });
+    }
+    return { error: a };
+  }
+}
+const mh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiDuplicateTemplateRepository: Ir,
+  api: Ir
+}, Symbol.toStringTag, { value: "Module" }));
+class Or extends _u {
+  async getHref() {
+    return hd({ entityType: this.args.entityType, unique: this.args.unique ?? null });
+  }
+}
+const yh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiCreateTemplateOptionAction: Or,
+  api: Or
+}, Symbol.toStringTag, { value: "Module" }));
+class Pr extends Za {
+  async execute() {
+    const t = this.args.unique;
+    if (!t) return;
+    const { data: i, error: a } = await N(this, async (r) => ({
+      blob: await Wu(t, r),
+      alias: (await go(t, r)).alias
+    }));
+    if (a || !i) throw a ?? new Error("The template could not be exported.");
+    const s = URL.createObjectURL(i.blob), o = document.createElement("a");
+    o.href = s, o.download = `${i.alias}.json`, o.click(), URL.revokeObjectURL(s);
+  }
+}
+const fh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiExportTemplateEntityAction: Pr,
+  api: Pr
+}, Symbol.toStringTag, { value: "Module" })), gh = 1500;
+async function Ln(e, t, i) {
+  let a = e;
+  for (; a.status === "queued" || a.status === "running"; ) {
+    await new Promise((s) => setTimeout(s, gh));
+    try {
+      a = await rd(a.id, t);
+    } catch {
+      i == null || i.peek("warning", { data: { message: "Lost track of the regeneration job." } });
+      return;
+    }
+  }
+  if (a.status === "completed") {
+    const s = a.failures.length;
+    i == null || i.peek(s > 0 ? "warning" : "positive", {
+      data: {
+        headline: "Regeneration finished",
+        message: `${a.generated} generated, ${a.skipped} skipped${s > 0 ? `, ${s} failed` : ""}.`
+      }
+    });
+    for (const o of a.failures.slice(0, 3))
+      i == null || i.peek("danger", { data: { message: o } });
+  } else
+    i == null || i.peek("danger", {
+      data: { headline: `Regeneration ${a.status}`, message: a.failures[0] ?? "" }
+    });
+}
+class Ar extends Za {
+  async execute() {
+    var h;
+    const t = this.args.unique;
+    if (!t) return;
+    const { data: i } = await N(this, (m) => nn([t], m)), a = ((h = i == null ? void 0 : i[0]) == null ? void 0 : h.name) ?? "this template";
+    await fo(this, {
+      headline: `Regenerate every image for '${a}'?`,
+      content: "Each node's existing image file is replaced in place, so links keep working. This can take a while on a large site.",
+      confirmLabel: "Regenerate",
+      color: "warning"
+    });
+    const { data: s, error: o } = await N(this, (m) => hn(t, !1, m));
+    if (o || !s) throw o ?? new Error("Regeneration could not be started.");
+    const r = await this.getContext(pe);
+    r == null || r.peek("positive", { data: { message: `Regenerating ${s.total} item(s)…` } });
+    const l = await this.getContext(Le);
+    await Ln(s, () => l == null ? void 0 : l.getLatestToken(), r);
+  }
+}
+const vh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiRegenerateTemplateEntityAction: Ar,
+  api: Ar
+}, Symbol.toStringTag, { value: "Module" })), bh = new sn(
+  "DynamicImages.Modal.FontUpload",
+  { modal: { type: "dialog", size: "small" } }
+), _h = new sn(
+  "DynamicImages.Modal.ImportTemplate",
+  { modal: { type: "sidebar", size: "small" } }
+);
+class Mr extends Za {
+  async execute() {
+    const { json: t } = await an(this, _h, { data: {} }), i = this.args.unique ?? null, { data: a, error: s } = await N(this, (l) => Uu(t, "create", l, i));
+    if (s || !a) throw s ?? new Error("The template could not be imported.");
+    const o = await this.getContext(pe);
+    o == null || o.peek("positive", { data: { message: `'${a.template.name}' imported` } });
+    for (const l of a.warnings) o == null || o.peek("warning", { data: { message: l.message } });
+    const r = await this.getContext(mo);
+    r == null || r.dispatchEvent(new yo({
+      entityType: this.args.entityType,
+      unique: this.args.unique
+    }));
+  }
+}
+const wh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiImportTemplateEntityAction: Mr,
+  api: Mr
+}, Symbol.toStringTag, { value: "Module" }));
+var $h = Object.defineProperty, xh = Object.getOwnPropertyDescriptor, Fn = (e) => {
+  throw TypeError(e);
+}, Wn = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? xh(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && $h(t, i, s), s;
+}, kh = (e, t, i) => t.has(e) || Fn("Cannot " + i), Th = (e, t, i) => t.has(e) ? Fn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Rr = (e, t, i) => (kh(e, t, "access private method"), i), ya, Un, Nn;
+let di = class extends on {
+  constructor() {
+    super(...arguments), Th(this, ya), this._json = "";
+  }
   render() {
-    return this._loading ? r`<div class="state"><uui-loader></uui-loader></div>` : r`
-      <umb-body-layout headline="Dynamic Images">
-        ${P(this, C, Qn).call(this)} ${P(this, C, er).call(this)} ${P(this, C, tr).call(this)}
+    return n`
+      <umb-body-layout headline="Import template">
+        <uui-box>
+          <umb-property-layout
+            orientation="vertical"
+            label="Template JSON"
+            description="Paste an exported template, or choose its .json file. An alias already in use gets a new one.">
+            <div slot="editor" class="editor">
+              <input type="file" accept=".json,application/json" @change=${Rr(this, ya, Un)} aria-label="Choose a file" />
+              <uui-textarea
+                label="Template JSON"
+                rows="16"
+                .value=${this._json}
+                @input=${(e) => this._json = e.target.value}></uui-textarea>
+            </div>
+          </umb-property-layout>
+        </uui-box>
+        <div slot="actions">
+          <uui-button label="Close" @click=${this._rejectModal}></uui-button>
+          <uui-button
+            look="primary"
+            color="positive"
+            label="Import"
+            ?disabled=${!this._json.trim()}
+            @click=${Rr(this, ya, Nn)}></uui-button>
+        </div>
       </umb-body-layout>
     `;
   }
 };
-da = /* @__PURE__ */ new WeakMap();
-Da = /* @__PURE__ */ new WeakMap();
-Fe = /* @__PURE__ */ new WeakMap();
-C = /* @__PURE__ */ new WeakSet();
-qi = async function() {
+ya = /* @__PURE__ */ new WeakSet();
+Un = async function(e) {
+  var i;
+  const t = (i = e.target.files) == null ? void 0 : i[0];
+  t && (this._json = await t.text());
+};
+Nn = function() {
+  this._json.trim() && (this.value = { json: this._json }, this._submitModal());
+};
+di.styles = [
+  A`
+      .editor {
+        display: flex;
+        flex-direction: column;
+        gap: var(--uui-size-space-3);
+      }
+
+      uui-textarea {
+        width: 100%;
+        font-family: monospace;
+      }
+    `
+];
+Wn([
+  y()
+], di.prototype, "_json", 2);
+di = Wn([
+  M("di-import-template-modal")
+], di);
+const Sh = di, Eh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  get DiImportTemplateModalElement() {
+    return di;
+  },
+  default: Sh
+}, Symbol.toStringTag, { value: "Module" }));
+function Bn(e) {
+  const t = e.entityType === "folder";
+  return {
+    unique: e.key,
+    entityType: t ? X : ke,
+    name: e.name,
+    icon: t ? In : e.isEnabled ? Cn : Dn,
+    isFolder: t,
+    docTypes: (e.docTypeAliases ?? []).join(", "),
+    targetProperty: e.targetPropertyAlias ?? "",
+    canvas: e.canvasWidth && e.canvasHeight ? `${e.canvasWidth} × ${e.canvasHeight}` : "",
+    layers: e.layerCount === null ? "" : String(e.layerCount),
+    isEnabled: t ? void 0 : e.isEnabled,
+    updated: e.updatedUtc ?? void 0
+  };
+}
+class zr extends po {
+  async requestCollection(t = {}) {
+    const i = await this.getContext(xu), a = (i == null ? void 0 : i.getUnique()) ?? null, { data: s, error: o } = await N(this, (r) => Ku({ parentKey: a, filter: t.filter, skip: t.skip, take: t.take }, r));
+    return s ? { data: { total: s.total, items: s.items.map(Bn) } } : { error: o };
+  }
+}
+const Ch = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiTemplateCollectionRepository: zr,
+  api: zr,
+  mapCollectionItem: Bn
+}, Symbol.toStringTag, { value: "Module" }));
+class Lr extends Tu {
+  async requestItemHref(t) {
+    return t.entityType === X ? mn(X, t.unique) : bo(t.unique);
+  }
+}
+const Dh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  DiTemplateCollectionContext: Lr,
+  api: Lr
+}, Symbol.toStringTag, { value: "Module" }));
+var Ih = Object.defineProperty, Oh = Object.getOwnPropertyDescriptor, Kn = (e) => {
+  throw TypeError(e);
+}, Ye = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Oh(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Ih(t, i, s), s;
+}, So = (e, t, i) => t.has(e) || Kn("Cannot " + i), Fa = (e, t, i) => (So(e, t, "read from private field"), i ? i.call(e) : t.get(e)), da = (e, t, i) => t.has(e) ? Kn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), fa = (e, t, i, a) => (So(e, t, "write to private field"), t.set(e, i), i), ps = (e, t, i) => (So(e, t, "access private method"), i), Wa, xi, Fi, ki, jn, Vn, Gn;
+const Ph = 400;
+let ue = class extends L {
+  constructor() {
+    super(), da(this, ki), this.selectable = !1, this.selected = !1, this.selectOnly = !1, this.disabled = !1, this._failed = !1, da(this, Wa), da(this, xi), da(this, Fi), this.consumeContext(Le, (e) => {
+      fa(this, Wa, e);
+    });
+  }
+  connectedCallback() {
+    super.connectedCallback(), fa(this, xi, new IntersectionObserver((e) => {
+      e.some((t) => t.isIntersecting) && ps(this, ki, jn).call(this);
+    })), Fa(this, xi).observe(this);
+  }
+  disconnectedCallback() {
+    var e;
+    super.disconnectedCallback(), (e = Fa(this, xi)) == null || e.disconnect(), this._src && URL.revokeObjectURL(this._src), this._src = void 0, fa(this, Fi, void 0);
+  }
+  render() {
+    return this.item ? n`
+      <uui-card-media
+        name=${this.item.name}
+        detail=${ks(this.item.docTypes || void 0)}
+        href=${ks(this.href)}
+        data-mark="${this.item.entityType}:${this.item.unique}"
+        ?selectable=${this.selectable}
+        ?select-only=${this.selectOnly}
+        ?selected=${this.selected}
+        ?disabled=${this.disabled}
+        @selected=${ps(this, ki, Vn)}
+        @deselected=${ps(this, ki, Gn)}>
+        ${this._src ? n`<img src=${this._src} alt=${this.item.name} />` : n`<umb-icon name=${this._failed ? "icon-picture" : this.item.icon}></umb-icon>`}
+        ${this.item.isEnabled === !1 ? n`<uui-tag slot="tag" look="secondary">Disabled</uui-tag>` : p}
+        <slot name="actions" slot="actions"></slot>
+      </uui-card-media>
+    ` : p;
+  }
+};
+Wa = /* @__PURE__ */ new WeakMap();
+xi = /* @__PURE__ */ new WeakMap();
+Fi = /* @__PURE__ */ new WeakMap();
+ki = /* @__PURE__ */ new WeakSet();
+jn = async function() {
+  const e = this.item, t = e ? `${e.unique}:${e.updated ?? ""}` : void 0;
+  if (!(!e || e.isFolder || !t || Fa(this, Fi) === t)) {
+    fa(this, Fi, t);
+    try {
+      const i = await ju(e.unique, Ph, () => {
+        var a;
+        return (a = Fa(this, Wa)) == null ? void 0 : a.getLatestToken();
+      });
+      this._src && URL.revokeObjectURL(this._src), this._src = URL.createObjectURL(i), this._failed = !1;
+    } catch {
+      this._failed = !0;
+    }
+  }
+};
+Vn = function(e) {
+  this.item && (e.stopPropagation(), this.dispatchEvent(new Su(this.item.unique)));
+};
+Gn = function(e) {
+  this.item && (e.stopPropagation(), this.dispatchEvent(new Eu(this.item.unique)));
+};
+ue.styles = [
+  A`
+      uui-card-media {
+        height: 100%;
+      }
+
+      img {
+        object-fit: contain;
+      }
+
+      slot[name="actions"] {
+        --uui-button-background-color: var(--uui-color-surface);
+        --uui-button-background-color-hover: var(--uui-color-surface);
+      }
+    `
+];
+Ye([
+  g({ type: Object })
+], ue.prototype, "item", 2);
+Ye([
+  g({ type: Boolean })
+], ue.prototype, "selectable", 2);
+Ye([
+  g({ type: Boolean })
+], ue.prototype, "selected", 2);
+Ye([
+  g({ type: Boolean, attribute: "select-only" })
+], ue.prototype, "selectOnly", 2);
+Ye([
+  g({ type: Boolean })
+], ue.prototype, "disabled", 2);
+Ye([
+  g({ type: String })
+], ue.prototype, "href", 2);
+Ye([
+  y()
+], ue.prototype, "_src", 2);
+Ye([
+  y()
+], ue.prototype, "_failed", 2);
+ue = Ye([
+  M("di-template-collection-card")
+], ue);
+const Ah = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  get DiTemplateCollectionCardElement() {
+    return ue;
+  },
+  get element() {
+    return ue;
+  }
+}, Symbol.toStringTag, { value: "Module" }));
+var Mh = Object.defineProperty, Rh = Object.getOwnPropertyDescriptor, qn = (e) => {
+  throw TypeError(e);
+}, ta = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Rh(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Mh(t, i, s), s;
+}, Eo = (e, t, i) => t.has(e) || qn("Cannot " + i), ct = (e, t, i) => (Eo(e, t, "read from private field"), t.get(e)), _i = (e, t, i) => t.has(e) ? qn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Fr = (e, t, i, a) => (Eo(e, t, "write to private field"), t.set(e, i), i), Ke = (e, t, i) => (Eo(e, t, "access private method"), i), Ti, Ua, ga, Pi, Te, zs, Hn, Yn, Si, Xn;
+let je = class extends L {
+  constructor() {
+    super(), _i(this, Te), _i(this, Ti), _i(this, Ua), this._templates = [], this._fonts = [], this._loading = !0, _i(this, ga, () => {
+      ct(this, Ti) && Ke(this, Te, zs).call(this);
+    }), _i(this, Pi, () => {
+      var e;
+      return (e = ct(this, Ti)) == null ? void 0 : e.getLatestToken();
+    }), this.consumeContext(pe, (e) => {
+      Fr(this, Ua, e);
+    }), this.consumeContext(Le, (e) => {
+      Fr(this, Ti, e), e && Ke(this, Te, zs).call(this);
+    });
+  }
+  connectedCallback() {
+    super.connectedCallback(), window.addEventListener(Ts, ct(this, ga));
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback(), window.removeEventListener(Ts, ct(this, ga));
+  }
+  render() {
+    return this._loading ? n`<div class="state"><uui-loader></uui-loader></div>` : n`
+      <umb-body-layout headline="Dynamic Images">
+        ${Ke(this, Te, Yn).call(this)} ${Ke(this, Te, Xn).call(this)}
+      </umb-body-layout>
+    `;
+  }
+};
+Ti = /* @__PURE__ */ new WeakMap();
+Ua = /* @__PURE__ */ new WeakMap();
+ga = /* @__PURE__ */ new WeakMap();
+Pi = /* @__PURE__ */ new WeakMap();
+Te = /* @__PURE__ */ new WeakSet();
+zs = async function() {
   this._loading = !0;
   try {
     const [e, t, i] = await Promise.all([
-      Ys(Ne(this, Fe)),
-      Ei(Ne(this, Fe)).catch(() => []),
-      Va(Ne(this, Fe)).catch(() => {
+      Mu(ct(this, Pi)),
+      Aa(ct(this, Pi)).catch(() => []),
+      pn(ct(this, Pi)).catch(() => {
       })
     ]);
     this._templates = e, this._fonts = t, this._health = i;
   } catch (e) {
-    P(this, C, Ue).call(this, "danger", "The dashboard could not be loaded", e);
+    Ke(this, Te, Hn).call(this, "danger", "The dashboard could not be loaded", e);
   } finally {
     this._loading = !1;
   }
 };
-Ue = function(e, t, i) {
+Hn = function(e, t, i) {
   var s;
   const a = i instanceof Error ? i.message : "";
-  i && console.error("[DynamicImages]", t, i), (s = Ne(this, Da)) == null || s.peek(e, { data: { headline: t, message: a } });
+  i && console.error("[DynamicImages]", t, i), (s = ct(this, Ua)) == null || s.peek(e, { data: { headline: t, message: a } });
 };
-Yn = async function() {
-  if (this._pasteJson.trim()) {
-    this._importing = !0;
-    try {
-      await fn(this._pasteJson, "create", Ne(this, Fe)), P(this, C, Ue).call(this, "positive", "Imported"), this._pasteJson = "", this._showPaste = !1, Yi(), await P(this, C, qi).call(this);
-    } catch (e) {
-      P(this, C, Ue).call(this, "danger", "That could not be imported", e);
-    } finally {
-      this._importing = !1;
-    }
-  }
-};
-qn = async function(e) {
-  try {
-    await pn(e.key, Ne(this, Fe)), P(this, C, Ue).call(this, "positive", `'${e.name}' duplicated`), Yi(), await P(this, C, qi).call(this);
-  } catch (t) {
-    P(this, C, Ue).call(this, "danger", "The template could not be duplicated", t);
-  }
-};
-Jn = async function(e) {
-  await Xs(this, {
-    headline: `Delete '${e.name}'?`,
-    content: "Images already generated by it stay in the media library; nothing new will be generated.",
-    confirmLabel: "Delete",
-    color: "danger"
-  });
-  try {
-    await dn(e.key, Ne(this, Fe)), P(this, C, Ue).call(this, "positive", `'${e.name}' deleted`), Yi(), await P(this, C, qi).call(this);
-  } catch (t) {
-    P(this, C, Ue).call(this, "danger", "The template could not be deleted", t);
-  }
-};
-Zn = async function(e) {
-  try {
-    const t = await mn(e.key, Ne(this, Fe)), i = URL.createObjectURL(t), a = document.createElement("a");
-    a.href = i, a.download = `${e.alias}.json`, a.click(), URL.revokeObjectURL(i);
-  } catch (t) {
-    P(this, C, Ue).call(this, "danger", "The template could not be exported", t);
-  }
-};
-Qn = function() {
+Yn = function() {
   var t, i, a;
   const e = ((t = this._health) == null ? void 0 : t.issues.filter((s) => s.severity !== "info").length) ?? 0;
-  return r`
+  return n`
       <div class="stats">
-        ${P(this, C, wi).call(this, "Templates", this._templates.length, "icon-brush")}
-        ${P(this, C, wi).call(this, "Fonts", this._fonts.length, "icon-font")}
-        ${P(this, C, wi).call(this, "Issues", e, e > 0 ? "icon-alert" : "icon-check", e > 0)}
-        ${P(this, C, wi).call(this, "Generation", ((i = this._health) == null ? void 0 : i.isEnabled) === !1 ? "Off" : "On", "icon-power", ((a = this._health) == null ? void 0 : a.isEnabled) === !1)}
+        ${Ke(this, Te, Si).call(this, "Templates", this._templates.length, "icon-brush", !1, mn(Mt))}
+        ${Ke(this, Te, Si).call(this, "Fonts", this._fonts.length, "icon-font")}
+        ${Ke(this, Te, Si).call(this, "Issues", e, e > 0 ? "icon-alert" : "icon-check", e > 0)}
+        ${Ke(this, Te, Si).call(this, "Generation", ((i = this._health) == null ? void 0 : i.isEnabled) === !1 ? "Off" : "On", "icon-power", ((a = this._health) == null ? void 0 : a.isEnabled) === !1)}
       </div>
     `;
 };
-wi = function(e, t, i, a = !1) {
-  return r`
+Si = function(e, t, i, a = !1, s) {
+  const o = n`
+      <uui-icon name=${i}></uui-icon>
+      <div class="stat-value">${t}</div>
+      <div class="stat-label">${e}</div>
+    `;
+  return n`
       <uui-box class="stat ${a ? "warn" : ""}">
-        <uui-icon name=${i}></uui-icon>
-        <div class="stat-value">${t}</div>
-        <div class="stat-label">${e}</div>
+        ${s ? n`<a class="stat-link" href=${s} aria-label="${e}: ${t}">${o}</a>` : o}
       </uui-box>
     `;
 };
-er = function() {
+Xn = function() {
   var t;
   const e = ((t = this._health) == null ? void 0 : t.issues.filter((i) => i.severity !== "info")) ?? [];
-  return e.length === 0 ? m : r`
+  return e.length === 0 ? p : n`
       <uui-box headline="Needs attention">
         <uui-table>
-          ${B(
+          ${Z(
     e.slice(0, 8),
     (i, a) => `${i.code}-${a}`,
-    (i) => r`
+    (i) => n`
               <uui-table-row>
                 <uui-table-cell style="width: 90px">
                   <uui-tag color=${i.severity === "error" ? "danger" : "warning"} look="secondary">
@@ -1374,119 +2236,17 @@ er = function() {
                   </uui-tag>
                 </uui-table-cell>
                 <uui-table-cell>
-                  ${i.templateName ? r`<strong>${i.templateName}</strong> — ` : m}${i.message}
+                  ${i.templateName ? n`<strong>${i.templateName}</strong> — ` : p}${i.message}
                 </uui-table-cell>
               </uui-table-row>
             `
   )}
         </uui-table>
-        <uui-button look="secondary" href=${On("health")} label="See all issues">See all</uui-button>
+        <uui-button look="secondary" href=${pd("health")} label="See all issues">See all</uui-button>
       </uui-box>
     `;
 };
-tr = function() {
-  return r`
-      <uui-box headline="Templates">
-        <div slot="header-actions" class="header-actions">
-          <uui-button
-            look="secondary"
-            label="Paste a template"
-            @click=${() => {
-    this._showPaste = !this._showPaste;
-  }}>
-            Import JSON
-          </uui-button>
-          <uui-button look="primary" color="positive" href=${Ga()} label="Create a template">
-            Create
-          </uui-button>
-        </div>
-
-        ${this._showPaste ? P(this, C, ir).call(this) : m}
-        ${this._templates.length === 0 ? P(this, C, ar).call(this) : P(this, C, sr).call(this)}
-      </uui-box>
-    `;
-};
-ir = function() {
-  return r`
-      <div class="paste">
-        <uui-textarea
-          label="Template JSON"
-          placeholder="Paste an exported template"
-          rows="6"
-          .value=${this._pasteJson}
-          @input=${(e) => {
-    this._pasteJson = e.target.value;
-  }}>
-        </uui-textarea>
-        <uui-button
-          look="primary"
-          label="Import the pasted JSON"
-          ?disabled=${this._importing || !this._pasteJson.trim()}
-          @click=${P(this, C, Yn)}>
-          Import
-        </uui-button>
-      </div>
-    `;
-};
-ar = function() {
-  return r`
-      <div class="empty">
-        <uui-icon name="icon-brush"></uui-icon>
-        <h4>No templates yet</h4>
-        <p>A template says which document types get a generated image, and what it looks like.</p>
-        <uui-button look="primary" color="positive" href=${Ga()} label="Create your first template">
-          Create your first template
-        </uui-button>
-      </div>
-    `;
-};
-sr = function() {
-  return r`
-      <div class="cards">
-        ${B(
-    this._templates,
-    (e) => e.key,
-    (e) => r`
-            <uui-box class="card ${e.isEnabled ? "" : "disabled"}">
-              <div slot="headline">
-                <a href=${ci(e.key)}>${e.name}</a>
-                ${e.isEnabled ? m : r`<uui-tag look="secondary">Disabled</uui-tag>`}
-              </div>
-
-              <dl>
-                <dt>Applies to</dt>
-                <dd>${e.docTypeAliases.join(", ") || "Nothing yet"}</dd>
-                <dt>Writes to</dt>
-                <dd>${e.targetPropertyAlias || "Nothing yet"}</dd>
-                <dt>Canvas</dt>
-                <dd>${e.canvasWidth} × ${e.canvasHeight}, ${e.layerCount} layer(s)</dd>
-              </dl>
-
-              <div class="card-actions">
-                <uui-button look="secondary" href=${ci(e.key)} label="Design ${e.name}">
-                  Design
-                </uui-button>
-                <uui-button look="secondary" label="Duplicate ${e.name}" @click=${() => P(this, C, qn).call(this, e)}>
-                  Duplicate
-                </uui-button>
-                <uui-button look="secondary" label="Export ${e.name}" @click=${() => P(this, C, Zn).call(this, e)}>
-                  Export
-                </uui-button>
-                <uui-button
-                  look="secondary"
-                  color="danger"
-                  label="Delete ${e.name}"
-                  @click=${() => P(this, C, Jn).call(this, e)}>
-                  Delete
-                </uui-button>
-              </div>
-            </uui-box>
-          `
-  )}
-      </div>
-    `;
-};
-me.styles = I`
+je.styles = A`
     :host {
       display: block;
     }
@@ -1527,277 +2287,198 @@ me.styles = I`
       font-size: 0.85rem;
     }
 
-    .header-actions {
-      display: flex;
-      gap: var(--uui-size-space-3);
-    }
-
-    .paste {
-      display: grid;
-      gap: var(--uui-size-space-3);
-      margin-bottom: var(--uui-size-layout-1);
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: var(--uui-size-space-4);
-    }
-
-    .card.disabled {
-      opacity: 0.7;
-    }
-
-    .card a {
+    .stat-link {
+      display: block;
       color: inherit;
       text-decoration: none;
     }
 
-    .card a:hover {
+    .stat-link:hover .stat-label {
       text-decoration: underline;
     }
-
-    dl {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: var(--uui-size-space-1) var(--uui-size-space-4);
-      margin: 0 0 var(--uui-size-space-4);
-      font-size: 0.9rem;
-    }
-
-    dt {
-      color: var(--uui-color-text-alt);
-    }
-
-    dd {
-      margin: 0;
-    }
-
-    .card-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--uui-size-space-2);
-    }
-
-    .empty {
-      text-align: center;
-      padding: var(--uui-size-layout-2);
-      color: var(--uui-color-text-alt);
-    }
-
-    .empty uui-icon {
-      font-size: 2.5rem;
-    }
-
-    .empty h4 {
-      margin: var(--uui-size-space-3) 0 var(--uui-size-space-2);
-      color: var(--uui-color-text);
-    }
-
-    @media (max-width: 720px) {
-      .cards {
-        grid-template-columns: 1fr;
-      }
-    }
   `;
-dt([
-  f()
-], me.prototype, "_templates", 2);
-dt([
-  f()
-], me.prototype, "_fonts", 2);
-dt([
-  f()
-], me.prototype, "_health", 2);
-dt([
-  f()
-], me.prototype, "_loading", 2);
-dt([
-  f()
-], me.prototype, "_importing", 2);
-dt([
-  f()
-], me.prototype, "_pasteJson", 2);
-dt([
-  f()
-], me.prototype, "_showPaste", 2);
-me = dt([
-  R("di-overview-dashboard")
-], me);
-const yu = me, vu = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+ta([
+  y()
+], je.prototype, "_templates", 2);
+ta([
+  y()
+], je.prototype, "_fonts", 2);
+ta([
+  y()
+], je.prototype, "_health", 2);
+ta([
+  y()
+], je.prototype, "_loading", 2);
+je = ta([
+  M("di-overview-dashboard")
+], je);
+const zh = je, Lh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiOverviewDashboardElement() {
-    return me;
+    return je;
   },
-  default: yu
-}, Symbol.toStringTag, { value: "Module" })), ks = /* @__PURE__ */ new Map(), Ya = (e) => `di-${e}`;
-function bu(e, t) {
+  default: zh
+}, Symbol.toStringTag, { value: "Module" })), Ls = /* @__PURE__ */ new Map(), ss = (e) => `di-${e}`;
+function Fh(e, t) {
   if (!e) return Promise.resolve(void 0);
-  const i = ks.get(e);
+  const i = Ls.get(e);
   if (i) return i;
   const a = (async () => {
     try {
-      const s = await $n(e, t), o = new FontFace(Ya(e), s);
+      const s = await ad(e, t), o = new FontFace(ss(e), s);
       return await o.load(), document.fonts.add(o), o;
     } catch (s) {
       console.warn("[DynamicImages] Could not load font", e, s);
       return;
     }
   })();
-  return ks.set(e, a), a;
+  return Ls.set(e, a), a;
 }
-async function or(e, t) {
+async function Jn(e, t) {
   const i = [...new Set([...e].filter(Boolean))];
-  await Promise.all(i.map((a) => bu(a, t)));
+  await Promise.all(i.map((a) => Fh(a, t)));
 }
-function nr(e) {
-  ks.delete(e);
+function Zn(e) {
+  Ls.delete(e);
 }
-const _u = new nn(
-  "DynamicImages.Modal.SampleNodePicker",
-  { modal: { type: "sidebar", size: "small" } }
-), wu = new nn(
-  "DynamicImages.Modal.FontUpload",
-  { modal: { type: "dialog", size: "small" } }
-);
-var $u = Object.defineProperty, xu = Object.getOwnPropertyDescriptor, rr = (e) => {
+var Wh = Object.defineProperty, Uh = Object.getOwnPropertyDescriptor, Qn = (e) => {
   throw TypeError(e);
-}, qa = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? xu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && $u(t, i, s), s;
-}, so = (e, t, i) => t.has(e) || rr("Cannot " + i), Ee = (e, t, i) => (so(e, t, "read from private field"), i ? i.call(e) : t.get(e)), _i = (e, t, i) => t.has(e) ? rr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), os = (e, t, i, a) => (so(e, t, "write to private field"), t.set(e, i), i), L = (e, t, i) => (so(e, t, "access private method"), i), pa, Mi, zi, At, O, lr, mi, rt, Ss, cr, ur, ma, hr, dr, pr;
-function ku(e) {
+}, os = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Uh(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Wh(t, i, s), s;
+}, Co = (e, t, i) => t.has(e) || Qn("Cannot " + i), Me = (e, t, i) => (Co(e, t, "read from private field"), i ? i.call(e) : t.get(e)), wi = (e, t, i) => t.has(e) ? Qn("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ms = (e, t, i, a) => (Co(e, t, "write to private field"), t.set(e, i), i), z = (e, t, i) => (Co(e, t, "access private method"), i), va, Wi, Ui, zt, P, el, yi, pt, Fs, tl, il, ba, al, sl, ol;
+function Nh(e) {
   switch (e.sourceKind) {
     case "path":
       return e.path ?? "wwwroot";
     case "url":
-      return e.provider === "google" ? `Google Fonts · ${e.providerFamily ?? e.familyName}` : e.provider === "bunny" ? `Bunny Fonts · ${e.providerFamily ?? e.familyName}` : Su(e.sourceUrl);
+      return e.provider === "google" ? `Google Fonts · ${e.providerFamily ?? e.familyName}` : e.provider === "bunny" ? `Bunny Fonts · ${e.providerFamily ?? e.familyName}` : Bh(e.sourceUrl);
     default:
       return "Media library";
   }
 }
-function Su(e) {
+function Bh(e) {
   try {
     return e ? new URL(e).host : "Web";
   } catch {
     return e ?? "Web";
   }
 }
-let lt = class extends F {
+let mt = class extends L {
   constructor() {
-    super(), _i(this, O), _i(this, pa), _i(this, Mi), _i(this, zi), this._fonts = [], this._loading = !0, _i(this, At, () => {
+    super(), wi(this, P), wi(this, va), wi(this, Wi), wi(this, Ui), this._fonts = [], this._loading = !0, wi(this, zt, () => {
       var e;
-      return (e = Ee(this, pa)) == null ? void 0 : e.getLatestToken();
-    }), this.consumeContext(Ua, (e) => {
-      os(this, Mi, e);
-    }), this.consumeContext(Ge, (e) => {
-      os(this, zi, e);
-    }), this.consumeContext(Ve, (e) => {
-      os(this, pa, e), e && L(this, O, mi).call(this);
+      return (e = Me(this, va)) == null ? void 0 : e.getLatestToken();
+    }), this.consumeContext($u, (e) => {
+      ms(this, Wi, e);
+    }), this.consumeContext(pe, (e) => {
+      ms(this, Ui, e);
+    }), this.consumeContext(Le, (e) => {
+      ms(this, va, e), e && z(this, P, yi).call(this);
     });
   }
   render() {
-    return this._loading ? r`<div class="state"><uui-loader></uui-loader></div>` : r`
+    return this._loading ? n`<div class="state"><uui-loader></uui-loader></div>` : n`
       <umb-body-layout headline="Fonts">
         <uui-box headline="Installed fonts">
           <div slot="header-actions">
-            <uui-button look="primary" color="positive" label="Add a font" @click=${L(this, O, Ss)}>Add a font</uui-button>
+            <uui-button look="primary" color="positive" label="Add a font" @click=${z(this, P, Fs)}>Add a font</uui-button>
           </div>
 
-          ${this._fonts.length === 0 ? r`<div class="empty">
+          ${this._fonts.length === 0 ? n`<div class="empty">
                 <uui-icon name="icon-font"></uui-icon>
                 <h4>No fonts yet</h4>
                 <p>
                   Text layers need a font. Upload a .ttf, .otf, .woff2 or .woff, point at one already in wwwroot, or use a
                   Google or Bunny web font.
                 </p>
-                <uui-button look="primary" color="positive" label="Add your first font" @click=${L(this, O, Ss)}>
+                <uui-button look="primary" color="positive" label="Add your first font" @click=${z(this, P, Fs)}>
                   Add your first font
                 </uui-button>
-              </div>` : r`${B(this._fonts, (e) => e.key, (e) => L(this, O, hr).call(this, e))}`}
+              </div>` : n`${Z(this._fonts, (e) => e.key, (e) => z(this, P, al).call(this, e))}`}
         </uui-box>
       </umb-body-layout>
     `;
   }
 };
-pa = /* @__PURE__ */ new WeakMap();
-Mi = /* @__PURE__ */ new WeakMap();
-zi = /* @__PURE__ */ new WeakMap();
-At = /* @__PURE__ */ new WeakMap();
-O = /* @__PURE__ */ new WeakSet();
-lr = async function() {
+va = /* @__PURE__ */ new WeakMap();
+Wi = /* @__PURE__ */ new WeakMap();
+Ui = /* @__PURE__ */ new WeakMap();
+zt = /* @__PURE__ */ new WeakMap();
+P = /* @__PURE__ */ new WeakSet();
+el = async function() {
   var a;
   await this.updateComplete, await new Promise((s) => requestAnimationFrame(s));
   const e = this.renderRoot.querySelectorAll(".style-name"), t = e[e.length - 1];
   if (!t) return;
   await t.updateComplete, (((a = t.shadowRoot) == null ? void 0 : a.querySelector("input")) ?? t).focus();
 };
-mi = async function() {
+yi = async function() {
   this._loading = !0;
   try {
-    this._fonts = await Ei(Ee(this, At)), await or(this._fonts.map((e) => e.key), Ee(this, At));
+    this._fonts = await Aa(Me(this, zt)), await Jn(this._fonts.map((e) => e.key), Me(this, zt));
   } catch (e) {
-    L(this, O, rt).call(this, "danger", "The fonts could not be loaded", e);
+    z(this, P, pt).call(this, "danger", "The fonts could not be loaded", e);
   } finally {
     this._loading = !1;
   }
 };
-rt = function(e, t, i) {
+pt = function(e, t, i) {
   var s;
-  const a = i instanceof nt ? i.detail ?? i.message : i instanceof Error ? i.message : "";
-  i && console.error("[DynamicImages]", t, i), (s = Ee(this, zi)) == null || s.peek(e, { data: { headline: t, message: a } });
+  const a = i instanceof ht ? i.detail ?? i.message : i instanceof Error ? i.message : "";
+  i && console.error("[DynamicImages]", t, i), (s = Me(this, Ui)) == null || s.peek(e, { data: { headline: t, message: a } });
 };
-Ss = async function() {
+Fs = async function() {
   var i, a;
-  if (!Ee(this, Mi)) return;
-  const e = Ee(this, Mi).open(this, wu, {}), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
+  if (!Me(this, Wi)) return;
+  const e = Me(this, Wi).open(this, bh, {}), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
   }));
-  t != null && t.uploaded && ((i = t.warnings) != null && i.length && ((a = Ee(this, zi)) == null || a.peek("warning", {
+  t != null && t.uploaded && ((i = t.warnings) != null && i.length && ((a = Me(this, Ui)) == null || a.peek("warning", {
     data: { headline: "Some variants were not added", message: t.warnings.join(" ") }
-  })), await L(this, O, mi).call(this));
+  })), await z(this, P, yi).call(this));
 };
-cr = async function(e) {
+tl = async function(e) {
   try {
-    await bn(e.key, Ee(this, At)), nr(e.key), L(this, O, rt).call(this, "positive", `'${e.familyName}' refreshed`), await L(this, O, mi).call(this);
+    await ed(e.key, Me(this, zt)), Zn(e.key), z(this, P, pt).call(this, "positive", `'${e.familyName}' refreshed`), await z(this, P, yi).call(this);
   } catch (t) {
-    L(this, O, rt).call(this, "danger", "That font could not be refreshed", t);
+    z(this, P, pt).call(this, "danger", "That font could not be refreshed", t);
   }
 };
-ur = async function(e) {
-  await Xs(this, {
+il = async function(e) {
+  await fo(this, {
     headline: `Delete '${e.familyName}'?`,
     content: "Templates using it will stop rendering their text until another font is chosen.",
     confirmLabel: "Delete",
     color: "danger"
   });
   try {
-    await wn(e.key, Ee(this, At)), nr(e.key), L(this, O, rt).call(this, "positive", `'${e.familyName}' deleted`), await L(this, O, mi).call(this);
+    await id(e.key, Me(this, zt)), Zn(e.key), z(this, P, pt).call(this, "positive", `'${e.familyName}' deleted`), await z(this, P, yi).call(this);
   } catch (t) {
-    L(this, O, rt).call(this, "danger", "That font could not be deleted", t);
+    z(this, P, pt).call(this, "danger", "That font could not be deleted", t);
   }
 };
-ma = async function(e, t, i, a) {
+ba = async function(e, t, i, a) {
   try {
-    await _n(e.key, t, i, Ee(this, At), {
+    await td(e.key, t, i, Me(this, zt), {
       weight: a == null ? void 0 : a.weight,
       isItalic: a == null ? void 0 : a.isItalic
-    }), a != null && a.keepOpen || (this._editingKey = void 0), L(this, O, rt).call(this, "positive", `'${t}' saved`), await L(this, O, mi).call(this), a != null && a.keepOpen && await L(this, O, lr).call(this);
+    }), a != null && a.keepOpen || (this._editingKey = void 0), z(this, P, pt).call(this, "positive", `'${t}' saved`), await z(this, P, yi).call(this), a != null && a.keepOpen && await z(this, P, el).call(this);
   } catch (s) {
-    L(this, O, rt).call(this, "danger", "The font could not be saved", s);
+    z(this, P, pt).call(this, "danger", "The font could not be saved", s);
   }
 };
-hr = function(e) {
+al = function(e) {
   const t = this._editingKey === e.key;
-  return r`
+  return n`
       <div class="font">
         <div class="head">
           <div>
             <strong>${e.familyName}</strong>
             <span class="meta">
-              ${ku(e)} · weight ${e.weight}
+              ${Nh(e)} · weight ${e.weight}
               ${e.isItalic ? "· italic" : ""}
-              ${e.usedByTemplateCount > 0 ? r`· used by ${e.usedByTemplateCount} template(s)` : ""}
+              ${e.usedByTemplateCount > 0 ? n`· used by ${e.usedByTemplateCount} template(s)` : ""}
             </span>
           </div>
           <div class="row">
@@ -1809,38 +2490,38 @@ hr = function(e) {
   }}>
               ${t ? "Close" : "Named styles"}
             </uui-button>
-            ${e.sourceKind === "url" ? r`<uui-button
+            ${e.sourceKind === "url" ? n`<uui-button
                   look="secondary"
                   label="Re-download ${e.familyName} from its provider"
-                  @click=${() => L(this, O, cr).call(this, e)}>
+                  @click=${() => z(this, P, tl).call(this, e)}>
                   Refresh
-                </uui-button>` : m}
-            <uui-button look="secondary" color="danger" label="Delete ${e.familyName}" @click=${() => L(this, O, ur).call(this, e)}>
+                </uui-button>` : p}
+            <uui-button look="secondary" color="danger" label="Delete ${e.familyName}" @click=${() => z(this, P, il).call(this, e)}>
               Delete
             </uui-button>
           </div>
         </div>
 
-        <p class="specimen" style="font-family: ${Ya(e.key)}, serif">
+        <p class="specimen" style="font-family: ${ss(e.key)}, serif">
           Designing social share images that actually get clicked
         </p>
 
-        ${t ? L(this, O, pr).call(this, e) : L(this, O, dr).call(this, e)}
+        ${t ? z(this, P, ol).call(this, e) : z(this, P, sl).call(this, e)}
       </div>
     `;
 };
-dr = function(e) {
-  return e.styles.length === 0 ? m : r`<div class="tags">
-      ${B(
+sl = function(e) {
+  return e.styles.length === 0 ? p : n`<div class="tags">
+      ${Z(
     e.styles,
     (t) => t.name,
-    (t) => r`<uui-tag look="secondary">${t.name} · ${t.size}px · ${t.fontStyle}</uui-tag>`
+    (t) => n`<uui-tag look="secondary">${t.name} · ${t.size}px · ${t.fontStyle}</uui-tag>`
   )}
     </div>`;
 };
-pr = function(e) {
+ol = function(e) {
   const t = [...e.styles];
-  return r`
+  return n`
       <div class="editor">
         <div class="identity">
           <uui-input label="Family name" .value=${e.familyName} id="family-${e.key}"></uui-input>
@@ -1878,10 +2559,10 @@ pr = function(e) {
             <uui-table-head-cell>Weight</uui-table-head-cell>
             <uui-table-head-cell></uui-table-head-cell>
           </uui-table-head>
-          ${B(
+          ${Z(
     t,
     (i, a) => a,
-    (i, a) => r`
+    (i, a) => n`
               <uui-table-row>
                 <uui-table-cell>
                   <uui-input
@@ -1917,7 +2598,7 @@ pr = function(e) {
                     color="danger"
                     label="Remove ${i.name}"
                     @click=${() => {
-      t.splice(a, 1), L(this, O, ma).call(this, e, e.familyName, t, { keepOpen: !0 });
+      t.splice(a, 1), z(this, P, ba).call(this, e, e.familyName, t, { keepOpen: !0 });
     }}>
                     <uui-icon name="icon-trash"></uui-icon>
                   </uui-button>
@@ -1932,7 +2613,7 @@ pr = function(e) {
             look="secondary"
             label="Add a named style"
             @click=${() => {
-    t.push({ name: "New style", size: 32, fontStyle: "Regular" }), L(this, O, ma).call(this, e, e.familyName, t, { keepOpen: !0 });
+    t.push({ name: "New style", size: 32, fontStyle: "Regular" }), z(this, P, ba).call(this, e, e.familyName, t, { keepOpen: !0 });
   }}>
             Add a style
           </uui-button>
@@ -1942,7 +2623,7 @@ pr = function(e) {
             label="Save the styles for ${e.familyName}"
             @click=${() => {
     const i = this.renderRoot.querySelector(`#family-${e.key}`), a = this.renderRoot.querySelector(`#weight-${e.key}`), s = this.renderRoot.querySelector(`#italic-${e.key}`);
-    L(this, O, ma).call(this, e, (i == null ? void 0 : i.value) || e.familyName, t, {
+    z(this, P, ba).call(this, e, (i == null ? void 0 : i.value) || e.familyName, t, {
       weight: a != null && a.value ? Number(a.value) : void 0,
       isItalic: s ? s.checked : void 0
     });
@@ -1953,7 +2634,7 @@ pr = function(e) {
       </div>
     `;
 };
-lt.styles = I`
+mt.styles = A`
     :host {
       display: block;
     }
@@ -2043,59 +2724,59 @@ lt.styles = I`
       color: var(--uui-color-text);
     }
   `;
-qa([
-  f()
-], lt.prototype, "_fonts", 2);
-qa([
-  f()
-], lt.prototype, "_loading", 2);
-qa([
-  f()
-], lt.prototype, "_editingKey", 2);
-lt = qa([
-  R("di-fonts-dashboard")
-], lt);
-const Cu = lt, Tu = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+os([
+  y()
+], mt.prototype, "_fonts", 2);
+os([
+  y()
+], mt.prototype, "_loading", 2);
+os([
+  y()
+], mt.prototype, "_editingKey", 2);
+mt = os([
+  M("di-fonts-dashboard")
+], mt);
+const Kh = mt, jh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiFontsDashboardElement() {
-    return lt;
+    return mt;
   },
-  default: Cu
+  default: Kh
 }, Symbol.toStringTag, { value: "Module" }));
-var Eu = Object.defineProperty, Pu = Object.getOwnPropertyDescriptor, mr = (e) => {
+var Vh = Object.defineProperty, Gh = Object.getOwnPropertyDescriptor, rl = (e) => {
   throw TypeError(e);
-}, Ji = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Pu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Eu(t, i, s), s;
-}, oo = (e, t, i) => t.has(e) || mr("Cannot " + i), Ze = (e, t, i) => (oo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), na = (e, t, i) => t.has(e) ? mr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ho = (e, t, i, a) => (oo(e, t, "write to private field"), t.set(e, i), i), Gt = (e, t, i) => (oo(e, t, "access private method"), i), fa, Ht, ui, at, Ma, Cs, fr;
-let Be = class extends F {
+}, ia = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Gh(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Vh(t, i, s), s;
+}, Do = (e, t, i) => t.has(e) || rl("Cannot " + i), it = (e, t, i) => (Do(e, t, "read from private field"), i ? i.call(e) : t.get(e)), ha = (e, t, i) => t.has(e) ? rl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Wr = (e, t, i, a) => (Do(e, t, "write to private field"), t.set(e, i), i), qt = (e, t, i) => (Do(e, t, "access private method"), i), _a, Ht, hi, ut, Na, Ws, nl;
+let Ve = class extends L {
   constructor() {
-    super(), na(this, at), na(this, fa), na(this, Ht), this._loading = !0, this._busy = !1, na(this, ui, () => {
+    super(), ha(this, ut), ha(this, _a), ha(this, Ht), this._loading = !0, this._busy = !1, ha(this, hi, () => {
       var e;
-      return (e = Ze(this, fa)) == null ? void 0 : e.getLatestToken();
-    }), this.consumeContext(Ge, (e) => {
-      Ho(this, Ht, e);
-    }), this.consumeContext(Ve, (e) => {
-      Ho(this, fa, e), e && Gt(this, at, Ma).call(this);
+      return (e = it(this, _a)) == null ? void 0 : e.getLatestToken();
+    }), this.consumeContext(pe, (e) => {
+      Wr(this, Ht, e);
+    }), this.consumeContext(Le, (e) => {
+      Wr(this, _a, e), e && qt(this, ut, Na).call(this);
     });
   }
   render() {
-    if (this._loading) return r`<div class="state"><uui-loader></uui-loader></div>`;
-    if (!this._health) return r`<p class="empty">The health report could not be loaded.</p>`;
+    if (this._loading) return n`<div class="state"><uui-loader></uui-loader></div>`;
+    if (!this._health) return n`<p class="empty">The health report could not be loaded.</p>`;
     const e = this._health.issues, t = e.filter((a) => a.severity === "error"), i = e.filter((a) => a.severity === "warning");
-    return r`
+    return n`
       <umb-body-layout headline="Health">
         <uui-box headline="Summary">
           <div slot="header-actions">
-            <uui-button look="secondary" label="Re-check" @click=${() => Gt(this, at, Ma).call(this)}>Re-check</uui-button>
+            <uui-button look="secondary" label="Re-check" @click=${() => qt(this, ut, Na).call(this)}>Re-check</uui-button>
           </div>
 
           <ul class="summary">
             <li>
               Image generation is
               <strong class=${this._health.isEnabled ? "ok" : "bad"}>${this._health.isEnabled ? "on" : "off"}</strong>
-              ${this._health.isEnabled ? m : r`(set <code>DynamicImages:Enabled</code> to true)`}
+              ${this._health.isEnabled ? p : n`(set <code>DynamicImages:Enabled</code> to true)`}
             </li>
             <li><strong>${this._health.templateCount}</strong> template(s), <strong>${this._health.fontCount}</strong> font(s)</li>
             <li>
@@ -2106,17 +2787,17 @@ let Be = class extends F {
         </uui-box>
 
         <uui-box headline="Issues">
-          ${e.length === 0 ? r`<p class="empty"><uui-icon name="icon-check"></uui-icon> Everything checks out.</p>` : r`<uui-table>
+          ${e.length === 0 ? n`<p class="empty"><uui-icon name="icon-check"></uui-icon> Everything checks out.</p>` : n`<uui-table>
                 <uui-table-head>
                   <uui-table-head-cell>Severity</uui-table-head-cell>
                   <uui-table-head-cell>Template</uui-table-head-cell>
                   <uui-table-head-cell>Issue</uui-table-head-cell>
                   <uui-table-head-cell>Code</uui-table-head-cell>
                 </uui-table-head>
-                ${B(
+                ${Z(
       e,
       (a, s) => `${a.code}-${s}`,
-      (a) => r`
+      (a) => n`
                     <uui-table-row>
                       <uui-table-cell>
                         <uui-tag
@@ -2126,7 +2807,7 @@ let Be = class extends F {
                         </uui-tag>
                       </uui-table-cell>
                       <uui-table-cell>
-                        ${a.templateKey ? r`<a href=${ci(a.templateKey)}>${a.templateName}</a>` : r`<em>Site-wide</em>`}
+                        ${a.templateKey ? n`<a href=${bo(a.templateKey)}>${a.templateName}</a>` : n`<em>Site-wide</em>`}
                       </uui-table-cell>
                       <uui-table-cell>${a.message}</uui-table-cell>
                       <uui-table-cell><code>${a.code}</code></uui-table-cell>
@@ -2136,21 +2817,21 @@ let Be = class extends F {
               </uui-table>`}
         </uui-box>
 
-        ${Gt(this, at, fr).call(this)}
+        ${qt(this, ut, nl).call(this)}
       </umb-body-layout>
     `;
   }
 };
-fa = /* @__PURE__ */ new WeakMap();
+_a = /* @__PURE__ */ new WeakMap();
 Ht = /* @__PURE__ */ new WeakMap();
-ui = /* @__PURE__ */ new WeakMap();
-at = /* @__PURE__ */ new WeakSet();
-Ma = async function() {
+hi = /* @__PURE__ */ new WeakMap();
+ut = /* @__PURE__ */ new WeakSet();
+Na = async function() {
   this._loading = !0;
   try {
     const [e, t] = await Promise.all([
-      Va(Ze(this, ui)),
-      Dn(Ze(this, ui)).catch(() => {
+      pn(it(this, hi)),
+      cd(it(this, hi)).catch(() => {
       })
     ]);
     this._health = e, this._sync = t;
@@ -2160,30 +2841,30 @@ Ma = async function() {
     this._loading = !1;
   }
 };
-Cs = async function(e) {
+Ws = async function(e) {
   var t, i, a;
   this._busy = !0;
   try {
-    const s = e === "export" ? await Mn(Ze(this, ui)) : await zn(Ze(this, ui));
-    (t = Ze(this, Ht)) == null || t.peek("positive", {
+    const s = e === "export" ? await ud(it(this, hi)) : await dd(it(this, hi));
+    (t = it(this, Ht)) == null || t.peek("positive", {
       data: {
         headline: e === "export" ? "Exported" : "Imported",
         message: e === "export" ? `${s.written} file(s) written.` : `${s.imported} template(s) imported.`
       }
     });
     for (const o of s.messages.slice(0, 3))
-      (i = Ze(this, Ht)) == null || i.peek("warning", { data: { message: o } });
-    await Gt(this, at, Ma).call(this);
+      (i = it(this, Ht)) == null || i.peek("warning", { data: { message: o } });
+    await qt(this, ut, Na).call(this);
   } catch (s) {
-    (a = Ze(this, Ht)) == null || a.peek("danger", {
+    (a = it(this, Ht)) == null || a.peek("danger", {
       data: { headline: "That did not work", message: s instanceof Error ? s.message : "" }
     });
   } finally {
     this._busy = !1;
   }
 };
-fr = function() {
-  return this._sync ? r`
+nl = function() {
+  return this._sync ? n`
       <uui-box headline="Environment transfer">
         <p>
           Templates live in the database. To move them between environments, export them to JSON files under
@@ -2191,21 +2872,21 @@ fr = function() {
         </p>
         <p class="meta">
           Mode: <strong>${this._sync.mode}</strong> · ${this._sync.fileCount} file(s)
-          ${this._sync.lastWriteUtc ? r`· last written ${new Date(this._sync.lastWriteUtc).toLocaleString()}` : m}
+          ${this._sync.lastWriteUtc ? n`· last written ${new Date(this._sync.lastWriteUtc).toLocaleString()}` : p}
         </p>
 
         <div class="row">
-          <uui-button look="secondary" label="Export every template to disk" ?disabled=${this._busy} @click=${() => Gt(this, at, Cs).call(this, "export")}>
+          <uui-button look="secondary" label="Export every template to disk" ?disabled=${this._busy} @click=${() => qt(this, ut, Ws).call(this, "export")}>
             Export to disk
           </uui-button>
-          <uui-button look="secondary" label="Import templates from disk" ?disabled=${this._busy} @click=${() => Gt(this, at, Cs).call(this, "import")}>
+          <uui-button look="secondary" label="Import templates from disk" ?disabled=${this._busy} @click=${() => qt(this, ut, Ws).call(this, "import")}>
             Import from disk
           </uui-button>
         </div>
       </uui-box>
-    ` : m;
+    ` : p;
 };
-Be.styles = I`
+Ve.styles = A`
     :host {
       display: block;
     }
@@ -2254,49 +2935,49 @@ Be.styles = I`
       border-radius: 2px;
     }
   `;
-Ji([
-  f()
-], Be.prototype, "_health", 2);
-Ji([
-  f()
-], Be.prototype, "_sync", 2);
-Ji([
-  f()
-], Be.prototype, "_loading", 2);
-Ji([
-  f()
-], Be.prototype, "_busy", 2);
-Be = Ji([
-  R("di-health-dashboard")
-], Be);
-const Du = Be, Mu = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+ia([
+  y()
+], Ve.prototype, "_health", 2);
+ia([
+  y()
+], Ve.prototype, "_sync", 2);
+ia([
+  y()
+], Ve.prototype, "_loading", 2);
+ia([
+  y()
+], Ve.prototype, "_busy", 2);
+Ve = ia([
+  M("di-health-dashboard")
+], Ve);
+const qh = Ve, Hh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiHealthDashboardElement() {
-    return Be;
+    return Ve;
   },
-  default: Du
-}, Symbol.toStringTag, { value: "Module" })), gr = 3, yr = 12, vr = 0.1, br = 0.9;
-function zu(e) {
-  return Math.max(gr, Math.min(yr, e));
+  default: qh
+}, Symbol.toStringTag, { value: "Module" })), ll = 3, cl = 12, ul = 0.1, dl = 0.9;
+function Yh(e) {
+  return Math.max(ll, Math.min(cl, e));
 }
-function Ou(e) {
-  return Math.max(vr, Math.min(br, e));
+function Xh(e) {
+  return Math.max(ul, Math.min(dl, e));
 }
-function Iu(e, t, i) {
+function Jh(e, t, i) {
   if (e !== "polygon" && e !== "star") return [];
-  const a = zu(t), s = 0.5 * Ou(i), o = e === "star" ? a * 2 : a, n = e === "star" ? 180 / a : 360 / a, l = [];
-  for (let d = 0; d < o; d++) {
-    const p = (-90 + d * n) * Math.PI / 180, k = e === "star" && d % 2 === 1 ? s : 0.5;
-    l.push({ x: 0.5 + k * Math.cos(p), y: 0.5 + k * Math.sin(p) });
+  const a = Yh(t), s = 0.5 * Xh(i), o = e === "star" ? a * 2 : a, r = e === "star" ? 180 / a : 360 / a, l = [];
+  for (let h = 0; h < o; h++) {
+    const m = (-90 + h * r) * Math.PI / 180, C = e === "star" && h % 2 === 1 ? s : 0.5;
+    l.push({ x: 0.5 + C * Math.cos(m), y: 0.5 + C * Math.sin(m) });
   }
   return l;
 }
-function Au(e, t, i) {
-  const a = Iu(e, t, i);
+function Zh(e, t, i) {
+  const a = Jh(e, t, i);
   if (a.length !== 0)
     return `polygon(${a.map((s) => `${(s.x * 100).toFixed(3)}% ${(s.y * 100).toFixed(3)}%`).join(", ")})`;
 }
-const g = {
+const f = {
   /**
    * Font size, in points. The maximum is the server's: `RenderLimits.MaxFontSize` clamps anything
    * larger, so offering more here would mean the designer showing a size the render will not use.
@@ -2350,27 +3031,101 @@ const g = {
    * the server and already clamped by `clampSides` / `clampInnerRatio`. Re-exported through the
    * table so the inspector still reads every bound from one place.
    */
-  sides: { min: gr, max: yr },
-  innerRatio: { min: vr, max: br }
-}, za = { min: 0.1, max: 4 };
-function Lu(e, t, i) {
+  sides: { min: ll, max: cl },
+  innerRatio: { min: ul, max: dl }
+}, Ba = { min: 0.1, max: 4 };
+function Qh(e, t, i) {
   if (typeof e == "string" && e.trim() === "") return null;
   const a = Number(e);
   if (!Number.isFinite(a)) return;
   let s = a;
   return t !== void 0 && (s = Math.max(t, s)), i !== void 0 && (s = Math.min(i, s)), s;
 }
-function _r(e) {
-  if (e.kind === "radial") {
-    const t = Math.round(jo(e.centreX ?? 0.5) * 100), i = Math.round(jo(e.centreY ?? 0.5) * 100);
-    return `radial-gradient(ellipse farthest-corner at ${t}% ${i}%, ${e.from}, ${e.to})`;
+function Io(e) {
+  const t = e.kind ?? "linear", i = Math.round(Us(e.centreX ?? 0.5) * 100), a = Math.round(Us(e.centreY ?? 0.5) * 100);
+  switch (t) {
+    case "radial":
+      return `radial-gradient(${e.shape ?? "ellipse"} ${tp(e.extent)} at ${i}% ${a}%, ${ys(e)})`;
+    case "angular":
+      return `conic-gradient(from ${e.angle}deg at ${i}% ${a}%, ${ys(e)})`;
+    case "reflected":
+      return `linear-gradient(${e.angle}deg, ${Ns(ip(yt(e)))})`;
+    case "diamond": {
+      const s = Ns(yt(e).map((o) => ({ ...o, position: o.position / 2 })));
+      return [
+        `linear-gradient(to top left, ${s}) left top / ${i}% ${a}% no-repeat`,
+        `linear-gradient(to top right, ${s}) right top / ${100 - i}% ${a}% no-repeat`,
+        `linear-gradient(to bottom left, ${s}) left bottom / ${i}% ${100 - a}% no-repeat`,
+        `linear-gradient(to bottom right, ${s}) right bottom / ${100 - i}% ${100 - a}% no-repeat`
+      ].join(", ");
+    }
+    default:
+      return `linear-gradient(${e.angle}deg, ${ys(e)})`;
   }
-  return `linear-gradient(${e.angle}deg, ${e.from}, ${e.to})`;
 }
-function jo(e) {
+function Us(e) {
   return Math.min(1, Math.max(0, e));
 }
-const no = I`
+const ep = {
+  farthestCorner: "farthest-corner",
+  farthestSide: "farthest-side",
+  closestCorner: "closest-corner",
+  closestSide: "closest-side"
+};
+function tp(e) {
+  return ep[e ?? "farthestCorner"] ?? "farthest-corner";
+}
+function yt(e) {
+  const t = e.stops;
+  return !t || t.length < 2 ? [{ colour: e.from, position: 0 }, { colour: e.to, position: 1 }] : t.map((i, a) => ({ stop: { colour: i.colour, position: Us(i.position) }, index: a })).sort((i, a) => i.stop.position - a.stop.position || i.index - a.index).map(({ stop: i }) => i);
+}
+function ip(e) {
+  return [
+    ...[...e].reverse().map((t) => ({ colour: t.colour, position: 0.5 - t.position / 2 })),
+    ...e.map((t) => ({ colour: t.colour, position: 0.5 + t.position / 2 }))
+  ];
+}
+function ys(e) {
+  const t = e.stops;
+  return t && t.length >= 2 ? Ns(yt(e)) : `${e.from}, ${e.to}`;
+}
+function Ns(e) {
+  return e.map((t) => `${t.colour} ${Oo(t.position * 100)}%`).join(", ");
+}
+const Oo = (e) => Math.round(e * 100) / 100;
+function Ni(e, t) {
+  const i = yt({ ...e, stops: t });
+  return { ...e, stops: t, from: i[0].colour, to: i[i.length - 1].colour };
+}
+function ap(e) {
+  const t = [...yt(e)].reverse().map((i) => ({ colour: i.colour, position: Oo(1 - i.position) }));
+  return Ni(e, t);
+}
+function sp(e) {
+  const t = yt(e);
+  let i = 0;
+  for (let r = 1; r < t.length; r++)
+    t[r].position - t[r - 1].position > t[i + 1].position - t[i].position && (i = r - 1);
+  const a = t[i], s = t[i + 1], o = Oo((a.position + s.position) / 2);
+  return Ni(e, [...t, { colour: rp(a.colour, s.colour, 0.5), position: o }]);
+}
+function op(e, t) {
+  const i = yt(e);
+  return i.length <= 2 ? e : Ni(e, i.filter((a, s) => s !== t));
+}
+function rp(e, t, i) {
+  const a = Ur(e), s = Ur(t);
+  if (!a || !s) return e;
+  const o = (h) => Math.round(a[h] + (s[h] - a[h]) * i).toString(16).padStart(2, "0").toUpperCase(), r = `#${o(0)}${o(1)}${o(2)}`, l = o(3);
+  return l === "FF" ? r : `${r}${l}`;
+}
+function Ur(e) {
+  const t = (e ?? "").trim().replace(/^#/, "");
+  if (!/^[0-9a-f]+$/i.test(t) || ![3, 4, 6, 8].includes(t.length)) return;
+  const i = t.length <= 4 ? [...t].map((s) => s + s).join("") : t, a = (s) => parseInt(i.slice(s * 2, s * 2 + 2), 16);
+  return [a(0), a(1), a(2), i.length === 8 ? a(3) : 255];
+}
+const Po = A`
   background-color: #26262b;
   background-image:
     linear-gradient(45deg, #303036 25%, transparent 25%),
@@ -2380,22 +3135,22 @@ const no = I`
   background-size: 20px 20px;
   background-position: 0 0, 0 10px, 10px -10px, -10px 0;
 `;
-function Ru(e, t) {
-  const i = [], a = t.lockX ? void 0 : Xo(
+function np(e, t) {
+  const i = [], a = t.lockX ? void 0 : Nr(
     [
       { value: e.x, offset: 0 },
       { value: e.x + e.width / 2, offset: e.width / 2 },
       { value: e.x + e.width, offset: e.width }
     ],
-    Wu(t),
+    lp(t),
     t.threshold
-  ), s = t.lockY ? void 0 : Xo(
+  ), s = t.lockY ? void 0 : Nr(
     [
       { value: e.y, offset: 0 },
       { value: e.y + e.height / 2, offset: e.height / 2 },
       { value: e.y + e.height, offset: e.height }
     ],
-    Nu(t),
+    cp(t),
     t.threshold
   );
   return a && i.push({ orientation: "vertical", at: a.at, label: a.label }), s && i.push({ orientation: "horizontal", at: s.at, label: s.label }), {
@@ -2407,7 +3162,7 @@ function Ru(e, t) {
     guides: i
   };
 }
-function Wu(e) {
+function lp(e) {
   const t = [
     { at: 0, label: "Left edge" },
     { at: e.canvasWidth / 2, label: "Centre" },
@@ -2421,7 +3176,7 @@ function Wu(e) {
     );
   return t;
 }
-function Nu(e) {
+function cp(e) {
   const t = [
     { at: 0, label: "Top edge" },
     { at: e.canvasHeight / 2, label: "Middle" },
@@ -2435,97 +3190,97 @@ function Nu(e) {
     );
   return t;
 }
-function Xo(e, t, i) {
+function Nr(e, t, i) {
   let a;
   for (const s of e)
     for (const o of t) {
-      const n = Math.abs(o.at - s.value);
-      n > i || (!a || n < a.distance) && (a = { at: o.at, offset: s.offset, label: o.label, distance: n });
+      const r = Math.abs(o.at - s.value);
+      r > i || (!a || r < a.distance) && (a = { at: o.at, offset: s.offset, label: o.label, distance: r });
     }
   return a;
 }
-var Fu = Object.defineProperty, Uu = Object.getOwnPropertyDescriptor, wr = (e) => {
+var up = Object.defineProperty, dp = Object.getOwnPropertyDescriptor, hl = (e) => {
   throw TypeError(e);
-}, He = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Uu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Fu(t, i, s), s;
-}, ro = (e, t, i) => t.has(e) || wr("Cannot " + i), ye = (e, t, i) => (ro(e, t, "read from private field"), i ? i.call(e) : t.get(e)), ns = (e, t, i) => t.has(e) ? wr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), rs = (e, t, i, a) => (ro(e, t, "write to private field"), t.set(e, i), i), j = (e, t, i) => (ro(e, t, "access private method"), i), yt, $i, z, Ja, lo, $r, xr, kr, Sr, co, Oa, Cr, Tr, Er, Pr, Dr, Mr, zr, Or, Ir;
-const Bu = ["nw", "n", "ne", "e", "se", "s", "sw", "w"], ls = 18;
-let we = class extends F {
+}, Xe = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? dp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && up(t, i, s), s;
+}, Ao = (e, t, i) => t.has(e) || hl("Cannot " + i), $e = (e, t, i) => (Ao(e, t, "read from private field"), i ? i.call(e) : t.get(e)), fs = (e, t, i) => t.has(e) ? hl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), gs = (e, t, i, a) => (Ao(e, t, "write to private field"), t.set(e, i), i), V = (e, t, i) => (Ao(e, t, "access private method"), i), bt, Ei, O, rs, Mo, pl, ml, yl, fl, Ro, Ka, gl, vl, bl, _l, wl, $l, xl, kl, Tl;
+const hp = ["nw", "n", "ne", "e", "se", "s", "sw", "w"], vs = 18;
+let Se = class extends L {
   constructor() {
-    super(...arguments), ns(this, z), this.scale = 1, this.selected = !1, this.showMeasured = !1, this._box = { x: 0, y: 0, width: 0, height: 0 }, ns(this, yt), ns(this, $i);
+    super(...arguments), fs(this, O), this.scale = 1, this.selected = !1, this.showMeasured = !1, this._box = { x: 0, y: 0, width: 0, height: 0 }, fs(this, bt), fs(this, Ei);
   }
   willUpdate() {
-    this._box = j(this, z, $r).call(this);
+    this._box = V(this, O, pl).call(this);
   }
   updated() {
     var t;
     const e = this.renderRoot.querySelector(".box") ?? void 0;
-    e !== ye(this, $i) && ((t = ye(this, yt)) == null || t.disconnect(), rs(this, $i, e), e && (ye(this, yt) ?? rs(this, yt, new ResizeObserver(
+    e !== $e(this, Ei) && ((t = $e(this, bt)) == null || t.disconnect(), gs(this, Ei, e), e && ($e(this, bt) ?? gs(this, bt, new ResizeObserver(
       () => this.dispatchEvent(new CustomEvent("di-layer-box-resize", { bubbles: !0, composed: !0 }))
-    )), ye(this, yt).observe(e)));
+    )), $e(this, bt).observe(e)));
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), (e = ye(this, yt)) == null || e.disconnect(), rs(this, $i, void 0);
+    super.disconnectedCallback(), (e = $e(this, bt)) == null || e.disconnect(), gs(this, Ei, void 0);
   }
   // ------------------------------------------------------------------ rendering
   render() {
-    if (!this.layer.isVisible) return m;
+    if (!this.layer.isVisible) return p;
     const e = this._box;
-    return r`
+    return n`
       <div
-        class=${on({ box: !0, selected: this.selected, locked: this.layer.isLocked })}
-        style=${V({
+        class=${tn({ box: !0, selected: this.selected, locked: this.layer.isLocked })}
+        style=${W({
       left: `${e.x * this.scale}px`,
       top: `${e.y * this.scale}px`,
       width: `${e.width * this.scale}px`,
       // An auto-height layer grows downward from its anchored top instead of being cut off at
       // an estimated height - a wrapped two-line title would otherwise lose its second line.
-      ...ye(this, z, xr) ? { minHeight: `${e.height * this.scale}px`, overflow: "visible" } : { height: `${e.height * this.scale}px` },
+      ...$e(this, O, ml) ? { minHeight: `${e.height * this.scale}px`, overflow: "visible" } : { height: `${e.height * this.scale}px` },
       opacity: String(this.layer.opacity),
-      ...j(this, z, co).call(this, e)
+      ...V(this, O, Ro).call(this, e)
     })}
         role="button"
         tabindex=${this.layer.isLocked ? -1 : 0}
         aria-label="${this.layer.name || this.layer.type} layer"
         aria-pressed=${this.selected}
         @pointerdown=${(t) => {
-      j(this, z, Cr).call(this, t), j(this, z, Oa).call(this, t);
+      V(this, O, gl).call(this, t), V(this, O, Ka).call(this, t);
     }}>
-        ${j(this, z, Tr).call(this)}
+        ${V(this, O, vl).call(this)}
       </div>
 
-      ${this.selected ? j(this, z, Or).call(this, e) : m}
-      ${this.showMeasured && this.measured ? j(this, z, Ir).call(this) : m}
+      ${this.selected ? V(this, O, kl).call(this, e) : p}
+      ${this.showMeasured && this.measured ? V(this, O, Tl).call(this) : p}
     `;
   }
 };
-yt = /* @__PURE__ */ new WeakMap();
-$i = /* @__PURE__ */ new WeakMap();
-z = /* @__PURE__ */ new WeakSet();
-Ja = function() {
+bt = /* @__PURE__ */ new WeakMap();
+Ei = /* @__PURE__ */ new WeakMap();
+O = /* @__PURE__ */ new WeakSet();
+rs = function() {
   return this.resolvedPosition ?? this.layer.position;
 };
-lo = function() {
+Mo = function() {
   return this.layer.rotation ?? 0;
 };
-$r = function() {
+pl = function() {
   var s;
-  const e = this.layer, t = e.size.width ?? j(this, z, kr).call(this), i = e.size.height ?? ((s = this.measured) == null ? void 0 : s.height) ?? j(this, z, Sr).call(this), a = Xa(ye(this, z, Ja), t, i);
+  const e = this.layer, t = e.size.width ?? V(this, O, yl).call(this), i = e.size.height ?? ((s = this.measured) == null ? void 0 : s.height) ?? V(this, O, fl).call(this), a = as($e(this, O, rs), t, i);
   return { x: a.x, y: a.y, width: t, height: i };
 };
-xr = function() {
+ml = function() {
   return this.layer.size.height === null || this.layer.size.height === void 0;
 };
-kr = function() {
+yl = function() {
   var e;
   switch (this.layer.type) {
     case "badges": {
       if ((e = this.measured) != null && e.width) return this.measured.width;
-      const { badge: t, label: i, gap: a, maxItems: s, direction: o } = this.layer, n = i.position === "right" ? t.size + i.gap + i.fontSize * 0.6 * 8 : t.size;
-      return o === "horizontal" ? s * n + (s - 1) * a : n;
+      const { badge: t, label: i, gap: a, maxItems: s, direction: o } = this.layer, r = i.position === "right" ? t.size + i.gap + i.fontSize * 0.6 * 8 : t.size;
+      return o === "horizontal" ? s * r + (s - 1) * a : r;
     }
     case "text":
       return 600;
@@ -2533,7 +3288,7 @@ kr = function() {
       return 240;
   }
 };
-Sr = function() {
+fl = function() {
   switch (this.layer.type) {
     case "text": {
       const { fontSize: e, lineSpacing: t, maxLines: i } = this.layer.style;
@@ -2547,16 +3302,16 @@ Sr = function() {
       return 135;
   }
 };
-co = function(e) {
-  const t = ye(this, z, lo);
+Ro = function(e) {
+  const t = $e(this, O, Mo);
   if (t === 0) return {};
-  const i = ye(this, z, Ja);
+  const i = $e(this, O, rs);
   return {
     transform: `rotate(${t}deg)`,
     transformOrigin: `${(i.x - e.x) * this.scale}px ${(i.y - e.y) * this.scale}px`
   };
 };
-Oa = function(e, t) {
+Ka = function(e, t) {
   var i, a;
   this.layer.isLocked || (e.preventDefault(), e.stopPropagation(), (a = (i = e.target).setPointerCapture) == null || a.call(i, e.pointerId), this.dispatchEvent(
     new CustomEvent("di-layer-drag-start", {
@@ -2573,33 +3328,33 @@ Oa = function(e, t) {
     })
   ));
 };
-Cr = function(e) {
+gl = function(e) {
   e.stopPropagation(), this.dispatchEvent(
     new CustomEvent("di-layer-select", { bubbles: !0, composed: !0, detail: { key: this.layer.key } })
   );
 };
-Tr = function() {
+vl = function() {
   switch (this.layer.type) {
     case "text":
-      return j(this, z, Er).call(this);
+      return V(this, O, bl).call(this);
     case "image":
-      return j(this, z, Dr).call(this);
+      return V(this, O, wl).call(this);
     case "badges":
-      return j(this, z, Mr).call(this);
+      return V(this, O, $l).call(this);
     default:
-      return j(this, z, zr).call(this);
+      return V(this, O, xl).call(this);
   }
 };
-Er = function() {
-  if (this.layer.type !== "text") return m;
-  const e = this.layer.style, t = this.resolvedText || j(this, z, Pr).call(this);
-  return r`
+bl = function() {
+  if (this.layer.type !== "text") return p;
+  const e = this.layer.style, t = this.resolvedText || V(this, O, _l).call(this);
+  return n`
       <div
         class="text"
-        style=${V({
+        style=${W({
     // The real font, loaded through the FontFace API - that is what makes the wrapping in
     // the designer match the wrapping in the render.
-    fontFamily: `${Ya(e.fontKey)}, sans-serif`,
+    fontFamily: `${ss(e.fontKey)}, sans-serif`,
     fontSize: `${e.fontSize * this.scale}px`,
     lineHeight: String(e.lineSpacing),
     letterSpacing: `${e.letterSpacing * this.scale}px`,
@@ -2613,7 +3368,7 @@ Er = function() {
       </div>
     `;
 };
-Pr = function() {
+_l = function() {
   if (this.layer.type !== "text") return "";
   switch (this.layer.binding.kind) {
     case "nodeName":
@@ -2630,13 +3385,13 @@ Pr = function() {
       return `{${this.layer.binding.propertyAlias ?? "property"}}`;
   }
 };
-Dr = function() {
-  if (this.layer.type !== "image") return m;
+wl = function() {
+  if (this.layer.type !== "image") return p;
   const e = this.layer.border;
-  return r`
+  return n`
       <div
         class="image"
-        style=${V({
+        style=${W({
     borderRadius: `${this.layer.cornerRadius * this.scale}px`,
     border: e ? `${e.width * this.scale}px solid ${e.colour}` : "none"
   })}>
@@ -2645,38 +3400,38 @@ Dr = function() {
       </div>
     `;
 };
-Mr = function() {
-  if (this.layer.type !== "badges") return m;
-  const { badge: e, label: t, gap: i, maxItems: a, direction: s, wrap: o, rowGap: n } = this.layer, l = s === "horizontal", d = l && o, p = t.position ?? "below";
-  return r`
+$l = function() {
+  if (this.layer.type !== "badges") return p;
+  const { badge: e, label: t, gap: i, maxItems: a, direction: s, wrap: o, rowGap: r } = this.layer, l = s === "horizontal", h = l && o, m = t.position ?? "below";
+  return n`
       <div
         class="badges"
-        style=${V({
+        style=${W({
     flexDirection: l ? "row" : "column",
-    flexWrap: d ? "wrap" : "nowrap",
+    flexWrap: h ? "wrap" : "nowrap",
     gap: `${i * this.scale}px`,
     // Wrapped rows are a row gap apart; the item gap stays between items in a row.
-    ...d ? { rowGap: `${n * this.scale}px` } : {}
+    ...h ? { rowGap: `${r * this.scale}px` } : {}
   })}>
-        ${B(
-    Array.from({ length: Math.max(1, a) }, (k, Y) => Y),
-    (k) => k,
-    () => r`
-            <div class=${on({ badge: !0, right: p === "right" })}>
+        ${Z(
+    Array.from({ length: Math.max(1, a) }, (C, k) => k),
+    (C) => C,
+    () => n`
+            <div class=${tn({ badge: !0, right: m === "right" })}>
               <div
                 class="circle"
-                style=${V({
+                style=${W({
       width: `${e.size * this.scale}px`,
       height: `${e.size * this.scale}px`,
       background: e.fillColour,
       border: `${e.borderWidth * this.scale}px solid ${e.borderColour}`
     })}>
               </div>
-              ${p === "none" ? m : r`<div
+              ${m === "none" ? p : n`<div
                     class="badge-label"
-                    style=${V({
-      ...p === "right" ? { marginLeft: `${t.gap * this.scale}px` } : { marginTop: `${t.gap * this.scale}px` },
-      fontFamily: `${Ya(t.fontKey)}, sans-serif`,
+                    style=${W({
+      ...m === "right" ? { marginLeft: `${t.gap * this.scale}px` } : { marginTop: `${t.gap * this.scale}px` },
+      fontFamily: `${ss(t.fontKey)}, sans-serif`,
       fontSize: `${t.fontSize * this.scale}px`,
       color: t.colour,
       textTransform: t.textTransform === "none" ? "none" : t.textTransform,
@@ -2690,70 +3445,70 @@ Mr = function() {
       </div>
     `;
 };
-zr = function() {
-  if (this.layer.type !== "rect") return m;
-  const e = this.layer, t = e.shape ?? "rectangle", i = e.gradient, a = i ? _r(i) : e.fill ?? "transparent", s = e.border, o = s ? s.width * this.scale : 0;
+xl = function() {
+  if (this.layer.type !== "rect") return p;
+  const e = this.layer, t = e.shape ?? "rectangle", i = e.gradient, a = i ? Io(i) : e.fill ?? "transparent", s = e.border, o = s ? s.width * this.scale : 0;
   if (t === "rectangle" || t === "ellipse")
-    return r`
+    return n`
         <div
           class="shape"
-          style=${V({
+          style=${W({
       background: a,
       borderRadius: t === "ellipse" ? "50%" : `${e.cornerRadius * this.scale}px`,
       border: s ? `${o}px solid ${s.colour}` : "none"
     })}>
         </div>
       `;
-  const n = Au(t, e.sides ?? 5, e.innerRatio ?? 0.5) ?? "none";
-  return r`
-      <div class="shape" style=${V({ clipPath: n, background: s ? s.colour : "transparent" })}>
-        <div class="shape-inner" style=${V({ inset: `${o}px`, clipPath: n, background: a })}></div>
+  const r = Zh(t, e.sides ?? 5, e.innerRatio ?? 0.5) ?? "none";
+  return n`
+      <div class="shape" style=${W({ clipPath: r, background: s ? s.colour : "transparent" })}>
+        <div class="shape-inner" style=${W({ inset: `${o}px`, clipPath: r, background: a })}></div>
       </div>
     `;
 };
-Or = function(e) {
-  const t = e.x * this.scale, i = e.y * this.scale, a = e.width * this.scale, s = e.height * this.scale, o = ye(this, z, Ja), n = ye(this, z, lo), l = Pe(this.layer.position, "x") || Pe(this.layer.position, "y");
-  return r`
+kl = function(e) {
+  const t = e.x * this.scale, i = e.y * this.scale, a = e.width * this.scale, s = e.height * this.scale, o = $e(this, O, rs), r = $e(this, O, Mo), l = Re(this.layer.position, "x") || Re(this.layer.position, "y");
+  return n`
       <div
         class="chrome"
-        style=${V({ left: `${t}px`, top: `${i}px`, width: `${a}px`, height: `${s}px`, ...j(this, z, co).call(this, e) })}>
+        style=${W({ left: `${t}px`, top: `${i}px`, width: `${a}px`, height: `${s}px`, ...V(this, O, Ro).call(this, e) })}>
         <span
           class="tag"
-          style=${V(n !== 0 ? { transform: `rotate(${-n}deg)` } : {})}>
-          ${l ? r`<uui-icon name="icon-link" title="Positioned relative to another layer"></uui-icon>` : m}
+          style=${W(r !== 0 ? { transform: `rotate(${-r}deg)` } : {})}>
+          ${l ? n`<uui-icon name="icon-link" title="Positioned relative to another layer"></uui-icon>` : p}
           ${this.layer.name || this.layer.type}
         </span>
 
-        ${this.layer.isLocked ? m : r`
-              ${B(
-    Bu,
-    (d) => d,
-    (d) => r`
+        ${this.layer.isLocked ? p : n`
+              ${Z(
+    hp,
+    (h) => h,
+    (h) => n`
                   <span
-                    class="handle ${d}"
+                    class="handle ${h}"
                     role="button"
                     tabindex="-1"
-                    aria-label="Resize ${d}"
-                    @pointerdown=${(p) => j(this, z, Oa).call(this, p, d)}>
+                    aria-label="Resize ${h}"
+                    @pointerdown=${(m) => V(this, O, Ka).call(this, m, h)}>
                   </span>
                 `
   )}
-              <span class="stalk" style=${V({ height: `${ls}px`, top: `${-ls}px` })}></span>
+              <span class="stalk" style=${W({ height: `${vs}px`, top: `${-vs}px` })}></span>
               <span
                 class="handle rotate"
                 role="button"
                 tabindex="-1"
                 aria-label="Rotate"
                 title="Drag to rotate - hold Shift for 15° steps"
-                style=${V({ top: `${-ls}px` })}
-                @pointerdown=${(d) => j(this, z, Oa).call(this, d, "rotate")}>
+                style=${W({ top: `${-vs}px` })}
+                @pointerdown=${(h) => V(this, O, Ka).call(this, h, "rotate")}>
               </span>
             `}
 
         <span
           class="anchor"
-          title="Anchor: ${o.anchor}${n !== 0 ? ` - turns ${n}° here` : ""}"
-          style=${V({
+          title="Anchor: ${o.anchor}${r !== 0 ? ` - turns ${r}° here` : ""}"
+          style=${W({
     left: `${(o.x - e.x) * this.scale}px`,
     top: `${(o.y - e.y) * this.scale}px`
   })}>
@@ -2761,12 +3516,12 @@ Or = function(e) {
       </div>
     `;
 };
-Ir = function() {
+Tl = function() {
   const e = this.measured, t = e.rotation ?? 0;
-  return r`
+  return n`
       <div
         class="measured"
-        style=${V({
+        style=${W({
     left: `${e.x * this.scale}px`,
     top: `${e.y * this.scale}px`,
     width: `${e.width * this.scale}px`,
@@ -2779,7 +3534,7 @@ Ir = function() {
       </div>
     `;
 };
-we.styles = I`
+Se.styles = A`
     :host {
       display: contents;
     }
@@ -2960,58 +3715,58 @@ we.styles = I`
       z-index: 25;
     }
   `;
-He([
-  y({ type: Object })
-], we.prototype, "layer", 2);
-He([
-  y({ type: Number })
-], we.prototype, "scale", 2);
-He([
-  y({ type: Boolean, reflect: !0 })
-], we.prototype, "selected", 2);
-He([
-  y({ type: Object })
-], we.prototype, "measured", 2);
-He([
-  y({ type: Boolean })
-], we.prototype, "showMeasured", 2);
-He([
-  y({ type: String })
-], we.prototype, "resolvedText", 2);
-He([
-  y({ attribute: !1 })
-], we.prototype, "resolvedPosition", 2);
-He([
-  f()
-], we.prototype, "_box", 2);
-we = He([
-  R("di-layer-box")
-], we);
-var Ku = Object.defineProperty, Vu = Object.getOwnPropertyDescriptor, Ar = (e) => {
+Xe([
+  g({ type: Object })
+], Se.prototype, "layer", 2);
+Xe([
+  g({ type: Number })
+], Se.prototype, "scale", 2);
+Xe([
+  g({ type: Boolean, reflect: !0 })
+], Se.prototype, "selected", 2);
+Xe([
+  g({ type: Object })
+], Se.prototype, "measured", 2);
+Xe([
+  g({ type: Boolean })
+], Se.prototype, "showMeasured", 2);
+Xe([
+  g({ type: String })
+], Se.prototype, "resolvedText", 2);
+Xe([
+  g({ attribute: !1 })
+], Se.prototype, "resolvedPosition", 2);
+Xe([
+  y()
+], Se.prototype, "_box", 2);
+Se = Xe([
+  M("di-layer-box")
+], Se);
+var pp = Object.defineProperty, mp = Object.getOwnPropertyDescriptor, Sl = (e) => {
   throw TypeError(e);
-}, uo = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Vu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Ku(t, i, s), s;
-}, Gu = (e, t, i) => t.has(e) || Ar("Cannot " + i), Hu = (e, t, i) => t.has(e) ? Ar("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ju = (e, t, i) => (Gu(e, t, "access private method"), i), Ts, Lr;
-let Oi = class extends F {
+}, zo = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? mp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && pp(t, i, s), s;
+}, yp = (e, t, i) => t.has(e) || Sl("Cannot " + i), fp = (e, t, i) => t.has(e) ? Sl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), gp = (e, t, i) => (yp(e, t, "access private method"), i), Bs, El;
+let Bi = class extends L {
   constructor() {
-    super(...arguments), Hu(this, Ts), this.guides = [], this.scale = 1;
+    super(...arguments), fp(this, Bs), this.guides = [], this.scale = 1;
   }
   render() {
-    return r`${B(
+    return n`${Z(
       this.guides,
       (e, t) => `${e.orientation}-${e.at}-${t}`,
-      (e) => ju(this, Ts, Lr).call(this, e)
+      (e) => gp(this, Bs, El).call(this, e)
     )}`;
   }
 };
-Ts = /* @__PURE__ */ new WeakSet();
-Lr = function(e) {
+Bs = /* @__PURE__ */ new WeakSet();
+El = function(e) {
   const t = `${e.at * this.scale}px`;
-  return e.orientation === "vertical" ? r`<div class="guide vertical" style="left:${t}"><span class="label">${e.label}</span></div>` : r`<div class="guide horizontal" style="top:${t}"><span class="label">${e.label}</span></div>`;
+  return e.orientation === "vertical" ? n`<div class="guide vertical" style="left:${t}"><span class="label">${e.label}</span></div>` : n`<div class="guide horizontal" style="top:${t}"><span class="label">${e.label}</span></div>`;
 };
-Oi.styles = I`
+Bi.styles = A`
     :host {
       position: absolute;
       inset: 0;
@@ -3075,59 +3830,59 @@ Oi.styles = I`
       }
     }
   `;
-uo([
-  y({ type: Array })
-], Oi.prototype, "guides", 2);
-uo([
-  y({ type: Number })
-], Oi.prototype, "scale", 2);
-Oi = uo([
-  R("di-guides")
-], Oi);
-var Xu = Object.defineProperty, Yu = Object.getOwnPropertyDescriptor, Rr = (e) => {
+zo([
+  g({ type: Array })
+], Bi.prototype, "guides", 2);
+zo([
+  g({ type: Number })
+], Bi.prototype, "scale", 2);
+Bi = zo([
+  M("di-guides")
+], Bi);
+var vp = Object.defineProperty, bp = Object.getOwnPropertyDescriptor, Cl = (e) => {
   throw TypeError(e);
-}, Zi = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Yu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Xu(t, i, s), s;
-}, qu = (e, t, i) => t.has(e) || Rr("Cannot " + i), Ju = (e, t, i) => t.has(e) ? Rr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Yo = (e, t, i) => (qu(e, t, "access private method"), i), ga, Es;
-let J = class extends F {
+}, aa = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? bp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && vp(t, i, s), s;
+}, _p = (e, t, i) => t.has(e) || Cl("Cannot " + i), wp = (e, t, i) => t.has(e) ? Cl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Br = (e, t, i) => (_p(e, t, "access private method"), i), wa, Ks;
+let q = class extends L {
   constructor() {
-    super(...arguments), Ju(this, ga), this.canvasWidth = 1200, this.canvasHeight = 630, this.scale = 1;
+    super(...arguments), wp(this, wa), this.canvasWidth = 1200, this.canvasHeight = 630, this.scale = 1;
   }
   updated() {
-    Yo(this, ga, Es).call(this, "top"), Yo(this, ga, Es).call(this, "left");
+    Br(this, wa, Ks).call(this, "top"), Br(this, wa, Ks).call(this, "left");
   }
   render() {
     const e = this.pointer ? this.pointer.x * this.scale : void 0, t = this.pointer ? this.pointer.y * this.scale : void 0;
-    return r`
+    return n`
       <div class="corner"></div>
       <div class="top">
         <canvas id="top"></canvas>
-        ${e === void 0 ? "" : r`<div class="hairline vertical" style="left:${e}px"></div>`}
+        ${e === void 0 ? "" : n`<div class="hairline vertical" style="left:${e}px"></div>`}
       </div>
       <div class="left">
         <canvas id="left"></canvas>
-        ${t === void 0 ? "" : r`<div class="hairline horizontal" style="top:${t}px"></div>`}
+        ${t === void 0 ? "" : n`<div class="hairline horizontal" style="top:${t}px"></div>`}
       </div>
     `;
   }
 };
-ga = /* @__PURE__ */ new WeakSet();
-Es = function(e) {
+wa = /* @__PURE__ */ new WeakSet();
+Ks = function(e) {
   const t = this.renderRoot.querySelector(`#${e}`), i = t == null ? void 0 : t.getContext("2d");
   if (!t || !i) return;
   const a = e === "top" ? this.canvasWidth : this.canvasHeight, s = a * this.scale, o = window.devicePixelRatio || 1;
-  t.width = (e === "top" ? s : J.thickness) * o, t.height = (e === "top" ? J.thickness : s) * o, t.style.width = `${e === "top" ? s : J.thickness}px`, t.style.height = `${e === "top" ? J.thickness : s}px`, i.setTransform(o, 0, 0, o, 0, 0), i.clearRect(0, 0, t.width, t.height);
-  const n = getComputedStyle(this);
-  i.strokeStyle = n.getPropertyValue("--uui-color-border").trim() || "#c4c4c4", i.fillStyle = n.getPropertyValue("--uui-color-text-alt").trim() || "#8a8a8a", i.font = "9px sans-serif", i.lineWidth = 1;
+  t.width = (e === "top" ? s : q.thickness) * o, t.height = (e === "top" ? q.thickness : s) * o, t.style.width = `${e === "top" ? s : q.thickness}px`, t.style.height = `${e === "top" ? q.thickness : s}px`, i.setTransform(o, 0, 0, o, 0, 0), i.clearRect(0, 0, t.width, t.height);
+  const r = getComputedStyle(this);
+  i.strokeStyle = r.getPropertyValue("--uui-color-border").trim() || "#c4c4c4", i.fillStyle = r.getPropertyValue("--uui-color-text-alt").trim() || "#8a8a8a", i.font = "9px sans-serif", i.lineWidth = 1;
   for (let l = 0; l <= a; l += 50) {
-    const d = Math.round(l * this.scale) + 0.5, p = l % 100 === 0, k = p ? 8 : 4;
-    i.beginPath(), e === "top" ? (i.moveTo(d, J.thickness - k), i.lineTo(d, J.thickness)) : (i.moveTo(J.thickness - k, d), i.lineTo(J.thickness, d)), i.stroke(), p && l > 0 && (e === "top" ? i.fillText(String(l), d + 2, 9) : (i.save(), i.translate(9, d - 2), i.rotate(-Math.PI / 2), i.fillText(String(l), 0, 0), i.restore()));
+    const h = Math.round(l * this.scale) + 0.5, m = l % 100 === 0, C = m ? 8 : 4;
+    i.beginPath(), e === "top" ? (i.moveTo(h, q.thickness - C), i.lineTo(h, q.thickness)) : (i.moveTo(q.thickness - C, h), i.lineTo(q.thickness, h)), i.stroke(), m && l > 0 && (e === "top" ? i.fillText(String(l), h + 2, 9) : (i.save(), i.translate(9, h - 2), i.rotate(-Math.PI / 2), i.fillText(String(l), 0, 0), i.restore()));
   }
 };
-J.thickness = 20;
-J.styles = I`
+q.thickness = 20;
+q.styles = A`
     :host {
       display: contents;
     }
@@ -3179,36 +3934,36 @@ J.styles = I`
       height: 1px;
     }
   `;
-Zi([
-  y({ type: Number })
-], J.prototype, "canvasWidth", 2);
-Zi([
-  y({ type: Number })
-], J.prototype, "canvasHeight", 2);
-Zi([
-  y({ type: Number })
-], J.prototype, "scale", 2);
-Zi([
-  y({ type: Object })
-], J.prototype, "pointer", 2);
-J = Zi([
-  R("di-rulers")
-], J);
-var Zu = Object.defineProperty, Qu = Object.getOwnPropertyDescriptor, Wr = (e) => {
+aa([
+  g({ type: Number })
+], q.prototype, "canvasWidth", 2);
+aa([
+  g({ type: Number })
+], q.prototype, "canvasHeight", 2);
+aa([
+  g({ type: Number })
+], q.prototype, "scale", 2);
+aa([
+  g({ type: Object })
+], q.prototype, "pointer", 2);
+q = aa([
+  M("di-rulers")
+], q);
+var $p = Object.defineProperty, xp = Object.getOwnPropertyDescriptor, Dl = (e) => {
   throw TypeError(e);
 }, oe = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Qu(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Zu(t, i, s), s;
-}, ho = (e, t, i) => t.has(e) || Wr("Cannot " + i), A = (e, t, i) => (ho(e, t, "read from private field"), i ? i.call(e) : t.get(e)), ne = (e, t, i) => t.has(e) ? Wr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ya = (e, t, i, a) => (ho(e, t, "write to private field"), t.set(e, i), i), M = (e, t, i) => (ho(e, t, "access private method"), i), vt, xi, ot, E, po, Ps, Ds, Za, mo, Ms, Nr, Fr, fo, Ur, Br, zs, va, Kr, Vr, Ut, go, Os, Is, As, Gr, Ls, Rs, Ws, Hr;
-const eh = 6, jr = 20, th = 2, ih = 15, ah = 0.1;
-let te = class extends F {
+  for (var s = a > 1 ? void 0 : a ? xp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && $p(t, i, s), s;
+}, Lo = (e, t, i) => t.has(e) || Dl("Cannot " + i), R = (e, t, i) => (Lo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), re = (e, t, i) => t.has(e) ? Dl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), $a = (e, t, i, a) => (Lo(e, t, "write to private field"), t.set(e, i), i), I = (e, t, i) => (Lo(e, t, "access private method"), i), _t, Ci, dt, D, Fo, js, Vs, ns, Wo, Gs, Il, Ol, Uo, Pl, Al, qs, xa, Ml, Rl, Kt, No, Hs, Ys, Xs, zl, Js, Zs, Qs, Ll;
+const kp = 6, Fl = 20, Tp = 2, Sp = 15, Ep = 0.1;
+let J = class extends L {
   constructor() {
-    super(...arguments), ne(this, E), this.serverBounds = [], this.showMeasured = !1, this.snapEnabled = !0, this.showRulers = !0, this.showSafeArea = !1, this._fitScale = 1, this._guides = [], this._dropTarget = !1, ne(this, vt), ne(this, xi), ne(this, ot, /* @__PURE__ */ new Map()), ne(this, zs, (e) => {
-      const t = this.template.layers.find((n) => n.key === e.detail.key);
+    super(...arguments), re(this, D), this.serverBounds = [], this.showMeasured = !1, this.snapEnabled = !0, this.showRulers = !0, this.showSafeArea = !1, this._fitScale = 1, this._guides = [], this._dropTarget = !1, re(this, _t), re(this, Ci), re(this, dt, /* @__PURE__ */ new Map()), re(this, qs, (e) => {
+      const t = this.template.layers.find((r) => r.key === e.detail.key);
       if (!t || t.isLocked) return;
-      const i = M(this, E, mo).call(this, t), a = M(this, E, Ms).call(this, t), s = M(this, E, Nr).call(this, t), o = M(this, E, Za).call(this, e.detail.startX, e.detail.startY);
-      ya(this, vt, {
+      const i = I(this, D, Wo).call(this, t), a = I(this, D, Gs).call(this, t), s = I(this, D, Il).call(this, t), o = I(this, D, ns).call(this, e.detail.startX, e.detail.startY);
+      $a(this, _t, {
         key: t.key,
         handle: e.detail.handle,
         startClientX: e.detail.startX,
@@ -3222,83 +3977,83 @@ let te = class extends F {
         shiftKey: e.detail.shiftKey,
         altKey: e.detail.altKey
       }), this.dispatchEvent(new CustomEvent("di-transaction-begin", { bubbles: !0, composed: !0 }));
-    }), ne(this, va, (e) => {
-      var aa, Lo;
-      this._pointer = M(this, E, Ds).call(this, e.clientX, e.clientY);
-      const t = A(this, vt);
+    }), re(this, xa, (e) => {
+      var gi, ie;
+      this._pointer = I(this, D, Vs).call(this, e.clientX, e.clientY);
+      const t = R(this, _t);
       if (!t) return;
-      const i = this.template.layers.find((yi) => yi.key === t.key);
+      const i = this.template.layers.find((be) => be.key === t.key);
       if (!i) return;
       const a = (e.clientX - t.startClientX) / this.scale, s = (e.clientY - t.startClientY) / this.scale;
       if (!t.moved && Math.abs(a) < 1 && Math.abs(s) < 1) return;
       if (t.moved = !0, t.handle === "rotate") {
-        M(this, E, Vr).call(this, i, t, e);
+        I(this, D, Rl).call(this, i, t, e);
         return;
       }
-      const o = Pe(i.position, "x"), n = Pe(i.position, "y"), l = t.startRotation;
+      const o = Re(i.position, "x"), r = Re(i.position, "y"), l = t.startRotation, h = e.shiftKey || i.type === "rect" && i.lockAspect === !0;
       if (t.handle && l !== 0) {
-        M(this, E, Kr).call(this, i, t, t.handle, a, s, e.shiftKey, o, n);
+        I(this, D, Ml).call(this, i, t, t.handle, a, s, h, o, r);
         return;
       }
-      let d = t.handle ? M(this, E, go).call(this, t.startBox, t.handle, a, s, e.shiftKey) : { ...t.startBox, x: t.startBox.x + a, y: t.startBox.y + s };
-      o && (d = { ...d, x: t.startBox.x, width: (aa = t.handle) != null && aa.includes("w") ? t.startBox.width : d.width }), n && (d = { ...d, y: t.startBox.y, height: (Lo = t.handle) != null && Lo.includes("n") ? t.startBox.height : d.height });
-      const p = { x: t.startExtent.x - t.startBox.x, y: t.startExtent.y - t.startBox.y }, k = l !== 0 ? { x: d.x + p.x, y: d.y + p.y, width: t.startExtent.width, height: t.startExtent.height } : d, xe = this.snapEnabled && !e.altKey ? Ru(k, {
+      let m = t.handle ? I(this, D, No).call(this, t.startBox, t.handle, a, s, h) : { ...t.startBox, x: t.startBox.x + a, y: t.startBox.y + s };
+      o && (m = { ...m, x: t.startBox.x, width: (gi = t.handle) != null && gi.includes("w") ? t.startBox.width : m.width }), r && (m = { ...m, y: t.startBox.y, height: (ie = t.handle) != null && ie.includes("n") ? t.startBox.height : m.height });
+      const C = { x: t.startExtent.x - t.startBox.x, y: t.startExtent.y - t.startBox.y }, k = l !== 0 ? { x: m.x + C.x, y: m.y + C.y, width: t.startExtent.width, height: t.startExtent.height } : m, te = this.snapEnabled && !e.altKey ? np(k, {
         canvasWidth: this.template.canvas.width,
         canvasHeight: this.template.canvas.height,
-        others: this.template.layers.filter((yi) => yi.key !== i.key).map((yi) => M(this, E, Ms).call(this, yi)),
-        threshold: eh / this.scale,
+        others: this.template.layers.filter((be) => be.key !== i.key).map((be) => I(this, D, Gs).call(this, be)),
+        threshold: kp / this.scale,
         lockX: o,
-        lockY: n
+        lockY: r
       }) : {
         box: {
           ...k,
           x: o ? k.x : Math.round(k.x),
-          y: n ? k.y : Math.round(k.y)
+          y: r ? k.y : Math.round(k.y)
         },
         guides: []
       };
-      this._guides = xe.guides;
-      const ze = l !== 0 ? { ...d, x: xe.box.x - p.x, y: xe.box.y - p.y } : xe.box, qe = Gc(ze, i.position);
-      o && (qe.x = i.position.x), n && (qe.y = i.position.y);
-      const Oe = { position: qe };
-      t.handle && (Oe.size = {
-        width: Math.max(1, Math.round(ze.width)),
-        height: Math.max(1, Math.round(ze.height))
+      this._guides = te.guides;
+      const me = l !== 0 ? { ...m, x: te.box.x - C.x, y: te.box.y - C.y } : te.box, ye = $d(me, i.position);
+      o && (ye.x = i.position.x), r && (ye.y = i.position.y);
+      const Ut = { position: ye };
+      t.handle && (Ut.size = {
+        width: Math.max(1, Math.round(me.width)),
+        height: Math.max(1, Math.round(me.height))
       }), this.dispatchEvent(
-        new CustomEvent("di-layer-change", { bubbles: !0, composed: !0, detail: { key: i.key, patch: Oe } })
+        new CustomEvent("di-layer-change", { bubbles: !0, composed: !0, detail: { key: i.key, patch: Ut } })
       );
-    }), ne(this, Ut, () => {
-      if (!A(this, vt)) return;
-      const e = A(this, vt).moved;
-      ya(this, vt, void 0), this._guides = [], this.dispatchEvent(new CustomEvent("di-transaction-end", { bubbles: !0, composed: !0, detail: { moved: e } }));
-    }), ne(this, Os, (e) => {
+    }), re(this, Kt, () => {
+      if (!R(this, _t)) return;
+      const e = R(this, _t).moved;
+      $a(this, _t, void 0), this._guides = [], this.dispatchEvent(new CustomEvent("di-transaction-end", { bubbles: !0, composed: !0, detail: { moved: e } }));
+    }), re(this, Hs, (e) => {
       var t;
       (t = e.dataTransfer) != null && t.types.includes("application/x-di-palette-item") && (e.preventDefault(), e.dataTransfer.dropEffect = "copy", this._dropTarget = !0);
-    }), ne(this, Is, () => {
+    }), re(this, Ys, () => {
       this._dropTarget = !1;
-    }), ne(this, As, (e) => {
+    }), re(this, Xs, (e) => {
       var a;
       this._dropTarget = !1;
       const t = (a = e.dataTransfer) == null ? void 0 : a.getData("application/x-di-palette-item");
       if (!t) return;
       e.preventDefault();
-      const i = M(this, E, Ds).call(this, e.clientX, e.clientY);
+      const i = I(this, D, Vs).call(this, e.clientX, e.clientY);
       this.dispatchEvent(
         new CustomEvent("di-palette-drop", {
           bubbles: !0,
           composed: !0,
-          detail: { payload: JSON.parse(t), x: i.x, y: i.y, targetKey: M(this, E, Gr).call(this, e) }
+          detail: { payload: JSON.parse(t), x: i.x, y: i.y, targetKey: I(this, D, zl).call(this, e) }
         })
       );
-    }), ne(this, Ls, (e) => {
+    }), re(this, Js, (e) => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
       const t = this.scale * (e.deltaY < 0 ? 1.1 : 1 / 1.1);
       this.dispatchEvent(new CustomEvent("di-zoom-change", { bubbles: !0, composed: !0, detail: { zoom: t } }));
-    }), ne(this, Rs, () => {
+    }), re(this, Zs, () => {
       var e;
-      (e = this.template) != null && e.layers.some((t) => Un(t.position)) && this.requestUpdate();
-    }), ne(this, Ws, (e) => {
+      (e = this.template) != null && e.layers.some((t) => $n(t.position)) && this.requestUpdate();
+    }), re(this, Qs, (e) => {
       e.target === e.currentTarget && this.dispatchEvent(new CustomEvent("di-layer-select", { bubbles: !0, composed: !0, detail: { key: void 0 } }));
     });
   }
@@ -3306,14 +4061,14 @@ let te = class extends F {
     return this.zoom ?? this._fitScale;
   }
   connectedCallback() {
-    super.connectedCallback(), ya(this, xi, new ResizeObserver(() => M(this, E, Ps).call(this))), A(this, xi).observe(this), window.addEventListener("pointermove", A(this, va)), window.addEventListener("pointerup", A(this, Ut)), window.addEventListener("pointercancel", A(this, Ut));
+    super.connectedCallback(), $a(this, Ci, new ResizeObserver(() => I(this, D, js).call(this))), R(this, Ci).observe(this), window.addEventListener("pointermove", R(this, xa)), window.addEventListener("pointerup", R(this, Kt)), window.addEventListener("pointercancel", R(this, Kt));
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), (e = A(this, xi)) == null || e.disconnect(), window.removeEventListener("pointermove", A(this, va)), window.removeEventListener("pointerup", A(this, Ut)), window.removeEventListener("pointercancel", A(this, Ut));
+    super.disconnectedCallback(), (e = R(this, Ci)) == null || e.disconnect(), window.removeEventListener("pointermove", R(this, xa)), window.removeEventListener("pointerup", R(this, Kt)), window.removeEventListener("pointercancel", R(this, Kt));
   }
   updated(e) {
-    M(this, E, Ps).call(this), e.has("zoom") && M(this, E, po).call(this);
+    I(this, D, js).call(this), e.has("zoom") && I(this, D, Fo).call(this);
   }
   /**
    * Where a layer ends up once any tracked axis is resolved, as of the last render. The inspector
@@ -3322,58 +4077,58 @@ let te = class extends F {
    */
   resolvedPositionOf(e) {
     var t;
-    return (t = A(this, ot).get(e)) == null ? void 0 : t.position;
+    return (t = R(this, dt).get(e)) == null ? void 0 : t.position;
   }
   // ------------------------------------------------------------------ rendering
   render() {
-    if (!this.template) return m;
+    if (!this.template) return p;
     const e = this.template.canvas, t = e.width * this.scale, i = e.height * this.scale, a = new Map(this.serverBounds.map((o) => [o.key, o]));
-    M(this, E, Fr).call(this);
-    const s = this.showRulers ? jr : 0;
-    return r`
+    I(this, D, Ol).call(this);
+    const s = this.showRulers ? Fl : 0;
+    return n`
       <div
         class="viewport ${this._dropTarget ? "drop-target" : ""}"
-        @wheel=${A(this, Ls)}
-        @dragover=${A(this, Os)}
-        @dragleave=${A(this, Is)}
-        @drop=${A(this, As)}
-        @di-layer-drag-start=${A(this, zs)}
-        @di-layer-box-resize=${A(this, Rs)}>
+        @wheel=${R(this, Js)}
+        @dragover=${R(this, Hs)}
+        @dragleave=${R(this, Ys)}
+        @drop=${R(this, Xs)}
+        @di-layer-drag-start=${R(this, qs)}
+        @di-layer-box-resize=${R(this, Zs)}>
         <div
           class="artboard"
-          style=${V({
+          style=${W({
       width: `${t + s}px`,
       height: `${i + s}px`,
       "--di-gutter": `${s}px`
     })}>
-          ${this.showRulers ? r`<di-rulers
+          ${this.showRulers ? n`<di-rulers
                 .canvasWidth=${e.width}
                 .canvasHeight=${e.height}
                 .scale=${this.scale}
                 .pointer=${this._pointer}>
-              </di-rulers>` : m}
+              </di-rulers>` : p}
 
           <div
             class="stage"
-            style=${V({
-      background: e.backgroundGradient ? _r(e.backgroundGradient) : e.background
+            style=${W({
+      background: e.backgroundGradient ? Io(e.backgroundGradient) : e.background
     })}
-            @pointerdown=${A(this, Ws)}
+            @pointerdown=${R(this, Qs)}
             @pointerleave=${() => {
       this._pointer = void 0;
     }}>
-            ${this.baseImageUrl ? r`<img
+            ${this.baseImageUrl ? n`<img
                   class="base"
                   src=${this.baseImageUrl}
                   alt=""
-                  style=${V({ objectFit: e.baseImageFit === "stretch" ? "fill" : e.baseImageFit })} />` : m}
+                  style=${W({ objectFit: e.baseImageFit === "stretch" ? "fill" : e.baseImageFit })} />` : p}
 
-            ${B(
+            ${Z(
       this.template.layers,
       (o) => o.key,
       (o) => {
-        var n, l;
-        return r`
+        var r, l;
+        return n`
                 <di-layer-box
                   data-key=${o.key}
                   .layer=${o}
@@ -3381,14 +4136,14 @@ let te = class extends F {
                   .selected=${o.key === this.selectedLayerKey}
                   .measured=${a.get(o.key)}
                   .showMeasured=${this.showMeasured}
-                  .resolvedText=${((n = a.get(o.key)) == null ? void 0 : n.resolvedText) ?? void 0}
-                  .resolvedPosition=${(l = A(this, ot).get(o.key)) == null ? void 0 : l.position}>
+                  .resolvedText=${((r = a.get(o.key)) == null ? void 0 : r.resolvedText) ?? void 0}
+                  .resolvedPosition=${(l = R(this, dt).get(o.key)) == null ? void 0 : l.position}>
                 </di-layer-box>
               `;
       }
     )}
 
-            ${this.showSafeArea ? M(this, E, Hr).call(this) : m}
+            ${this.showSafeArea ? I(this, D, Ll).call(this) : p}
 
             <di-guides .guides=${this._guides} .scale=${this.scale}></di-guides>
           </div>
@@ -3397,18 +4152,18 @@ let te = class extends F {
     `;
   }
 };
-vt = /* @__PURE__ */ new WeakMap();
-xi = /* @__PURE__ */ new WeakMap();
-ot = /* @__PURE__ */ new WeakMap();
-E = /* @__PURE__ */ new WeakSet();
-po = function() {
+_t = /* @__PURE__ */ new WeakMap();
+Ci = /* @__PURE__ */ new WeakMap();
+dt = /* @__PURE__ */ new WeakMap();
+D = /* @__PURE__ */ new WeakSet();
+Fo = function() {
   this.dispatchEvent(
     new CustomEvent("di-scale-change", { bubbles: !0, composed: !0, detail: { scale: this.scale } })
   );
 };
-Ps = function() {
+js = function() {
   if (!this.template) return;
-  const e = 48 + (this.showRulers ? jr : 0) + th, t = {
+  const e = 48 + (this.showRulers ? Fl : 0) + Tp, t = {
     width: Math.max(1, this.clientWidth - e),
     height: Math.max(1, this.clientHeight - e)
   }, i = Math.min(
@@ -3417,112 +4172,112 @@ Ps = function() {
     // Never scale a small canvas up past 1:1 by default - it would look soft for no reason.
     1
   );
-  Math.abs(i - this._fitScale) > 1e-3 && (this._fitScale = i, M(this, E, po).call(this));
+  Math.abs(i - this._fitScale) > 1e-3 && (this._fitScale = i, I(this, D, Fo).call(this));
 };
-Ds = function(e, t) {
-  const i = M(this, E, Za).call(this, e, t);
+Vs = function(e, t) {
+  const i = I(this, D, ns).call(this, e, t);
   return { x: Math.round(i.x), y: Math.round(i.y) };
 };
-Za = function(e, t) {
+ns = function(e, t) {
   const i = this.renderRoot.querySelector(".stage");
   if (!i) return { x: 0, y: 0 };
   const a = i.getBoundingClientRect();
   return { x: (e - a.left) / this.scale, y: (t - a.top) / this.scale };
 };
-mo = function(e) {
-  const t = A(this, ot).get(e.key);
+Wo = function(e) {
+  const t = R(this, dt).get(e.key);
   if (t) return t.box;
-  const i = M(this, E, fo).call(this, e), a = Xa(e.position, i.width, i.height);
+  const i = I(this, D, Uo).call(this, e), a = as(e.position, i.width, i.height);
   return { x: a.x, y: a.y, ...i };
 };
-Ms = function(e) {
-  const t = A(this, ot).get(e.key);
-  return t ? t.extent : Fn(M(this, E, mo).call(this, e), e.position.x, e.position.y, e.rotation ?? 0);
+Gs = function(e) {
+  const t = R(this, dt).get(e.key);
+  return t ? t.extent : wn(I(this, D, Wo).call(this, e), e.position.x, e.position.y, e.rotation ?? 0);
 };
-Nr = function(e) {
+Il = function(e) {
   var t;
-  return ((t = A(this, ot).get(e.key)) == null ? void 0 : t.position) ?? e.position;
+  return ((t = R(this, dt).get(e.key)) == null ? void 0 : t.position) ?? e.position;
 };
-Fr = function() {
+Ol = function() {
   const e = new Map(this.serverBounds.map((i) => [i.key, i])), t = this.serverBounds.length > 0;
-  ya(this, ot, Jc(
+  $a(this, dt, Cd(
     this.template.layers,
-    (i) => M(this, E, fo).call(this, i, e.get(i.key)),
+    (i) => I(this, D, Uo).call(this, i, e.get(i.key)),
     (i) => !i.isVisible || t && !e.has(i.key)
   ));
 };
-fo = function(e, t) {
+Uo = function(e, t) {
   const i = this.renderRoot.querySelector(`di-layer-box[data-key="${e.key}"]`), a = e.type === "badges" && (t != null && t.width) ? t.width : void 0;
   return {
-    width: e.size.width ?? a ?? M(this, E, Ur).call(this, e, i),
-    height: e.size.height ?? (t == null ? void 0 : t.height) ?? M(this, E, Br).call(this, e, i)
+    width: e.size.width ?? a ?? I(this, D, Pl).call(this, e, i),
+    height: e.size.height ?? (t == null ? void 0 : t.height) ?? I(this, D, Al).call(this, e, i)
   };
 };
-Ur = function(e, t) {
+Pl = function(e, t) {
   var a;
   const i = (a = t == null ? void 0 : t.querySelector(".box")) == null ? void 0 : a.offsetWidth;
   return i ? i / this.scale : e.type === "text" ? 600 : 240;
 };
-Br = function(e, t) {
+Al = function(e, t) {
   var a;
   const i = (a = t == null ? void 0 : t.querySelector(".box")) == null ? void 0 : a.offsetHeight;
   return i ? i / this.scale : e.type === "text" ? 80 : 135;
 };
-zs = /* @__PURE__ */ new WeakMap();
-va = /* @__PURE__ */ new WeakMap();
-Kr = function(e, t, i, a, s, o, n, l) {
-  const d = t.startRotation, p = t.startPosition, k = Hc(a, s, 0, 0, d);
-  let Y = M(this, E, go).call(this, t.startBox, i, k.x, k.y, o);
-  n && (Y = { ...Y, x: t.startBox.x, width: i.includes("w") ? t.startBox.width : Y.width }), l && (Y = { ...Y, y: t.startBox.y, height: i.includes("n") ? t.startBox.height : Y.height });
-  const xe = Math.max(1, Math.round(Y.width)), ze = Math.max(1, Math.round(Y.height)), qe = Qs(Y.x, Y.y, xe, ze, p.anchor), Oe = Kt(qe.x, qe.y, p.x, p.y, d), aa = {
+qs = /* @__PURE__ */ new WeakMap();
+xa = /* @__PURE__ */ new WeakMap();
+Ml = function(e, t, i, a, s, o, r, l) {
+  const h = t.startRotation, m = t.startPosition, C = xd(a, s, 0, 0, h);
+  let k = I(this, D, No).call(this, t.startBox, i, C.x, C.y, o);
+  r && (k = { ...k, x: t.startBox.x, width: i.includes("w") ? t.startBox.width : k.width }), l && (k = { ...k, y: t.startBox.y, height: i.includes("n") ? t.startBox.height : k.height });
+  const j = Math.max(1, Math.round(k.width)), te = Math.max(1, Math.round(k.height)), me = _o(k.x, k.y, j, te, m.anchor), ye = jt(me.x, me.y, m.x, m.y, h), Ut = {
     ...e.position,
-    x: n ? e.position.x : Math.round(Oe.x),
-    y: l ? e.position.y : Math.round(Oe.y)
+    x: r ? e.position.x : Math.round(ye.x),
+    y: l ? e.position.y : Math.round(ye.y)
   };
   this._guides = [], this.dispatchEvent(
     new CustomEvent("di-layer-change", {
       bubbles: !0,
       composed: !0,
-      detail: { key: e.key, patch: { position: aa, size: { width: xe, height: ze } } }
+      detail: { key: e.key, patch: { position: Ut, size: { width: j, height: te } } }
     })
   );
 };
-Vr = function(e, t, i) {
-  const a = t.startPosition, s = M(this, E, Za).call(this, i.clientX, i.clientY), n = (Math.atan2(s.y - a.y, s.x - a.x) - t.startAngle) * 180 / Math.PI, l = t.startRotation + n, d = i.shiftKey ? ih : ah, p = Nn(Math.round(l / d) * d);
-  this._guides = [], p !== (e.rotation ?? 0) && this.dispatchEvent(
+Rl = function(e, t, i) {
+  const a = t.startPosition, s = I(this, D, ns).call(this, i.clientX, i.clientY), r = (Math.atan2(s.y - a.y, s.x - a.x) - t.startAngle) * 180 / Math.PI, l = t.startRotation + r, h = i.shiftKey ? Sp : Ep, m = _n(Math.round(l / h) * h);
+  this._guides = [], m !== (e.rotation ?? 0) && this.dispatchEvent(
     new CustomEvent("di-layer-change", {
       bubbles: !0,
       composed: !0,
-      detail: { key: e.key, patch: { rotation: p } }
+      detail: { key: e.key, patch: { rotation: m } }
     })
   );
 };
-Ut = /* @__PURE__ */ new WeakMap();
-go = function(e, t, i, a, s) {
-  let { x: o, y: n, width: l, height: d } = e;
-  if (t.includes("w") && (o = e.x + i, l = e.width - i), t.includes("e") && (l = e.width + i), t.includes("n") && (n = e.y + a, d = e.height - a), t.includes("s") && (d = e.height + a), s && e.width > 0 && e.height > 0) {
-    const p = e.width / e.height;
-    Math.abs(l - e.width) >= Math.abs(d - e.height) ? d = l / p : l = d * p, t.includes("n") && (n = e.y + e.height - d), t.includes("w") && (o = e.x + e.width - l);
+Kt = /* @__PURE__ */ new WeakMap();
+No = function(e, t, i, a, s) {
+  let { x: o, y: r, width: l, height: h } = e;
+  if (t.includes("w") && (o = e.x + i, l = e.width - i), t.includes("e") && (l = e.width + i), t.includes("n") && (r = e.y + a, h = e.height - a), t.includes("s") && (h = e.height + a), s && e.width > 0 && e.height > 0) {
+    const m = e.width / e.height;
+    Math.abs(l - e.width) >= Math.abs(h - e.height) ? h = l / m : l = h * m, t.includes("n") && (r = e.y + e.height - h), t.includes("w") && (o = e.x + e.width - l);
   }
-  return { x: o, y: n, width: Math.max(4, l), height: Math.max(4, d) };
+  return { x: o, y: r, width: Math.max(4, l), height: Math.max(4, h) };
 };
-Os = /* @__PURE__ */ new WeakMap();
-Is = /* @__PURE__ */ new WeakMap();
-As = /* @__PURE__ */ new WeakMap();
-Gr = function(e) {
+Hs = /* @__PURE__ */ new WeakMap();
+Ys = /* @__PURE__ */ new WeakMap();
+Xs = /* @__PURE__ */ new WeakMap();
+zl = function(e) {
   const t = e.composedPath().find(
     (i) => i.tagName === "DI-LAYER-BOX"
   );
   return t == null ? void 0 : t.dataset.key;
 };
-Ls = /* @__PURE__ */ new WeakMap();
-Rs = /* @__PURE__ */ new WeakMap();
-Ws = /* @__PURE__ */ new WeakMap();
-Hr = function() {
+Js = /* @__PURE__ */ new WeakMap();
+Zs = /* @__PURE__ */ new WeakMap();
+Qs = /* @__PURE__ */ new WeakMap();
+Ll = function() {
   const e = this.template.canvas, t = e.width / 1.91, i = Math.max(0, (e.height - t) / 2) * this.scale;
-  return r`<div class="safe-area" style=${V({ top: `${i}px`, bottom: `${i}px` })}></div>`;
+  return n`<div class="safe-area" style=${W({ top: `${i}px`, bottom: `${i}px` })}></div>`;
 };
-te.styles = I`
+J.styles = A`
     :host {
       display: block;
       height: 100%;
@@ -3538,7 +4293,7 @@ te.styles = I`
       justify-content: center;
       padding: 24px;
       box-sizing: border-box;
-      ${no}
+      ${Po}
     }
 
     .viewport.drop-target {
@@ -3581,55 +4336,55 @@ te.styles = I`
     }
   `;
 oe([
-  y({ type: Object })
-], te.prototype, "template", 2);
+  g({ type: Object })
+], J.prototype, "template", 2);
 oe([
-  y({ type: String })
-], te.prototype, "selectedLayerKey", 2);
+  g({ type: String })
+], J.prototype, "selectedLayerKey", 2);
 oe([
-  y({ type: Object })
-], te.prototype, "baseImageUrl", 2);
+  g({ type: Object })
+], J.prototype, "baseImageUrl", 2);
 oe([
-  y({ type: Array })
-], te.prototype, "serverBounds", 2);
+  g({ type: Array })
+], J.prototype, "serverBounds", 2);
 oe([
-  y({ type: Boolean })
-], te.prototype, "showMeasured", 2);
+  g({ type: Boolean })
+], J.prototype, "showMeasured", 2);
 oe([
-  y({ type: Boolean })
-], te.prototype, "snapEnabled", 2);
+  g({ type: Boolean })
+], J.prototype, "snapEnabled", 2);
 oe([
-  y({ type: Boolean })
-], te.prototype, "showRulers", 2);
+  g({ type: Boolean })
+], J.prototype, "showRulers", 2);
 oe([
-  y({ type: Boolean })
-], te.prototype, "showSafeArea", 2);
+  g({ type: Boolean })
+], J.prototype, "showSafeArea", 2);
 oe([
-  y({ type: Number })
-], te.prototype, "zoom", 2);
+  g({ type: Number })
+], J.prototype, "zoom", 2);
 oe([
-  f()
-], te.prototype, "_fitScale", 2);
+  y()
+], J.prototype, "_fitScale", 2);
 oe([
-  f()
-], te.prototype, "_guides", 2);
+  y()
+], J.prototype, "_guides", 2);
 oe([
-  f()
-], te.prototype, "_pointer", 2);
+  y()
+], J.prototype, "_pointer", 2);
 oe([
-  f()
-], te.prototype, "_dropTarget", 2);
-te = oe([
-  R("di-designer-canvas")
-], te);
-var sh = Object.defineProperty, oh = Object.getOwnPropertyDescriptor, Xr = (e) => {
+  y()
+], J.prototype, "_dropTarget", 2);
+J = oe([
+  M("di-designer-canvas")
+], J);
+var Cp = Object.defineProperty, Dp = Object.getOwnPropertyDescriptor, Wl = (e) => {
   throw TypeError(e);
-}, yo = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? oh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && sh(t, i, s), s;
-}, Yr = (e, t, i) => t.has(e) || Xr("Cannot " + i), nh = (e, t, i) => (Yr(e, t, "read from private field"), i ? i.call(e) : t.get(e)), rh = (e, t, i) => t.has(e) ? Xr("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Te = (e, t, i) => (Yr(e, t, "access private method"), i), ce, qr, Jr, Zr, Qr, el, _t;
-const qo = {
+}, Bo = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Dp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Cp(t, i, s), s;
+}, Ul = (e, t, i) => t.has(e) || Wl("Cannot " + i), Ip = (e, t, i) => (Ul(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Op = (e, t, i) => t.has(e) ? Wl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ve = (e, t, i) => (Ul(e, t, "access private method"), i), ee, Nl, Ko, jo, Bl, Kl, jl, Vl, Ai;
+const Kr = {
   text: "icon-font",
   richtext: "icon-article",
   date: "icon-calendar",
@@ -3641,13 +4396,13 @@ const qo = {
   readingTime: "icon-time",
   other: "icon-block"
 };
-let Ii = class extends F {
+let Ki = class extends L {
   constructor() {
-    super(...arguments), rh(this, ce), this.properties = [], this._search = "";
+    super(...arguments), Op(this, ee), this.properties = [], this._search = "";
   }
   render() {
-    const e = lh(nh(this, ce, qr));
-    return r`
+    const e = Pp(Ip(this, ee, Nl));
+    return n`
       <div class="palette">
         <uui-input
           type="search"
@@ -3659,42 +4414,42 @@ let Ii = class extends F {
     }}>
         </uui-input>
 
-        ${this.properties.length === 0 ? r`<p class="empty">Pick one or more document types in Settings to see their properties here.</p>` : B(
+        ${ve(this, ee, Kl).call(this)}
+
+        ${this.properties.length === 0 ? n`<p class="empty">Pick one or more document types in Settings to see their properties here.</p>` : Z(
       [...e.entries()],
       ([t]) => t,
-      ([t, i]) => Te(this, ce, Qr).call(this, t, i)
+      ([t, i]) => ve(this, ee, Bl).call(this, t, i)
     )}
-
-        ${Te(this, ce, el).call(this)}
       </div>
     `;
   }
 };
-ce = /* @__PURE__ */ new WeakSet();
-qr = function() {
+ee = /* @__PURE__ */ new WeakSet();
+Nl = function() {
   const e = this._search.trim().toLowerCase();
   return e ? this.properties.filter(
     (t) => t.name.toLowerCase().includes(e) || t.alias.toLowerCase().includes(e)
   ) : this.properties;
 };
-Jr = function(e) {
+Ko = function(e) {
   this.dispatchEvent(new CustomEvent("di-palette-add", { bubbles: !0, composed: !0, detail: { payload: e } }));
 };
-Zr = function(e, t) {
+jo = function(e, t) {
   var i;
   (i = e.dataTransfer) == null || i.setData("application/x-di-palette-item", JSON.stringify(t)), e.dataTransfer && (e.dataTransfer.effectAllowed = "copy");
 };
-Qr = function(e, t) {
-  return r`
+Bl = function(e, t) {
+  return n`
       <div class="group">
         <h5>${e}</h5>
-        ${B(
+        ${Z(
     t,
     (i) => i.alias,
-    (i) => Te(this, ce, _t).call(
+    (i) => ve(this, ee, Ai).call(
       this,
       i.name,
-      qo[i.classification] ?? qo.other,
+      Kr[i.classification] ?? Kr.other,
       i.classification,
       { kind: "property", property: i },
       // A Yes/No chip does not add a layer, so the button must not claim it does.
@@ -3704,39 +4459,73 @@ Qr = function(e, t) {
       </div>
     `;
 };
-el = function() {
-  return r`
+Kl = function() {
+  return n`
       <div class="group">
-        <h5>Static</h5>
-        ${Te(this, ce, _t).call(this, "Text", "icon-font", "text", { kind: "static", layerType: "text" })}
-        ${Te(this, ce, _t).call(this, "Image", "icon-picture", "media", { kind: "static", layerType: "image" })}
-        ${Te(this, ce, _t).call(this, "Badge row", "icon-tags", "list", { kind: "static", layerType: "badges" })}
-        ${Te(this, ce, _t).call(this, "Rectangle", "icon-stop", "other", { kind: "static", layerType: "rect", shape: "rectangle" })}
-        ${Te(this, ce, _t).call(this, "Ellipse", "icon-record", "other", { kind: "static", layerType: "rect", shape: "ellipse" })}
+        <h5>Elements</h5>
+        ${ve(this, ee, Ai).call(this, "Text", "icon-font", "text", { kind: "static", layerType: "text" })}
+        ${ve(this, ee, Ai).call(this, "Image", "icon-picture", "media", { kind: "static", layerType: "image" })}
+        ${ve(this, ee, Ai).call(this, "Badge row", "icon-tags", "list", { kind: "static", layerType: "badges" })}
+        ${ve(this, ee, jl).call(this)}
       </div>
     `;
 };
-_t = function(e, t, i, a, s) {
+jl = function() {
+  const e = { kind: "static", layerType: "rect", preset: "rectangle" };
+  return n`
+      <div
+        class="chip other shape"
+        draggable="true"
+        title="Shape"
+        @dragstart=${(t) => ve(this, ee, jo).call(this, t, e)}>
+        <uui-icon name="icon-shape-circle"></uui-icon>
+        <button type="button" class="label chip-open" popovertarget="shape-menu" aria-label="Choose a shape">
+          Shape
+        </button>
+        <uui-button compact look="secondary" label="Add a shape" popovertarget="shape-menu">
+          <uui-icon name="icon-add"></uui-icon>
+        </uui-button>
+      </div>
+      <uui-popover-container id="shape-menu" placement="bottom-end">
+        <div class="menu">
+          <uui-menu-item label="Add shape" class="menu-heading" disabled></uui-menu-item>
+          ${yd.map((t) => n`
+            <uui-menu-item
+              label=${Ri[t].label}
+              data-preset=${t}
+              @click-label=${() => ve(this, ee, Vl).call(this, t)}>
+              <uui-icon slot="icon" name=${Ri[t].icon}></uui-icon>
+            </uui-menu-item>
+          `)}
+        </div>
+      </uui-popover-container>
+    `;
+};
+Vl = function(e) {
+  var t, i, a;
+  (a = (i = (t = this.shadowRoot) == null ? void 0 : t.querySelector("#shape-menu")) == null ? void 0 : i.hidePopover) == null || a.call(i), ve(this, ee, Ko).call(this, { kind: "static", layerType: "rect", preset: e });
+};
+Ai = function(e, t, i, a, s) {
   const o = s ?? e;
-  return r`
+  return n`
       <div
         class="chip ${i}"
         draggable="true"
         title=${o}
-        @dragstart=${(n) => Te(this, ce, Zr).call(this, n, a)}>
+        @dragstart=${(r) => ve(this, ee, jo).call(this, r, a)}>
         <uui-icon name=${t}></uui-icon>
         <span class="label" title=${o}>${e}</span>
         <uui-button
           compact
           look="secondary"
           label=${s ?? `Add ${e} to the canvas`}
-          @click=${() => Te(this, ce, Jr).call(this, a)}>
+          @click=${() => ve(this, ee, Ko).call(this, a)}>
           <uui-icon name="icon-add"></uui-icon>
         </uui-button>
       </div>
     `;
 };
-Ii.styles = I`
+Ki.styles = A`
     :host {
       display: block;
       height: 100%;
@@ -3808,22 +4597,46 @@ Ii.styles = I`
       border-left-style: dashed;
     }
 
+    /* The Shape chip's name opens the menu too, so it is a real button - reset to read as the
+       label it replaces. */
+    .chip-open {
+      border: 0;
+      background: none;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .menu {
+      min-width: 200px;
+      padding: var(--uui-size-space-2) 0;
+      background: var(--uui-color-surface);
+      border-radius: var(--uui-border-radius);
+      box-shadow: var(--uui-shadow-depth-3);
+    }
+
+    .menu-heading {
+      --uui-menu-item-color-disabled: var(--uui-color-text-alt);
+    }
+
     .empty {
       margin: 0;
       color: var(--uui-color-text-alt);
       font-size: 13px;
     }
   `;
-yo([
-  y({ type: Array })
-], Ii.prototype, "properties", 2);
-yo([
-  f()
-], Ii.prototype, "_search", 2);
-Ii = yo([
-  R("di-property-palette")
-], Ii);
-function lh(e) {
+Bo([
+  g({ type: Array })
+], Ki.prototype, "properties", 2);
+Bo([
+  y()
+], Ki.prototype, "_search", 2);
+Ki = Bo([
+  M("di-property-palette")
+], Ki);
+function Pp(e) {
   const t = /* @__PURE__ */ new Map();
   for (const a of e) {
     const s = a.group || "Other", o = t.get(s) ?? [];
@@ -3835,184 +4648,103 @@ function lh(e) {
     a !== "Node" && i.set(a, s);
   return i;
 }
-function ch(e) {
-  return e.backgroundGradient ? "gradient" : uh(e.background) ? "transparent" : "colour";
+function Ap(e) {
+  return e.backgroundGradient ? "gradient" : Mp(e.background) ? "transparent" : "colour";
 }
-function uh(e) {
+function Mp(e) {
   if (!e || e.trim() === "") return !0;
   const t = e.trim().replace(/^#/, "");
   return t.length === 8 && t.slice(6).toUpperCase() === "00";
 }
-function hh(e, t) {
+function Rp(e, t) {
   const i = (e ?? "").trim().replace(/^#/, ""), a = i.length === 3 ? [...i].map((s) => s + s).join("") : i.length === 6 || i.length === 8 ? i.slice(0, 6) : "000000";
   return t === "FF" ? `#${a.toUpperCase()}` : `#${a.toUpperCase()}00`;
 }
-function dh(e) {
-  const t = mh(e);
-  return { root: t[0] ?? "", tail: t.slice(1).join(".") };
-}
-function ph(e, t) {
-  const i = (e ?? "").trim(), a = (t ?? "").trim();
-  return i ? a ? `${i}.${a}` : i : "";
-}
-const mh = (e) => (e ?? "").split(".").map((t) => t.trim()).filter((t) => t.length > 0);
-var fh = Object.defineProperty, gh = Object.getOwnPropertyDescriptor, tl = (e) => {
+var zp = Object.defineProperty, Lp = Object.getOwnPropertyDescriptor, Gl = (e) => {
   throw TypeError(e);
-}, Qa = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? gh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && fh(t, i, s), s;
-}, il = (e, t, i) => t.has(e) || tl("Cannot " + i), Qe = (e, t, i) => (il(e, t, "read from private field"), i ? i.call(e) : t.get(e)), yh = (e, t, i) => t.has(e) ? tl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Si = (e, t, i) => (il(e, t, "access private method"), i), ae, Ai, Ci, es, al, sl;
-let hi = class extends F {
+}, Vo = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Lp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && zp(t, i, s), s;
+}, Fp = (e, t, i) => t.has(e) || Gl("Cannot " + i), Wp = (e, t, i) => t.has(e) ? Gl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), jr = (e, t, i) => (Fp(e, t, "access private method"), i), ka, eo;
+let ji = class extends L {
   constructor() {
-    super(...arguments), yh(this, ae), this.value = "#FFFFFF", this.label = "Colour", this._open = !1;
+    super(...arguments), Wp(this, ka), this.value = "#FFFFFF", this.label = "Colour";
   }
+  /**
+   * The picker's swatch, and the value as text beside it: the compact picker shows only a swatch,
+   * and a colour someone has been handed by a brand guide is typed, not dragged to.
+   */
   render() {
-    return r`
-      <div class="wrap">
-        <button
-          class="swatch"
-          type="button"
-          aria-label="${this.label}: ${this.value}"
-          aria-expanded=${this._open}
-          @click=${() => {
-      this._open = !this._open;
-    }}>
-          <span class="chip" style="background:${Qe(this, ae, Ai)};opacity:${Qe(this, ae, Ci)}"></span>
-        </button>
-
-        <uui-input
+    return n`
+      <div class="colour">
+        <uui-color-picker
           label=${this.label}
+          format="hex"
+          opacity
+          uppercase
           .value=${this.value}
+          @change=${jr(this, ka, eo)}></uui-color-picker>
+        <uui-input
+          label="${this.label} (hex)"
           spellcheck="false"
-          @change=${(e) => Si(this, ae, es).call(this, e.target.value)}>
-        </uui-input>
-
-        ${this._open ? r`
-              <div class="popover">
-                <input
-                  type="color"
-                  aria-label="${this.label} colour"
-                  .value=${Qe(this, ae, Ai)}
-                  @input=${(e) => Si(this, ae, al).call(this, e.target.value)} />
-                <label class="alpha">
-                  <span>Alpha</span>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.01"
-                    .value=${String(Qe(this, ae, Ci))}
-                    @input=${(e) => Si(this, ae, sl).call(this, Number(e.target.value))} />
-                  <span class="alpha-value">${Math.round(Qe(this, ae, Ci) * 100)}%</span>
-                </label>
-              </div>
-            ` : ""}
+          .value=${this.value}
+          @change=${jr(this, ka, eo)}></uui-input>
       </div>
     `;
   }
 };
-ae = /* @__PURE__ */ new WeakSet();
-Ai = function() {
-  return `#${(this.value || "").replace("#", "").slice(0, 6).padEnd(6, "0")}`;
+ka = /* @__PURE__ */ new WeakSet();
+eo = function(e) {
+  e.stopPropagation();
+  const t = Vr(e.target.value);
+  !t || t === Vr(this.value) || (this.value = t, this.dispatchEvent(new CustomEvent("change", { bubbles: !0, composed: !0, detail: { value: t } })));
 };
-Ci = function() {
-  const e = (this.value || "").replace("#", "");
-  return e.length >= 8 ? parseInt(e.slice(6, 8), 16) / 255 : 1;
-};
-es = function(e) {
-  this.value = e, this.dispatchEvent(new CustomEvent("change", { bubbles: !0, composed: !0, detail: { value: e } }));
-};
-al = function(e) {
-  const t = Qe(this, ae, Ci);
-  Si(this, ae, es).call(this, t >= 0.999 ? e.toUpperCase() : `${e.toUpperCase()}${ol(t)}`);
-};
-sl = function(e) {
-  Si(this, ae, es).call(this, e >= 0.999 ? Qe(this, ae, Ai).toUpperCase() : `${Qe(this, ae, Ai).toUpperCase()}${ol(e)}`);
-};
-hi.styles = I`
+ji.styles = A`
     :host {
       display: block;
+      min-width: 0;
     }
 
-    .wrap {
-      position: relative;
+    .colour {
       display: flex;
       align-items: center;
       gap: var(--uui-size-space-2);
+      min-width: 0;
     }
 
-    .swatch {
-      width: 28px;
-      height: 28px;
-      padding: 2px;
-      border: 1px solid var(--uui-color-border);
-      border-radius: var(--uui-border-radius);
-      background:
-        linear-gradient(45deg, #ccc 25%, transparent 25%),
-        linear-gradient(-45deg, #ccc 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, #ccc 75%),
-        linear-gradient(-45deg, transparent 75%, #ccc 75%),
-        #fff;
-      background-size: 8px 8px;
-      background-position: 0 0, 0 4px, 4px -4px, -4px 0;
-      cursor: pointer;
+    /* The picker's host is 100% wide by default, which leaves the hex field no room. */
+    uui-color-picker {
       flex: 0 0 auto;
+      width: auto;
     }
 
-    .chip {
-      display: block;
-      width: 100%;
-      height: 100%;
-      border-radius: 2px;
-    }
-
-    .popover {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      z-index: 10;
-      display: grid;
-      gap: var(--uui-size-space-2);
-      padding: var(--uui-size-space-3);
-      background: var(--uui-color-surface);
-      border: 1px solid var(--uui-color-border);
-      border-radius: var(--uui-border-radius);
-      box-shadow: var(--uui-shadow-depth-3);
-    }
-
-    .alpha {
-      display: flex;
-      align-items: center;
-      gap: var(--uui-size-space-2);
-      font-size: 12px;
-    }
-
-    .alpha-value {
-      min-width: 36px;
-      text-align: right;
-      font-variant-numeric: tabular-nums;
+    uui-input {
+      flex: 1 1 auto;
+      min-width: 0;
     }
   `;
-Qa([
-  y({ type: String })
-], hi.prototype, "value", 2);
-Qa([
-  y({ type: String })
-], hi.prototype, "label", 2);
-Qa([
-  f()
-], hi.prototype, "_open", 2);
-hi = Qa([
-  R("di-colour-input")
-], hi);
-const ol = (e) => Math.round(Math.max(0, Math.min(1, e)) * 255).toString(16).padStart(2, "0").toUpperCase();
-var vh = Object.defineProperty, bh = Object.getOwnPropertyDescriptor, nl = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? bh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && vh(t, i, s), s;
+Vo([
+  g({ type: String })
+], ji.prototype, "value", 2);
+Vo([
+  g({ type: String })
+], ji.prototype, "label", 2);
+ji = Vo([
+  M("di-colour-input")
+], ji);
+function Vr(e) {
+  const t = (e ?? "").trim(), i = t.replace(/^#/, "");
+  if (!/^[0-9a-f]+$/i.test(i) || ![3, 4, 6, 8].includes(i.length)) return t;
+  const s = (i.length <= 4 ? [...i].map((o) => o + o).join("") : i).toUpperCase();
+  return s.length === 8 && s.endsWith("FF") ? `#${s.slice(0, 6)}` : `#${s}`;
+}
+var Up = Object.defineProperty, Np = Object.getOwnPropertyDescriptor, ql = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Np(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Up(t, i, s), s;
 };
-const Jo = {
+const Gr = {
   topLeft: "Top left",
   topCentre: "Top centre",
   topRight: "Top right",
@@ -4023,24 +4755,24 @@ const Jo = {
   bottomCentre: "Bottom centre",
   bottomRight: "Bottom right"
 };
-let Ia = class extends F {
+let ja = class extends L {
   constructor() {
     super(...arguments), this.value = "topLeft";
   }
   render() {
-    return r`
+    return n`
       <div class="grid" role="radiogroup" aria-label="Anchor point">
-        ${B(
-      Wn,
+        ${Z(
+      bn,
       (e) => e,
-      (e) => r`
+      (e) => n`
             <button
               type="button"
               role="radio"
               class=${e === this.value ? "cell active" : "cell"}
               aria-checked=${e === this.value}
-              aria-label=${Jo[e]}
-              title=${Jo[e]}
+              aria-label=${Gr[e]}
+              title=${Gr[e]}
               @click=${() => this.dispatchEvent(
         new CustomEvent("change", { bubbles: !0, composed: !0, detail: { value: e } })
       )}>
@@ -4051,7 +4783,7 @@ let Ia = class extends F {
     `;
   }
 };
-Ia.styles = I`
+ja.styles = A`
     :host {
       display: inline-block;
     }
@@ -4085,46 +4817,44 @@ Ia.styles = I`
       outline-offset: 1px;
     }
   `;
-nl([
-  y({ type: String })
-], Ia.prototype, "value", 2);
-Ia = nl([
-  R("di-anchor-picker")
-], Ia);
-var _h = Object.defineProperty, wh = Object.getOwnPropertyDescriptor, rl = (e) => {
+ql([
+  g({ type: String })
+], ja.prototype, "value", 2);
+ja = ql([
+  M("di-anchor-picker")
+], ja);
+var Bp = Object.defineProperty, Kp = Object.getOwnPropertyDescriptor, Hl = (e) => {
   throw TypeError(e);
-}, pt = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? wh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && _h(t, i, s), s;
-}, $h = (e, t, i) => t.has(e) || rl("Cannot " + i), xh = (e, t, i) => t.has(e) ? rl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), kh = (e, t, i) => ($h(e, t, "access private method"), i), Ns, ll;
-let Me = class extends F {
+}, Je = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Kp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Bp(t, i, s), s;
+}, jp = (e, t, i) => t.has(e) || Hl("Cannot " + i), Vp = (e, t, i) => t.has(e) ? Hl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Gp = (e, t, i) => (jp(e, t, "access private method"), i), to, Yl;
+let Ee = class extends L {
   constructor() {
-    super(...arguments), xh(this, Ns), this.label = "", this.suffix = "px", this.step = 1, this.placeholder = "Auto";
+    super(...arguments), Vp(this, to), this.label = "", this.suffix = "px", this.step = 1, this.compact = !1, this.placeholder = "Auto";
   }
   render() {
-    return r`
-      <label class="field">
-        ${this.label ? r`<span class="label">${this.label}</span>` : m}
-        <span class="input">
-          <input
-            type="number"
-            aria-label=${this.label}
-            .value=${this.value === null || this.value === void 0 ? "" : String(this.value)}
-            placeholder=${this.placeholder}
-            step=${this.step}
-            min=${this.min ?? m}
-            max=${this.max ?? m}
-            @change=${kh(this, Ns, ll)} />
-          ${this.suffix ? r`<span class="suffix">${this.suffix}</span>` : m}
-        </span>
-      </label>
+    const e = n`
+      <span class="input" slot="editor">
+        <input
+          type="number"
+          aria-label=${this.label}
+          .value=${this.value === null || this.value === void 0 ? "" : String(this.value)}
+          placeholder=${this.placeholder}
+          step=${this.step}
+          min=${this.min ?? p}
+          max=${this.max ?? p}
+          @change=${Gp(this, to, Yl)} />
+        ${this.suffix ? n`<span class="suffix">${this.suffix}</span>` : p}
+      </span>
     `;
+    return this.label ? this.compact ? n`<label class="compact-field"><span class="compact-label">${this.label}</span>${e}</label>` : n`<umb-property-layout orientation="vertical" label=${this.label}>${e}</umb-property-layout>` : e;
   }
 };
-Ns = /* @__PURE__ */ new WeakSet();
-ll = function(e) {
-  const t = e.target, i = t.value, a = Lu(i, this.min, this.max);
+to = /* @__PURE__ */ new WeakSet();
+Yl = function(e) {
+  const t = e.target, i = t.value, a = Qh(i, this.min, this.max);
   if (a === void 0) {
     t.value = this.value === null || this.value === void 0 ? "" : String(this.value);
     return;
@@ -4132,19 +4862,29 @@ ll = function(e) {
   const s = a === null ? "" : String(a);
   s !== i && (t.value = s), this.dispatchEvent(new CustomEvent("change", { bubbles: !0, composed: !0, detail: { value: a } }));
 };
-Me.styles = I`
+Ee.styles = A`
     :host {
       display: block;
     }
 
-    .field {
+    /* Core's layout pads for a full-width workspace; the inspector's fields use this. */
+    umb-property-layout {
+      padding: var(--uui-size-space-3) 0;
+    }
+
+    .compact-field {
       display: grid;
       gap: 2px;
     }
 
-    .label {
+    .compact-label {
       font-size: 11px;
       color: var(--uui-color-text-alt);
+    }
+
+    :host([compact]) input {
+      min-height: 0;
+      padding: 4px 6px;
     }
 
     .input {
@@ -4163,7 +4903,9 @@ Me.styles = I`
       background: transparent;
       color: inherit;
       font: inherit;
-      padding: 4px 6px;
+      /* The height of a uui-input or uui-select beside it. */
+      min-height: calc(var(--uui-size-11, 36px) - 2px);
+      padding: 0 var(--uui-size-space-3, 9px);
       font-variant-numeric: tabular-nums;
     }
 
@@ -4176,57 +4918,60 @@ Me.styles = I`
     }
 
     .suffix {
-      padding-right: 6px;
+      padding-right: var(--uui-size-space-3, 9px);
       font-size: 11px;
       color: var(--uui-color-text-alt);
     }
   `;
-pt([
-  y({ type: Number })
-], Me.prototype, "value", 2);
-pt([
-  y({ type: String })
-], Me.prototype, "label", 2);
-pt([
-  y({ type: String })
-], Me.prototype, "suffix", 2);
-pt([
-  y({ type: Number })
-], Me.prototype, "step", 2);
-pt([
-  y({ type: Number })
-], Me.prototype, "min", 2);
-pt([
-  y({ type: Number })
-], Me.prototype, "max", 2);
-pt([
-  y({ type: String })
-], Me.prototype, "placeholder", 2);
-Me = pt([
-  R("di-number-field")
-], Me);
-var Sh = Object.defineProperty, Ch = Object.getOwnPropertyDescriptor, cl = (e) => {
+Je([
+  g({ type: Number })
+], Ee.prototype, "value", 2);
+Je([
+  g({ type: String })
+], Ee.prototype, "label", 2);
+Je([
+  g({ type: String })
+], Ee.prototype, "suffix", 2);
+Je([
+  g({ type: Number })
+], Ee.prototype, "step", 2);
+Je([
+  g({ type: Number })
+], Ee.prototype, "min", 2);
+Je([
+  g({ type: Number })
+], Ee.prototype, "max", 2);
+Je([
+  g({ type: Boolean, reflect: !0 })
+], Ee.prototype, "compact", 2);
+Je([
+  g({ type: String })
+], Ee.prototype, "placeholder", 2);
+Ee = Je([
+  M("di-number-field")
+], Ee);
+var qp = Object.defineProperty, Hp = Object.getOwnPropertyDescriptor, Xl = (e) => {
   throw TypeError(e);
-}, fi = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Ch(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Sh(t, i, s), s;
-}, Th = (e, t, i) => t.has(e) || cl("Cannot " + i), Eh = (e, t, i) => t.has(e) ? cl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), h = (e, t, i) => (Th(e, t, "access private method"), i), u, b, ve, ul, hl, dl, vo, Fs, pl, ml, fl, gl, yl, vl, bl, Us, _l, ba, wl, $l, gi, Bs, bo, xl;
-const Zo = (e, t) => {
+}, Wt = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Hp(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && qp(t, i, s), s;
+}, Yp = (e, t, i) => t.has(e) || Xl("Cannot " + i), Xp = (e, t, i) => t.has(e) ? Xl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), u = (e, t, i) => (Yp(e, t, "access private method"), i), c, v, fe, Jl, Zl, Ql, Go, ec, tc, ic, io, ac, sc, oc, rc, nc, lc, ao, cc, uc, so, dc, Ta, hc, pc, qo, ze, fi, mc, Ho, yc;
+const Jp = (e, t) => {
   if (!t) return e;
   const i = Array.isArray(t) ? t : [t];
   return e.filter((a) => i.includes(a.classification));
 };
-let ct = class extends F {
+let Ge = class extends L {
   constructor() {
-    super(...arguments), Eh(this, u), this.properties = [], this.linkedProperties = {}, this.fonts = [];
+    super(...arguments), Xp(this, c), this.properties = [], this.linkedProperties = {}, this.linkedCaptions = {}, this.fonts = [];
   }
   render() {
-    return this.template ? r`<div class="inspector">${this.layer ? h(this, u, pl).call(this, this.layer) : h(this, u, ul).call(this)}</div>` : m;
+    return this.template ? n`<div class="inspector">${this.layer ? u(this, c, ac).call(this, this.layer) : u(this, c, Jl).call(this)}</div>` : p;
   }
 };
-u = /* @__PURE__ */ new WeakSet();
-b = function(e) {
+c = /* @__PURE__ */ new WeakSet();
+v = function(e) {
   this.layer && this.dispatchEvent(
     new CustomEvent("di-layer-change", {
       bubbles: !0,
@@ -4235,75 +4980,82 @@ b = function(e) {
     })
   );
 };
-ve = function(e) {
+fe = function(e) {
   this.dispatchEvent(new CustomEvent("di-canvas-change", { bubbles: !0, composed: !0, detail: { patch: e } }));
 };
-ul = function() {
+Jl = function() {
   const e = this.template.canvas;
-  return r`
+  return n`
       <uui-box headline="Canvas">
-        <div class="pair">
+        <div class="stack">
           <di-number-field
-            .min=${g.width.min}
-            .max=${g.width.max}
+            .min=${f.width.min}
+            .max=${f.width.max}
             label="Width"
             .value=${e.width}
-            @change=${(t) => h(this, u, ve).call(this, { width: t.detail.value ?? 1200 })}>
+            @change=${(t) => u(this, c, fe).call(this, { width: t.detail.value ?? 1200 })}>
           </di-number-field>
           <di-number-field
-            .min=${g.height.min}
-            .max=${g.height.max}
+            .min=${f.height.min}
+            .max=${f.height.max}
             label="Height"
             .value=${e.height}
-            @change=${(t) => h(this, u, ve).call(this, { height: t.detail.value ?? 630 })}>
+            @change=${(t) => u(this, c, fe).call(this, { height: t.detail.value ?? 630 })}>
           </di-number-field>
         </div>
 
-        ${h(this, u, hl).call(this, e)}
+        ${u(this, c, Zl).call(this, e)}
 
-        <label class="field">
-          <span>Base image</span>
-          <div class="row">
-            <uui-select
-              .value=${e.baseImage.kind}
-              .options=${kl(e.baseImage.kind)}
-              @change=${(t) => h(this, u, ve).call(this, {
+        <umb-property-layout orientation="vertical" label="Base image">
+
+          <div slot="editor" class="editor">
+          <uui-select
+            label="Base image source"
+            .value=${e.baseImage.kind}
+            .options=${fc(e.baseImage.kind)}
+            @change=${(t) => u(this, c, fe).call(this, {
     baseImage: { ...e.baseImage, kind: t.target.value }
   })}>
-            </uui-select>
-            <uui-button
-              look="secondary"
-              label="Choose a base image from the media library"
-              @click=${() => this.dispatchEvent(new CustomEvent("di-pick-base-image", { bubbles: !0, composed: !0 }))}>
-              Choose
-            </uui-button>
-          </div>
-        </label>
+          </uui-select>
+        </div>
 
-        ${e.baseImage.kind === "path" ? r`<label class="field">
-              <span>Path</span>
+        </umb-property-layout>
+
+        ${e.baseImage.kind === "media" ? u(this, c, ze).call(this, "Media item", u(this, c, qo).call(this, e.baseImage.mediaKey, (t) => u(this, c, fe).call(this, { baseImage: { ...e.baseImage, kind: "media", mediaKey: t } }))) : p}
+
+        ${e.baseImage.kind === "path" ? n`<umb-property-layout orientation="vertical" label="Path">
+
+              <div slot="editor" class="editor">
               <uui-input
                 .value=${e.baseImage.path ?? ""}
                 placeholder="/assets/og-background.png"
-                @change=${(t) => h(this, u, ve).call(this, {
+                @change=${(t) => u(this, c, fe).call(this, {
     baseImage: { ...e.baseImage, path: t.target.value }
   })}>
               </uui-input>
-            </label>` : m}
+            </div>
 
-        ${e.baseImage.kind === "property" ? r`<label class="field">
-              <span>From property</span>
-              ${h(this, u, gi).call(this, e.baseImage.propertyAlias ?? "", (t) => h(this, u, ve).call(this, { baseImage: { ...e.baseImage, propertyAlias: t } }), { root: ["media", "content"], tail: "media" })}
-            </label>` : m}
+            </umb-property-layout>` : p}
 
-        <label class="field">
-          <span>Fit</span>
+        ${e.baseImage.kind === "property" ? n`<umb-property-layout orientation="vertical" label="From property">
+
+              <div slot="editor" class="editor">
+              ${u(this, c, fi).call(this, e.baseImage.propertyAlias ?? "", (t) => u(this, c, fe).call(this, { baseImage: { ...e.baseImage, propertyAlias: t } }), { root: ["media", "content"], tail: "media" })}
+            </div>
+
+            </umb-property-layout>` : p}
+
+        <umb-property-layout orientation="vertical" label="Fit">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${e.baseImageFit}
-            .options=${ee(["cover", "contain", "stretch"], e.baseImageFit)}
-            @change=${(t) => h(this, u, ve).call(this, { baseImageFit: t.target.value })}>
+            .options=${B(["cover", "contain", "stretch"], e.baseImageFit)}
+            @change=${(t) => u(this, c, fe).call(this, { baseImageFit: t.target.value })}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         <uui-button
           look="secondary"
@@ -4316,119 +5068,211 @@ ul = function() {
       <p class="hint">Select a layer to edit it, or drag a property from the left onto the canvas.</p>
     `;
 };
-hl = function(e) {
-  const t = ch(e);
-  return r`
-      <label class="field">
-        <span>Fill</span>
+Zl = function(e) {
+  const t = Ap(e);
+  return n`
+      <umb-property-layout orientation="vertical" label="Fill">
+
+        <div slot="editor" class="editor">
         <uui-select
           .value=${t}
-          .options=${ee(["colour", "gradient", "transparent"], t)}
-          @change=${(i) => h(this, u, dl).call(this, e, i.target.value)}>
+          .options=${B(["colour", "gradient", "transparent"], t)}
+          @change=${(i) => u(this, c, Ql).call(this, e, i.target.value)}>
         </uui-select>
-      </label>
+      </div>
 
-      ${t === "colour" ? r`<label class="field">
-            <span>Colour</span>
+      </umb-property-layout>
+
+      ${t === "colour" ? n`<umb-property-layout orientation="vertical" label="Colour">
+
+            <div slot="editor" class="editor">
             <di-colour-input
               label="Canvas background"
               .value=${e.background}
-              @change=${(i) => h(this, u, ve).call(this, { background: i.detail.value })}>
+              @change=${(i) => u(this, c, fe).call(this, { background: i.detail.value })}>
             </di-colour-input>
-          </label>` : m}
+          </div>
 
-      ${t === "gradient" && e.backgroundGradient ? h(this, u, vo).call(this, e.backgroundGradient, (i) => h(this, u, ve).call(this, { backgroundGradient: i })) : m}
+          </umb-property-layout>` : p}
 
-      ${t === "transparent" ? r`<p class="hint">
+      ${t === "gradient" && e.backgroundGradient ? u(this, c, Go).call(this, e.backgroundGradient, (i) => u(this, c, fe).call(this, { backgroundGradient: i })) : p}
+
+      ${t === "transparent" ? n`<p class="hint">
             The canvas is transparent. PNG and WebP keep transparency; JPEG does not, and will flatten it.
-          </p>` : m}
+          </p>` : p}
     `;
 };
-dl = function(e, t) {
+Ql = function(e, t) {
   if (t === "gradient") {
-    h(this, u, ve).call(this, { backgroundGradient: e.backgroundGradient ?? Rn() });
+    u(this, c, fe).call(this, { backgroundGradient: e.backgroundGradient ?? vn() });
     return;
   }
-  h(this, u, ve).call(this, {
-    background: hh(e.background, t === "transparent" ? "00" : "FF"),
+  u(this, c, fe).call(this, {
+    background: Rp(e.background, t === "transparent" ? "00" : "FF"),
     backgroundGradient: null
   });
 };
-vo = function(e, t) {
-  return r`
-      <label class="field">
-        <span>Type</span>
+Go = function(e, t) {
+  const i = e.kind ?? "linear", a = i === "linear" || i === "reflected" || i === "angular", s = i === "radial" || i === "angular" || i === "diamond";
+  return n`
+      ${u(this, c, ze).call(this, "Gradient type", n`
         <uui-select
-          .value=${e.kind}
-          .options=${ee(["linear", "radial"], e.kind)}
-          @change=${(i) => t({ ...e, kind: i.target.value })}>
+          label="Gradient type"
+          .value=${i}
+          .options=${B(["linear", "radial", "angular", "diamond", "reflected"], i, Zp)}
+          @change=${(o) => t({ ...e, kind: o.target.value })}>
         </uui-select>
-      </label>
+      `)}
 
-      <div class="pair">
-        <di-colour-input
-          label="From"
-          .value=${e.from}
-          @change=${(i) => t({ ...e, from: i.detail.value })}>
-        </di-colour-input>
-        <di-colour-input
-          label="To"
-          .value=${e.to}
-          @change=${(i) => t({ ...e, to: i.detail.value })}>
-        </di-colour-input>
-      </div>
+      <div class="gradient-preview" role="img" aria-label="The gradient" style="background: ${Io(e)}"></div>
 
-      ${e.kind === "radial" ? r`<div class="pair">
-            ${h(this, u, Fs).call(this, "Centre X", e.centreX, (i) => t({ ...e, centreX: i }))}
-            ${h(this, u, Fs).call(this, "Centre Y", e.centreY, (i) => t({ ...e, centreY: i }))}
-          </div>` : r`<di-number-field
-            .min=${g.gradientAngle.min}
-            .max=${g.gradientAngle.max}
-            label="Angle"
-            suffix="°"
-            .value=${e.angle}
-            @change=${(i) => t({ ...e, angle: i.detail.value ?? 180 })}>
-          </di-number-field>`}
+      ${a ? u(this, c, ec).call(this, e, t) : p}
+      ${i === "radial" ? u(this, c, tc).call(this, e, t) : p}
+      ${s ? n`
+            ${u(this, c, io).call(this, "Centre X", e.centreX, (o) => t({ ...e, centreX: o }))}
+            ${u(this, c, io).call(this, "Centre Y", e.centreY, (o) => t({ ...e, centreY: o }))}
+          ` : p}
+
+      ${u(this, c, ic).call(this, e, t)}
     `;
 };
-Fs = function(e, t, i) {
-  return r`<di-number-field
-      .min=${g.gradientCentre.min * 100}
-      .max=${g.gradientCentre.max * 100}
+ec = function(e, t) {
+  const i = Math.round(e.angle ?? 180) % 360, a = (s) => t({ ...e, angle: (Math.round(s) % 360 + 360) % 360 });
+  return u(this, c, ze).call(this, e.kind === "angular" ? "Start angle" : "Angle", n`
+      <div class="angle">
+        <uui-slider
+          label="Angle"
+          hide-step-values
+          min="0"
+          max="359"
+          step="1"
+          .value=${String(i)}
+          @change=${(s) => a(Number(s.target.value))}>
+        </uui-slider>
+        <di-number-field
+          label="Degrees"
+          suffix="°"
+          .min=${f.gradientAngle.min}
+          .max=${f.gradientAngle.max}
+          .value=${i}
+          @change=${(s) => a(s.detail.value ?? 180)}>
+        </di-number-field>
+        <uui-button-group>
+          ${em.map(([s, o, r]) => n`
+            <uui-button
+              compact
+              look=${i === o ? "primary" : "secondary"}
+              label=${r}
+              title=${r}
+              @click=${() => a(o)}>${s}</uui-button>
+          `)}
+        </uui-button-group>
+      </div>
+    `);
+};
+tc = function(e, t) {
+  const i = e.shape ?? "ellipse", a = e.extent ?? "farthestCorner";
+  return n`
+      ${u(this, c, ze).call(this, "Shape", n`
+        <uui-select
+          label="Radial shape"
+          .value=${i}
+          .options=${B(["ellipse", "circle"], i)}
+          @change=${(s) => t({ ...e, shape: s.target.value })}>
+        </uui-select>
+      `)}
+      ${u(this, c, ze).call(this, "Size", n`
+        <uui-select
+          label="Radial size"
+          .value=${a}
+          .options=${B(["farthestCorner", "farthestSide", "closestCorner", "closestSide"], a, Qp)}
+          @change=${(s) => t({ ...e, extent: s.target.value })}>
+        </uui-select>
+      `, "Where the last colour lands.")}
+    `;
+};
+ic = function(e, t) {
+  const i = yt(e);
+  return u(this, c, ze).call(this, "Colour stops", n`
+      <div class="stops">
+        ${i.map((a, s) => n`
+          <div class="stop">
+            <di-colour-input
+              label="Stop ${s + 1} colour"
+              .value=${a.colour}
+              @change=${(o) => t(Ni(e, i.map((r, l) => l === s ? { ...r, colour: o.detail.value } : r)))}>
+            </di-colour-input>
+            <div class="stop-position">
+              <di-number-field
+                label="Position"
+                suffix="%"
+                .min=${0}
+                .max=${100}
+                .value=${Math.round(a.position * 100)}
+                @change=${(o) => t(Ni(e, i.map((r, l) => l === s ? { ...r, position: (o.detail.value ?? 0) / 100 } : r)))}>
+              </di-number-field>
+              <uui-button
+                compact
+                look="secondary"
+                color="danger"
+                label="Remove stop ${s + 1}"
+                ?disabled=${i.length <= 2}
+                @click=${() => t(op(e, s))}>
+                <uui-icon name="icon-trash"></uui-icon>
+              </uui-button>
+            </div>
+          </div>
+        `)}
+        <div class="stop-actions">
+          <uui-button look="secondary" label="Add stop" @click=${() => t(sp(e))}>
+            <uui-icon name="icon-add"></uui-icon> Add stop
+          </uui-button>
+          <uui-button look="secondary" label="Reverse the gradient" @click=${() => t(ap(e))}>
+            <uui-icon name="icon-sync"></uui-icon> Reverse
+          </uui-button>
+        </div>
+      </div>
+    `);
+};
+io = function(e, t, i) {
+  return n`<di-number-field
+      .min=${f.gradientCentre.min * 100}
+      .max=${f.gradientCentre.max * 100}
       label=${e}
       suffix="%"
       .value=${Math.round((t ?? 0.5) * 100)}
       @change=${(a) => i((a.detail.value ?? 50) / 100)}>
     </di-number-field>`;
 };
-pl = function(e) {
-  return r`
+ac = function(e) {
+  return n`
       <div class="head">
         <uui-input
           label="Layer name"
           .value=${e.name}
-          @change=${(t) => h(this, u, b).call(this, { name: t.target.value })}>
+          @change=${(t) => u(this, c, v).call(this, { name: t.target.value })}>
         </uui-input>
         <uui-tag look="secondary">${e.type}</uui-tag>
       </div>
 
-      ${e.type === "text" ? h(this, u, ml).call(this, e) : m}
-      ${e.type === "text" ? h(this, u, fl).call(this, e) : m}
-      ${e.type === "image" ? h(this, u, gl).call(this, e) : m}
-      ${e.type === "badges" ? h(this, u, yl).call(this, e) : m}
-      ${e.type === "rect" ? h(this, u, vl).call(this, e) : m}
-      ${h(this, u, bl).call(this, e)} ${h(this, u, $l).call(this, e)}
+      ${e.type === "text" ? u(this, c, sc).call(this, e) : p}
+      ${e.type === "text" ? u(this, c, oc).call(this, e) : p}
+      ${e.type === "image" ? u(this, c, rc).call(this, e) : p}
+      ${e.type === "badges" ? u(this, c, nc).call(this, e) : p}
+      ${e.type === "rect" ? u(this, c, cc).call(this, e) : p}
+      ${u(this, c, uc).call(this, e)} ${u(this, c, pc).call(this, e)}
     `;
 };
-ml = function(e) {
+sc = function(e) {
   const t = e.binding;
-  return r`
+  return n`
       <uui-box headline="Content">
-        <label class="field">
-          <span>Source</span>
+        <umb-property-layout orientation="vertical" label="Source">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${t.kind}
-            .options=${ee(
+            .options=${B(
     ["property", "nodeName", "readingTime", "date", "static", "expression"],
     t.kind,
     {
@@ -4440,117 +5284,140 @@ ml = function(e) {
       expression: "Expression"
     }
   )}
-            @change=${(i) => h(this, u, b).call(this, {
+            @change=${(i) => u(this, c, v).call(this, {
     binding: { ...t, kind: i.target.value }
   })}>
           </uui-select>
-        </label>
+        </div>
 
-        ${t.kind === "property" || t.kind === "date" || t.kind === "readingTime" ? r`<label class="field">
-              <span>Property</span>
-              ${h(this, u, gi).call(this, t.propertyAlias ?? "", (i) => h(this, u, b).call(this, { binding: { ...t, propertyAlias: i } }))}
-            </label>` : m}
+        </umb-property-layout>
 
-        ${t.kind === "date" ? r`<label class="field">
-              <span>Date format</span>
+        ${t.kind === "property" || t.kind === "date" || t.kind === "readingTime" ? u(this, c, ze).call(this, "Property", u(this, c, fi).call(this, t.propertyAlias ?? "", (i) => u(this, c, v).call(this, { binding: { ...t, propertyAlias: i } }))) : p}
+
+        ${t.kind === "date" ? n`<umb-property-layout orientation="vertical" label="Date format">
+
+              <div slot="editor" class="editor">
               <uui-input
                 .value=${t.format ?? ""}
                 placeholder="d MMMM yyyy"
-                @change=${(i) => h(this, u, b).call(this, {
+                @change=${(i) => u(this, c, v).call(this, {
     binding: { ...t, format: i.target.value }
   })}>
               </uui-input>
-            </label>` : m}
+            </div>
 
-        ${t.kind === "static" || t.kind === "expression" ? r`<label class="field">
-              <span>${t.kind === "static" ? "Text" : "Expression"}</span>
+            </umb-property-layout>` : p}
+
+        ${t.kind === "static" || t.kind === "expression" ? n`<umb-property-layout orientation="vertical" label="${t.kind === "static" ? "Text" : "Expression"}">
+
+              <div slot="editor" class="editor">
               <uui-textarea
                 rows="2"
                 .value=${t.text ?? ""}
-                @change=${(i) => h(this, u, b).call(this, {
+                @change=${(i) => u(this, c, v).call(this, {
     binding: { ...t, text: i.target.value }
   })}>
               </uui-textarea>
-              ${t.kind === "expression" ? r`<small class="hint">
+              ${t.kind === "expression" ? n`<small class="hint">
                     Tokens: <code>{name}</code>, <code>{readingTime}</code>, <code>{prop:alias}</code>,
                     <code>{date:alias:format}</code>
-                  </small>` : m}
-            </label>` : m}
+                  </small>` : p}
+            </div>
 
-        <div class="pair">
-          <label class="field">
-            <span>Prefix</span>
+            </umb-property-layout>` : p}
+
+        <div class="stack">
+          <umb-property-layout orientation="vertical" label="Prefix">
+
+            <div slot="editor" class="editor">
             <uui-input
               .value=${e.prefix ?? ""}
-              @change=${(i) => h(this, u, b).call(this, { prefix: i.target.value })}>
+              @change=${(i) => u(this, c, v).call(this, { prefix: i.target.value })}>
             </uui-input>
-          </label>
-          <label class="field">
-            <span>Suffix</span>
+          </div>
+
+          </umb-property-layout>
+          <umb-property-layout orientation="vertical" label="Suffix">
+
+            <div slot="editor" class="editor">
             <uui-input
               .value=${e.suffix ?? ""}
-              @change=${(i) => h(this, u, b).call(this, { suffix: i.target.value })}>
+              @change=${(i) => u(this, c, v).call(this, { suffix: i.target.value })}>
             </uui-input>
-          </label>
+          </div>
+
+          </umb-property-layout>
         </div>
       </uui-box>
     `;
 };
-fl = function(e) {
-  const t = e.style, i = (a) => h(this, u, b).call(this, { style: { ...t, ...a } });
-  return r`
+oc = function(e) {
+  const t = e.style, i = (a) => u(this, c, v).call(this, { style: { ...t, ...a } });
+  return n`
       <uui-box headline="Typography">
-        <label class="field">
-          <span>Font</span>
+        <umb-property-layout orientation="vertical" label="Font">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${t.fontKey}
-            .options=${h(this, u, bo).call(this, t.fontKey)}
+            .options=${u(this, c, Ho).call(this, t.fontKey)}
             @change=${(a) => i({ fontKey: a.target.value })}>
           </uui-select>
-        </label>
+        </div>
 
-        ${h(this, u, xl).call(this, t.fontKey, t.styleName ?? "", (a, s, o) => i({ styleName: a || null, fontSize: s ?? t.fontSize, fontStyle: o ?? t.fontStyle }))}
+        </umb-property-layout>
 
-        <div class="pair">
+        ${u(this, c, yc).call(this, t.fontKey, t.styleName ?? "", (a, s, o) => i({ styleName: a || null, fontSize: s ?? t.fontSize, fontStyle: o ?? t.fontStyle }))}
+
+        <div class="stack">
           <di-number-field
-            .min=${g.fontSize.min}
-            .max=${g.fontSize.max}
+            .min=${f.fontSize.min}
+            .max=${f.fontSize.max}
             label="Size"
             .value=${t.fontSize}
             @change=${(a) => i({ fontSize: a.detail.value ?? t.fontSize })}>
           </di-number-field>
-          <label class="field">
-            <span>Weight</span>
+          <umb-property-layout orientation="vertical" label="Weight">
+
+            <div slot="editor" class="editor">
             <uui-select
               .value=${t.fontStyle}
-              .options=${ee(["Regular", "Bold", "Italic", "BoldItalic"], t.fontStyle)}
+              .options=${B(["Regular", "Bold", "Italic", "BoldItalic"], t.fontStyle)}
               @change=${(a) => i({ fontStyle: a.target.value })}>
             </uui-select>
-          </label>
+          </div>
+
+          </umb-property-layout>
         </div>
 
-        <label class="field">
-          <span>Colour</span>
+        <umb-property-layout orientation="vertical" label="Colour">
+
+          <div slot="editor" class="editor">
           <di-colour-input
             label="Text colour"
             .value=${t.colour}
             @change=${(a) => i({ colour: a.detail.value })}>
           </di-colour-input>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Align inside the box</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Align inside the box">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${t.textAlign}
-            .options=${ee(["left", "centre", "right"], t.textAlign)}
+            .options=${B(["left", "centre", "right"], t.textAlign)}
             @change=${(a) => i({ textAlign: a.target.value })}>
           </uui-select>
-        </label>
+        </div>
 
-        <div class="pair">
+        </umb-property-layout>
+
+        <div class="stack">
           <di-number-field
-            .min=${g.lineSpacing.min}
-            .max=${g.lineSpacing.max}
+            .min=${f.lineSpacing.min}
+            .max=${f.lineSpacing.max}
             label="Line spacing"
             suffix="×"
             step="0.05"
@@ -4558,644 +5425,768 @@ fl = function(e) {
             @change=${(a) => i({ lineSpacing: a.detail.value ?? 1 })}>
           </di-number-field>
           <di-number-field
-            .min=${g.letterSpacing.min}
-            .max=${g.letterSpacing.max}
+            .min=${f.letterSpacing.min}
+            .max=${f.letterSpacing.max}
             label="Letter spacing"
             .value=${t.letterSpacing}
             @change=${(a) => i({ letterSpacing: a.detail.value ?? 0 })}>
           </di-number-field>
         </div>
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
-            .min=${g.maxLines.min}
-            .max=${g.maxLines.max}
+            .min=${f.maxLines.min}
+            .max=${f.maxLines.max}
             label="Max lines"
             suffix=""
             placeholder="No limit"
             .value=${t.maxLines ?? null}
             @change=${(a) => i({ maxLines: a.detail.value })}>
           </di-number-field>
-          <label class="field">
-            <span>When it overflows</span>
+          <umb-property-layout orientation="vertical" label="When it overflows">
+
+            <div slot="editor" class="editor">
             <uui-select
               .value=${t.overflow}
-              .options=${ee(["shrink", "ellipsis", "clip"], t.overflow, {
+              .options=${B(["shrink", "ellipsis", "clip"], t.overflow, {
     shrink: "Shrink to fit",
     ellipsis: "Trim with …",
     clip: "Cut off"
   })}
               @change=${(a) => i({ overflow: a.target.value })}>
             </uui-select>
-          </label>
+          </div>
+
+          </umb-property-layout>
         </div>
 
-        <label class="field">
-          <span>Transform</span>
+        <umb-property-layout orientation="vertical" label="Transform">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${t.textTransform}
-            .options=${ee(["none", "uppercase", "lowercase"], t.textTransform)}
+            .options=${B(["none", "uppercase", "lowercase"], t.textTransform)}
             @change=${(a) => i({ textTransform: a.target.value })}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
       </uui-box>
     `;
 };
-gl = function(e) {
+rc = function(e) {
   var i;
   const t = e.source;
-  return r`
+  return n`
       <uui-box headline="Image">
-        <label class="field">
-          <span>Source</span>
+        <umb-property-layout orientation="vertical" label="Source">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${t.kind}
-            .options=${kl(t.kind)}
-            @change=${(a) => h(this, u, b).call(this, {
+            .options=${fc(t.kind)}
+            @change=${(a) => u(this, c, v).call(this, {
     source: { ...t, kind: a.target.value }
   })}>
           </uui-select>
-        </label>
+        </div>
 
-        ${t.kind === "property" ? r`<label class="field">
-              <span>Property</span>
-              ${h(this, u, gi).call(
+        </umb-property-layout>
+
+        ${t.kind === "property" ? u(this, c, ze).call(this, "Property", u(this, c, fi).call(
     this,
     t.propertyAlias ?? "",
-    (a) => h(this, u, b).call(this, { source: { ...t, propertyAlias: a } }),
+    (a) => u(this, c, v).call(this, { source: { ...t, propertyAlias: a } }),
     // The root widens from media to media + content, and the media filter moves to the
     // tail: that is exactly the author.mainImage case, and it never offers a text
     // property as an image source.
     { root: ["media", "content"], tail: "media" }
-  )}
-            </label>` : m}
+  )) : p}
 
-        ${t.kind === "path" ? r`<label class="field">
-              <span>Path</span>
+        ${t.kind === "path" ? n`<umb-property-layout orientation="vertical" label="Path">
+
+              <div slot="editor" class="editor">
               <uui-input
                 .value=${t.path ?? ""}
                 placeholder="/assets/logo.png"
-                @change=${(a) => h(this, u, b).call(this, {
+                @change=${(a) => u(this, c, v).call(this, {
     source: { ...t, path: a.target.value }
   })}>
               </uui-input>
-            </label>` : m}
+            </div>
 
-        ${t.kind === "media" ? r`<uui-button
-              look="secondary"
-              label="Choose an image from the media library"
-              @click=${() => this.dispatchEvent(
-    new CustomEvent("di-pick-layer-image", { bubbles: !0, composed: !0, detail: { key: e.key } })
-  )}>
-              Choose image
-            </uui-button>` : m}
+            </umb-property-layout>` : p}
 
-        <label class="field">
-          <span>Fit</span>
+        ${t.kind === "media" ? u(this, c, ze).call(this, "Media item", u(this, c, qo).call(this, t.mediaKey, (a) => u(this, c, v).call(this, { source: { ...t, kind: "media", mediaKey: a } }))) : p}
+
+        <umb-property-layout orientation="vertical" label="Fit">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${e.fit}
-            .options=${ee(["cover", "contain", "stretch"], e.fit)}
-            @change=${(a) => h(this, u, b).call(this, { fit: a.target.value })}>
+            .options=${B(["cover", "contain", "stretch"], e.fit)}
+            @change=${(a) => u(this, c, v).call(this, { fit: a.target.value })}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         <di-number-field
-          .min=${g.cornerRadius.min}
-          .max=${g.cornerRadius.max}
+          .min=${f.cornerRadius.min}
+          .max=${f.cornerRadius.max}
           label="Corner radius"
           .value=${e.cornerRadius}
-          @change=${(a) => h(this, u, b).call(this, { cornerRadius: a.detail.value ?? 0 })}>
+          @change=${(a) => u(this, c, v).call(this, { cornerRadius: a.detail.value ?? 0 })}>
         </di-number-field>
 
-        <label class="field">
-          <span>Border</span>
-          <div class="row">
+        <umb-property-layout orientation="vertical" label="Border">
+
+          <div slot="editor" class="editor">
+          <div class="stack">
             <di-number-field
-              .min=${g.borderWidth.min}
-              .max=${g.borderWidth.max}
+              .min=${f.borderWidth.min}
+              .max=${f.borderWidth.max}
               label="Width"
               .value=${((i = e.border) == null ? void 0 : i.width) ?? 0}
               @change=${(a) => {
     var o;
     const s = a.detail.value ?? 0;
-    h(this, u, b).call(this, {
+    u(this, c, v).call(this, {
       border: s > 0 ? { width: s, colour: ((o = e.border) == null ? void 0 : o.colour) ?? "#FFFFFF" } : null
     });
   }}>
             </di-number-field>
-            ${e.border ? r`<di-colour-input
+            ${e.border ? n`<di-colour-input
                   label="Border colour"
                   .value=${e.border.colour}
-                  @change=${(a) => h(this, u, b).call(this, { border: { ...e.border, colour: a.detail.value } })}>
-                </di-colour-input>` : m}
+                  @change=${(a) => u(this, c, v).call(this, { border: { ...e.border, colour: a.detail.value } })}>
+                </di-colour-input>` : p}
           </div>
-        </label>
+        </div>
+
+        </umb-property-layout>
       </uui-box>
     `;
 };
-yl = function(e) {
-  const t = (s) => h(this, u, b).call(this, { badge: { ...e.badge, ...s } }), i = (s) => h(this, u, b).call(this, { label: { ...e.label, ...s } }), a = (s) => h(this, u, b).call(this, { icon: { ...e.icon, ...s } });
-  return r`
+nc = function(e) {
+  const t = (s) => u(this, c, v).call(this, { badge: { ...e.badge, ...s } }), i = (s) => u(this, c, v).call(this, { label: { ...e.label, ...s } }), a = (s) => u(this, c, v).call(this, { icon: { ...e.icon, ...s } });
+  return n`
       <uui-box headline="Badges">
-        <label class="field">
-          <span>Items from</span>
-          ${h(this, u, gi).call(this, e.itemsPropertyAlias, (s) => h(this, u, b).call(this, { itemsPropertyAlias: s }))}
-        </label>
+        <umb-property-layout orientation="vertical" label="Items from">
 
-        <div class="pair">
+          <div slot="editor" class="editor">
+          ${u(this, c, fi).call(this, e.itemsPropertyAlias, (s) => u(this, c, v).call(this, { itemsPropertyAlias: s }))}
+        </div>
+
+        </umb-property-layout>
+
+        <div class="stack">
           <di-number-field
-            .min=${g.maxItems.min}
-            .max=${g.maxItems.max}
+            .min=${f.maxItems.min}
+            .max=${f.maxItems.max}
             label="Max items"
             suffix=""
             .value=${e.maxItems}
-            @change=${(s) => h(this, u, b).call(this, { maxItems: s.detail.value ?? 2 })}>
+            @change=${(s) => u(this, c, v).call(this, { maxItems: s.detail.value ?? 2 })}>
           </di-number-field>
           <di-number-field
-            .min=${g.gap.min}
-            .max=${g.gap.max}
+            .min=${f.gap.min}
+            .max=${f.gap.max}
             label="Gap"
             .value=${e.gap}
-            @change=${(s) => h(this, u, b).call(this, { gap: s.detail.value ?? 40 })}>
+            @change=${(s) => u(this, c, v).call(this, { gap: s.detail.value ?? 40 })}>
           </di-number-field>
         </div>
 
-        <label class="field">
-          <span>Direction</span>
+        <umb-property-layout orientation="vertical" label="Direction">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${e.direction}
-            .options=${ee(["horizontal", "vertical"], e.direction)}
-            @change=${(s) => h(this, u, b).call(this, { direction: s.target.value })}>
+            .options=${B(["horizontal", "vertical"], e.direction)}
+            @change=${(s) => u(this, c, v).call(this, { direction: s.target.value })}>
           </uui-select>
-        </label>
+        </div>
 
-        ${e.direction === "horizontal" ? r`
-              <label class="field inline">
-                <span>Wrap onto new rows</span>
+        </umb-property-layout>
+
+        ${e.direction === "horizontal" ? n`
+              <umb-property-layout orientation="vertical" label="Wrap onto new rows">
+
+                <div slot="editor" class="editor">
                 <uui-toggle
                   ?checked=${e.wrap}
-                  @change=${(s) => h(this, u, b).call(this, { wrap: s.target.checked })}>
+                  @change=${(s) => u(this, c, v).call(this, { wrap: s.target.checked })}>
                 </uui-toggle>
-              </label>
+              </div>
 
-              ${e.wrap ? r`
+              </umb-property-layout>
+
+              ${e.wrap ? n`
                     <di-number-field
-                      .min=${g.rowGap.min}
-                      .max=${g.rowGap.max}
+                      .min=${f.rowGap.min}
+                      .max=${f.rowGap.max}
                       label="Row gap"
                       .value=${e.rowGap}
-                      @change=${(s) => h(this, u, b).call(this, { rowGap: s.detail.value ?? 20 })}>
+                      @change=${(s) => u(this, c, v).call(this, { rowGap: s.detail.value ?? 20 })}>
                     </di-number-field>
                     <small class="hint">Rows are wrapped against the Width in the Layout box below.</small>
-                  ` : m}
-            ` : m}
+                  ` : p}
+            ` : p}
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
-            .min=${g.circleSize.min}
-            .max=${g.circleSize.max}
+            .min=${f.circleSize.min}
+            .max=${f.circleSize.max}
             label="Circle size"
             .value=${e.badge.size}
             @change=${(s) => t({ size: s.detail.value ?? 88 })}>
           </di-number-field>
           <di-number-field
-            .min=${g.iconSize.min}
-            .max=${g.iconSize.max}
+            .min=${f.iconSize.min}
+            .max=${f.iconSize.max}
             label="Icon size"
             .value=${e.badge.innerSize}
             @change=${(s) => t({ innerSize: s.detail.value ?? 44 })}>
           </di-number-field>
         </div>
 
-        <label class="field">
-          <span>Circle fill</span>
+        <umb-property-layout orientation="vertical" label="Circle fill">
+
+          <div slot="editor" class="editor">
           <di-colour-input
             label="Circle fill"
             .value=${e.badge.fillColour}
             @change=${(s) => t({ fillColour: s.detail.value })}>
           </di-colour-input>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Circle border</span>
-          <div class="row">
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Circle border">
+
+          <div slot="editor" class="editor">
+          <div class="stack">
             <di-colour-input
               label="Circle border colour"
               .value=${e.badge.borderColour}
               @change=${(s) => t({ borderColour: s.detail.value })}>
             </di-colour-input>
             <di-number-field
-              .min=${g.borderWidth.min}
-              .max=${g.borderWidth.max}
+              .min=${f.borderWidth.min}
+              .max=${f.borderWidth.max}
               label="Width"
               step="0.5"
               .value=${e.badge.borderWidth}
               @change=${(s) => t({ borderWidth: s.detail.value ?? 1.5 })}>
             </di-number-field>
           </div>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Icon folder</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Icon folder">
+
+          <div slot="editor" class="editor">
           <uui-input
             .value=${e.icon.basePath}
             placeholder="/assets/og-icons"
             @change=${(s) => a({ basePath: s.target.value })}>
           </uui-input>
           <small class="hint">Icons are matched by slugifying the item's name, with default.png as a fallback.</small>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Label position</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Label position">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${e.label.position}
-            .options=${ee(["below", "right", "none"], e.label.position, {
+            .options=${B(["below", "right", "none"], e.label.position, {
     below: "Below the icon",
     right: "Beside the icon",
     none: "Icon only"
   })}
             @change=${(s) => i({ position: s.target.value })}>
           </uui-select>
-          ${e.label.position === "right" ? r`<small class="hint">Each badge is as wide as its own label.</small>` : m}
-        </label>
+          ${e.label.position === "right" ? n`<small class="hint">Each badge is as wide as its own label.</small>` : p}
+        </div>
 
-        ${e.label.position === "none" ? m : r`
-              <label class="field">
-                <span>Label font</span>
+        </umb-property-layout>
+
+        ${e.label.position === "none" ? p : n`
+              <umb-property-layout orientation="vertical" label="Label font">
+
+                <div slot="editor" class="editor">
                 <uui-select
                   .value=${e.label.fontKey}
-                  .options=${h(this, u, bo).call(this, e.label.fontKey)}
+                  .options=${u(this, c, Ho).call(this, e.label.fontKey)}
                   @change=${(s) => i({ fontKey: s.target.value })}>
                 </uui-select>
-              </label>
+              </div>
 
-              <div class="pair">
+              </umb-property-layout>
+
+              <div class="stack">
                 <di-number-field
-                  .min=${g.labelSize.min}
-                  .max=${g.labelSize.max}
+                  .min=${f.labelSize.min}
+                  .max=${f.labelSize.max}
                   label="Label size"
                   .value=${e.label.fontSize}
                   @change=${(s) => i({ fontSize: s.detail.value ?? 22 })}>
                 </di-number-field>
                 <di-number-field
-                  .min=${g.labelGap.min}
-                  .max=${g.labelGap.max}
+                  .min=${f.labelGap.min}
+                  .max=${f.labelGap.max}
                   label="Label gap"
                   .value=${e.label.gap}
                   @change=${(s) => i({ gap: s.detail.value ?? 10 })}>
                 </di-number-field>
               </div>
 
-              <label class="field">
-                <span>Label colour</span>
+              <umb-property-layout orientation="vertical" label="Label colour">
+
+                <div slot="editor" class="editor">
                 <di-colour-input
                   label="Label colour"
                   .value=${e.label.colour}
                   @change=${(s) => i({ colour: s.detail.value })}>
                 </di-colour-input>
-              </label>
+              </div>
 
-              <label class="field">
-                <span>Label transform</span>
+              </umb-property-layout>
+
+              <umb-property-layout orientation="vertical" label="Label transform">
+
+                <div slot="editor" class="editor">
                 <uui-select
                   .value=${e.label.textTransform}
-                  .options=${ee(["none", "uppercase", "lowercase"], e.label.textTransform)}
+                  .options=${B(["none", "uppercase", "lowercase"], e.label.textTransform)}
                   @change=${(s) => i({ textTransform: s.target.value })}>
                 </uui-select>
-              </label>
+              </div>
+
+              </umb-property-layout>
             `}
       </uui-box>
     `;
 };
-vl = function(e) {
+lc = function(e, t) {
+  if (t === "circle") {
+    const a = e.size.width ?? e.size.height ?? 200;
+    u(this, c, v).call(this, { shape: "ellipse", lockAspect: !0, size: { ...e.size, width: a, height: a } });
+    return;
+  }
+  const i = oo(e) === "circle";
+  u(this, c, v).call(this, {
+    shape: t,
+    ...i ? { lockAspect: !1 } : {}
+  });
+};
+ao = function(e, t, i) {
+  const a = e.type === "rect" && e.lockAspect === !0, { width: s, height: o } = e.size;
+  if (!a || i === null || !s || !o) {
+    u(this, c, v).call(this, { size: { ...e.size, [t]: i } });
+    return;
+  }
+  const r = t === "width" ? { width: i, height: Math.round(i * o / s) } : { width: Math.round(i * s / o), height: i };
+  u(this, c, v).call(this, { size: r });
+};
+cc = function(e) {
   var a;
   const t = e.shape ?? "rectangle", i = e.fill !== null && e.fill !== void 0;
-  return r`
+  return n`
       <uui-box headline="Shape">
-        <label class="field">
-          <span>Shape</span>
-          <uui-select
-            .value=${t}
-            .options=${ee(["rectangle", "ellipse", "polygon", "star"], t)}
-            @change=${(s) => h(this, u, b).call(this, { shape: s.target.value })}>
-          </uui-select>
-        </label>
+        <umb-property-layout orientation="vertical" label="Shape">
 
-        ${t === "polygon" || t === "star" ? r`
-              <div class="pair">
+          <div slot="editor" class="editor">
+          <uui-select
+            .value=${oo(e)}
+            .options=${B(["rectangle", "circle", "ellipse", "polygon", "star"], oo(e))}
+            @change=${(s) => u(this, c, lc).call(this, e, s.target.value)}>
+          </uui-select>
+        </div>
+
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Lock aspect ratio">
+
+          <div slot="editor" class="editor">
+          <uui-toggle
+            label="Lock aspect ratio"
+            ?checked=${e.lockAspect === !0}
+            @change=${(s) => u(this, c, v).call(this, { lockAspect: s.target.checked })}>
+          </uui-toggle>
+        </div>
+
+        </umb-property-layout>
+
+        ${t === "polygon" || t === "star" ? n`
+              <div class="stack">
                 <di-number-field
                   label=${t === "star" ? "Points" : "Sides"}
                   suffix=""
-                  .min=${g.sides.min}
-                  .max=${g.sides.max}
+                  .min=${f.sides.min}
+                  .max=${f.sides.max}
                   .value=${e.sides ?? 5}
-                  @change=${(s) => h(this, u, b).call(this, { sides: Math.round(s.detail.value ?? 5) })}>
+                  @change=${(s) => u(this, c, v).call(this, { sides: Math.round(s.detail.value ?? 5) })}>
                 </di-number-field>
-                ${t === "star" ? r`<di-number-field
+                ${t === "star" ? n`<di-number-field
                       label="Inner ratio"
                       suffix=""
                       step="0.05"
-                      .min=${g.innerRatio.min}
-                      .max=${g.innerRatio.max}
+                      .min=${f.innerRatio.min}
+                      .max=${f.innerRatio.max}
                       .value=${e.innerRatio ?? 0.5}
-                      @change=${(s) => h(this, u, b).call(this, { innerRatio: s.detail.value ?? 0.5 })}>
-                    </di-number-field>` : m}
+                      @change=${(s) => u(this, c, v).call(this, { innerRatio: s.detail.value ?? 0.5 })}>
+                    </di-number-field>` : p}
               </div>
-            ` : m}
+            ` : p}
 
-        <label class="field inline">
-          <span>Fill</span>
+        <umb-property-layout orientation="vertical" label="Fill">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${i}
-            @change=${(s) => h(this, u, b).call(this, { fill: s.target.checked ? "#000000" : null })}>
+            @change=${(s) => u(this, c, v).call(this, { fill: s.target.checked ? "#000000" : null })}>
           </uui-toggle>
-        </label>
+        </div>
 
-        ${i ? r`<label class="field">
-              <span>Fill colour</span>
+        </umb-property-layout>
+
+        ${i ? n`<umb-property-layout orientation="vertical" label="Fill colour">
+
+              <div slot="editor" class="editor">
               <di-colour-input
                 label="Fill colour"
                 .value=${e.fill ?? "#000000"}
-                @change=${(s) => h(this, u, b).call(this, { fill: s.detail.value })}>
+                @change=${(s) => u(this, c, v).call(this, { fill: s.detail.value })}>
               </di-colour-input>
-            </label>` : m}
+            </div>
 
-        <label class="field inline">
-          <span>Gradient</span>
+            </umb-property-layout>` : p}
+
+        <umb-property-layout orientation="vertical" label="Gradient">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${!!e.gradient}
-            @change=${(s) => h(this, u, b).call(this, {
-    gradient: s.target.checked ? Rn() : null
+            @change=${(s) => u(this, c, v).call(this, {
+    gradient: s.target.checked ? vn() : null
   })}>
           </uui-toggle>
-        </label>
+        </div>
 
-        ${e.gradient ? h(this, u, vo).call(this, e.gradient, (s) => h(this, u, b).call(this, { gradient: s })) : m}
+        </umb-property-layout>
 
-        ${t === "rectangle" ? r`<di-number-field
-            .min=${g.cornerRadius.min}
-            .max=${g.cornerRadius.max}
+        ${e.gradient ? u(this, c, Go).call(this, e.gradient, (s) => u(this, c, v).call(this, { gradient: s })) : p}
+
+        ${t === "rectangle" ? n`<di-number-field
+            .min=${f.cornerRadius.min}
+            .max=${f.cornerRadius.max}
               label="Corner radius"
               .value=${e.cornerRadius}
-              @change=${(s) => h(this, u, b).call(this, { cornerRadius: s.detail.value ?? 0 })}>
-            </di-number-field>` : m}
+              @change=${(s) => u(this, c, v).call(this, { cornerRadius: s.detail.value ?? 0 })}>
+            </di-number-field>` : p}
 
-        <label class="field">
-          <span>Border</span>
-          <div class="row">
+        <umb-property-layout orientation="vertical" label="Border">
+
+          <div slot="editor" class="editor">
+          <div class="stack">
             <di-number-field
-              .min=${g.borderWidth.min}
-              .max=${g.borderWidth.max}
+              .min=${f.borderWidth.min}
+              .max=${f.borderWidth.max}
               label="Width"
               .value=${((a = e.border) == null ? void 0 : a.width) ?? 0}
               @change=${(s) => {
-    var n;
+    var r;
     const o = s.detail.value ?? 0;
-    h(this, u, b).call(this, {
-      border: o > 0 ? { width: o, colour: ((n = e.border) == null ? void 0 : n.colour) ?? "#FFFFFF" } : null
+    u(this, c, v).call(this, {
+      border: o > 0 ? { width: o, colour: ((r = e.border) == null ? void 0 : r.colour) ?? "#FFFFFF" } : null
     });
   }}>
             </di-number-field>
-            ${e.border ? r`<di-colour-input
+            ${e.border ? n`<di-colour-input
                   label="Border colour"
                   .value=${e.border.colour}
-                  @change=${(s) => h(this, u, b).call(this, { border: { ...e.border, colour: s.detail.value } })}>
-                </di-colour-input>` : m}
+                  @change=${(s) => u(this, c, v).call(this, { border: { ...e.border, colour: s.detail.value } })}>
+                </di-colour-input>` : p}
           </div>
           <small class="hint">Drawn inside the box. Turn Fill off for an outline only.</small>
-        </label>
+        </div>
+
+        </umb-property-layout>
       </uui-box>
     `;
 };
-bl = function(e) {
-  const t = Pe(e.position, "x"), i = Pe(e.position, "y"), a = e.rotation ?? 0;
-  return r`
+uc = function(e) {
+  const t = Re(e.position, "x"), i = Re(e.position, "y"), a = e.rotation ?? 0;
+  return n`
       <uui-box headline="Layout">
-        ${h(this, u, Us).call(this, e, "x")} ${h(this, u, Us).call(this, e, "y")}
+        ${u(this, c, so).call(this, e, "x")} ${u(this, c, so).call(this, e, "y")}
 
-        <label class="field">
-          <span>Anchor</span>
+        <umb-property-layout orientation="vertical" label="Anchor">
+
+          <div slot="editor" class="editor">
           <di-anchor-picker
             .value=${e.position.anchor}
-            @change=${(s) => h(this, u, wl).call(this, e, s.detail.value)}>
+            @change=${(s) => u(this, c, hc).call(this, e, s.detail.value)}>
           </di-anchor-picker>
           <small class="hint">
             Where X and Y sit on the layer's box.
-            ${t || i ? r`The ${t && i ? "horizontal and vertical" : t ? "horizontal" : "vertical"}
+            ${t || i ? n`The ${t && i ? "horizontal and vertical" : t ? "horizontal" : "vertical"}
                   ${t && i ? "components are" : "component is"} set by the edge
-                  ${t && i ? "each axis tracks" : "that axis tracks"}.` : m}
-            ${a !== 0 ? r`The layer turns around this point.` : m}
+                  ${t && i ? "each axis tracks" : "that axis tracks"}.` : p}
+            ${a !== 0 ? n`The layer turns around this point.` : p}
           </small>
-        </label>
+        </div>
 
-        <div class="field">
+        </umb-property-layout>
+
+        <div class="stack">
           <di-number-field
             label="Rotation"
             suffix="°"
             step="1"
             placeholder="0"
             .value=${a}
-            @change=${(s) => h(this, u, b).call(this, { rotation: Nn(s.detail.value ?? 0) })}>
+            @change=${(s) => u(this, c, v).call(this, { rotation: _n(s.detail.value ?? 0) })}>
           </di-number-field>
           <small class="hint">Clockwise, around the anchor point. Drag the handle above the selection on the canvas; hold Shift for 15° steps.</small>
         </div>
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
-            .min=${g.width.min}
-            .max=${g.width.max}
+            .min=${f.width.min}
+            .max=${f.width.max}
             label="Width"
             placeholder="Auto"
             .value=${e.size.width ?? null}
-            @change=${(s) => h(this, u, b).call(this, { size: { ...e.size, width: s.detail.value } })}>
+            @change=${(s) => u(this, c, ao).call(this, e, "width", s.detail.value)}>
           </di-number-field>
           <di-number-field
-            .min=${g.height.min}
-            .max=${g.height.max}
+            .min=${f.height.min}
+            .max=${f.height.max}
             label="Height"
             placeholder="Auto"
             .value=${e.size.height ?? null}
-            @change=${(s) => h(this, u, b).call(this, { size: { ...e.size, height: s.detail.value } })}>
+            @change=${(s) => u(this, c, ao).call(this, e, "height", s.detail.value)}>
           </di-number-field>
         </div>
       </uui-box>
     `;
 };
-Us = function(e, t) {
-  const i = Pe(e.position, t), a = Ta(e.position, t), s = this.template.layers.filter((n) => n.key !== e.key), o = t === "x" ? ["rightOf", "leftOf"] : ["below", "above"];
-  return r`
+so = function(e, t) {
+  const i = Re(e.position, t), a = Ma(e.position, t), s = this.template.layers.filter((r) => r.key !== e.key), o = t === "x" ? ["rightOf", "leftOf"] : ["below", "above"];
+  return n`
       <div class="axis">
-        <label class="field">
-          <span>${t === "x" ? "Horizontal position" : "Vertical position"}</span>
+        <umb-property-layout orientation="vertical" label="${t === "x" ? "Horizontal position" : "Vertical position"}">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${i ? "relative" : "absolute"}
             .options=${[
     { name: "Absolute", value: "absolute", selected: !i },
     { name: "Relative to a layer", value: "relative", selected: i }
   ]}
-            @change=${(n) => h(this, u, _l).call(this, e, t, n.target.value)}>
+            @change=${(r) => u(this, c, dc).call(this, e, t, r.target.value)}>
           </uui-select>
-          ${!i && s.length === 0 ? r`<small class="hint">Add another layer to position this one against it.</small>` : m}
-        </label>
+          ${!i && s.length === 0 ? n`<small class="hint">Add another layer to position this one against it.</small>` : p}
+        </div>
 
-        ${i && a ? r`
-              <label class="field">
-                <span>Tracks</span>
-                <div class="row">
+        </umb-property-layout>
+
+        ${i && a ? n`
+              <umb-property-layout orientation="vertical" label="Tracks">
+
+                <div slot="editor" class="editor">
+                <div class="stack">
                   <uui-select
                     .value=${a.layerKey}
-                    .options=${s.map((n) => ({
-    name: n.name || n.type,
-    value: n.key,
-    selected: n.key === a.layerKey
+                    .options=${s.map((r) => ({
+    name: r.name || r.type,
+    value: r.key,
+    selected: r.key === a.layerKey
   }))}
-                    @change=${(n) => h(this, u, ba).call(this, e, t, { layerKey: n.target.value })}>
+                    @change=${(r) => u(this, c, Ta).call(this, e, t, { layerKey: r.target.value })}>
                   </uui-select>
                   <uui-select
                     .value=${a.edge}
-                    .options=${ee(o, a.edge, {
+                    .options=${B(o, a.edge, {
     below: "Below it",
     above: "Above it",
     rightOf: "Right of it",
     leftOf: "Left of it"
   })}
-                    @change=${(n) => h(this, u, ba).call(this, e, t, { edge: n.target.value })}>
+                    @change=${(r) => u(this, c, Ta).call(this, e, t, { edge: r.target.value })}>
                   </uui-select>
                 </div>
-              </label>
+              </div>
+
+              </umb-property-layout>
 
               <di-number-field
-                .min=${g.referenceGap.min}
-                .max=${g.referenceGap.max}
+                .min=${f.referenceGap.min}
+                .max=${f.referenceGap.max}
                 label="Gap"
                 .value=${a.gap}
-                @change=${(n) => h(this, u, ba).call(this, e, t, { gap: n.detail.value ?? 0 })}>
+                @change=${(r) => u(this, c, Ta).call(this, e, t, { gap: r.detail.value ?? 0 })}>
               </di-number-field>
-            ` : r`
+            ` : n`
               <di-number-field
-                .min=${t === "x" ? g.x.min : g.y.min}
-                .max=${t === "x" ? g.x.max : g.y.max}
+                .min=${t === "x" ? f.x.min : f.y.min}
+                .max=${t === "x" ? f.x.max : f.y.max}
                 label=${t === "x" ? "X" : "Y"}
                 .value=${t === "x" ? e.position.x : e.position.y}
-                @change=${(n) => h(this, u, b).call(this, {
-    position: { ...e.position, [t]: n.detail.value ?? 0 }
+                @change=${(r) => u(this, c, v).call(this, {
+    position: { ...e.position, [t]: r.detail.value ?? 0 }
   })}>
               </di-number-field>
             `}
       </div>
     `;
 };
-_l = function(e, t, i) {
+dc = function(e, t, i) {
   if (i === "absolute") {
     this.dispatchEvent(
       new CustomEvent("di-layer-detach", { bubbles: !0, composed: !0, detail: { key: e.key, axis: t } })
     );
     return;
   }
-  if (Pe(e.position, t)) return;
+  if (Re(e.position, t)) return;
   const a = this.template.layers.findIndex((o) => o.key === e.key), s = this.template.layers[a - 1] ?? this.template.layers.find((o) => o.key !== e.key);
-  s && h(this, u, b).call(this, {
+  s && u(this, c, v).call(this, {
     position: {
       ...e.position,
       [t === "x" ? "relativeX" : "relativeY"]: {
         layerKey: s.key,
         edge: t === "x" ? "rightOf" : "below",
-        gap: jc
+        gap: kd
       }
     }
   });
 };
-ba = function(e, t, i) {
-  const a = Ta(e.position, t);
-  a && h(this, u, b).call(this, {
+Ta = function(e, t, i) {
+  const a = Ma(e.position, t);
+  a && u(this, c, v).call(this, {
     position: { ...e.position, [t === "x" ? "relativeX" : "relativeY"]: { ...a, ...i } }
   });
 };
-wl = function(e, t) {
-  const i = e.size.width ?? 0, a = e.size.height ?? 0, s = i > 0 && a > 0 ? Vc(e.position, i, a, t) : { ...e.position, anchor: t };
-  h(this, u, b).call(this, { position: s });
+hc = function(e, t) {
+  const i = e.size.width ?? 0, a = e.size.height ?? 0, s = i > 0 && a > 0 ? wd(e.position, i, a, t) : { ...e.position, anchor: t };
+  u(this, c, v).call(this, { position: s });
 };
-$l = function(e) {
-  return r`
+pc = function(e) {
+  return n`
       <uui-box headline="Behaviour">
-        <label class="field inline">
-          <span>Visible</span>
+        <umb-property-layout orientation="vertical" label="Visible">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${e.isVisible}
-            @change=${(t) => h(this, u, b).call(this, { isVisible: t.target.checked })}>
+            @change=${(t) => u(this, c, v).call(this, { isVisible: t.target.checked })}>
           </uui-toggle>
-        </label>
+        </div>
 
-        <label class="field inline">
-          <span>Locked</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Locked">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${e.isLocked}
-            @change=${(t) => h(this, u, b).call(this, { isLocked: t.target.checked })}>
+            @change=${(t) => u(this, c, v).call(this, { isLocked: t.target.checked })}>
           </uui-toggle>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         <di-number-field
           label="Opacity"
           suffix=""
           step="0.05"
-          .min=${g.opacity.min}
-          .max=${g.opacity.max}
+          .min=${f.opacity.min}
+          .max=${f.opacity.max}
           .value=${e.opacity}
-          @change=${(t) => h(this, u, b).call(this, { opacity: t.detail.value ?? 1 })}>
+          @change=${(t) => u(this, c, v).call(this, { opacity: t.detail.value ?? 1 })}>
         </di-number-field>
 
-        <label class="field">
-          <span>Show this layer</span>
+        <umb-property-layout orientation="vertical" label="Show this layer">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${e.visibility.rule}
-            .options=${ee(["always", "whenNotEmpty", "whenPropertyTruthy"], e.visibility.rule, {
+            .options=${B(["always", "whenNotEmpty", "whenPropertyTruthy"], e.visibility.rule, {
     always: "Always",
     whenNotEmpty: "When it has a value",
     whenPropertyTruthy: "When another property is set"
   })}
-            @change=${(t) => h(this, u, b).call(this, {
+            @change=${(t) => u(this, c, v).call(this, {
     visibility: { ...e.visibility, rule: t.target.value }
   })}>
           </uui-select>
-        </label>
+        </div>
 
-        ${e.visibility.rule === "whenPropertyTruthy" ? r`<label class="field">
-              <span>Controlled by</span>
-              ${h(this, u, gi).call(this, e.visibility.propertyAlias ?? "", (t) => h(this, u, b).call(this, { visibility: { ...e.visibility, propertyAlias: t } }))}
-            </label>` : m}
+        </umb-property-layout>
+
+        ${e.visibility.rule === "whenPropertyTruthy" ? n`<umb-property-layout orientation="vertical" label="Controlled by">
+
+              <div slot="editor" class="editor">
+              ${u(this, c, fi).call(this, e.visibility.propertyAlias ?? "", (t) => u(this, c, v).call(this, { visibility: { ...e.visibility, propertyAlias: t } }))}
+            </div>
+
+            </umb-property-layout>` : p}
       </uui-box>
     `;
 };
-gi = function(e, t, i = {}) {
-  const { root: a, tail: s } = dh(e), o = this.linkedProperties[a] ?? [], n = this.properties.some(
-    (p) => p.alias === a && p.classification === "content"
-  ), l = !!a && (n || !!s), d = h(this, u, Bs).call(this, Zo(this.properties, i.root), a, (p) => t(p));
-  return l ? r`
-      <div class="path">
-        ${d}
-        <span class="path-hop" aria-hidden="true">›</span>
-        ${h(this, u, Bs).call(this, Zo(o, i.tail), s, (p) => t(ph(a, p)))}
-      </div>
-    ` : d;
+qo = function(e, t) {
+  return n`
+      <umb-input-media
+        max="1"
+        .selection=${e ? [e] : []}
+        @change=${(i) => t(i.target.selection[0] ?? null)}>
+      </umb-input-media>
+    `;
 };
-Bs = function(e, t, i) {
-  const a = [
-    { name: "- none -", value: "" },
-    ...e.map((s) => ({
-      name: `${s.name} (${s.alias})`,
-      value: s.alias,
-      selected: s.alias === t
-    }))
-  ];
-  return t && !e.some((s) => s.alias === t) && a.push({ name: `${t} (not in this list)`, value: t, selected: !0 }), r`
+ze = function(e, t, i) {
+  return n`
+      <umb-property-layout orientation="vertical" label=${e} description=${ks(i)}>
+        <div slot="editor" class="editor">${t}</div>
+      </umb-property-layout>
+    `;
+};
+fi = function(e, t, i = {}) {
+  const a = Id(e), s = [];
+  for (let o = 0; o <= Cs; o++) {
+    const r = fr(a, o), l = o === 0 ? this.properties : this.linkedProperties[r] ?? [], h = a[o] ?? "";
+    if (o > 0) {
+      const k = (o === 1 ? this.properties : this.linkedProperties[fr(a, o - 1)] ?? []).some(
+        (j) => j.alias === a[o - 1] && j.classification === "content"
+      );
+      if (!a[o - 1] || !k && !h) break;
+    }
+    const m = u(this, c, mc).call(this, Jp(l, o === 0 ? i.root : i.tail), h, (C) => t([...a.slice(0, o), C].filter(Boolean).join(".")));
+    s.push(o === 0 ? m : n`<div class="hop">
+            <span class="hop-caption">${this.linkedCaptions[r] ?? "Property on the linked item"}</span>
+            ${m}
+          </div>`);
+  }
+  return s.length === 1 ? s[0] : n`<div class="path">${s}</div>`;
+};
+mc = function(e, t, i) {
+  return n`
       <uui-select
+        class="property-select"
+        label="Property"
+        title=${t || "No property"}
         .value=${t}
-        .options=${a}
-        @change=${(s) => i(s.target.value)}>
+        .options=${Rd(e, t)}
+        @change=${(a) => i(a.target.value)}>
       </uui-select>
     `;
 };
-bo = function(e) {
+Ho = function(e) {
   return [
     { name: "- none -", value: "" },
     ...this.fonts.map((t) => ({
@@ -5205,11 +6196,12 @@ bo = function(e) {
     }))
   ];
 };
-xl = function(e, t, i) {
+yc = function(e, t, i) {
   const a = this.fonts.find((s) => s.key === e);
-  return !a || a.styles.length === 0 ? m : r`
-      <label class="field">
-        <span>Named style</span>
+  return !a || a.styles.length === 0 ? p : n`
+      <umb-property-layout orientation="vertical" label="Named style">
+
+        <div slot="editor" class="editor">
         <uui-select
           .value=${t}
           .options=${[
@@ -5221,14 +6213,16 @@ xl = function(e, t, i) {
     }))
   ]}
           @change=${(s) => {
-    const o = s.target.value, n = a.styles.find((l) => l.name === o);
-    i(o, n == null ? void 0 : n.size, n == null ? void 0 : n.fontStyle);
+    const o = s.target.value, r = a.styles.find((l) => l.name === o);
+    i(o, r == null ? void 0 : r.size, r == null ? void 0 : r.fontStyle);
   }}>
         </uui-select>
-      </label>
+      </div>
+
+      </umb-property-layout>
     `;
 };
-ct.styles = I`
+Ge.styles = A`
     :host {
       display: block;
       height: 100%;
@@ -5253,38 +6247,106 @@ ct.styles = I`
       flex: 1 1 auto;
     }
 
-    .field {
-      display: grid;
-      gap: 2px;
-      margin-bottom: var(--uui-size-space-3);
+    /* Core's property layout, tightened for a 320px panel: its own padding (--uui-size-layout-1
+       above and below) is sized for a full-width workspace, and stacked field after field it read
+       as a gap rather than as spacing. The label-to-editor distance stays core's own. */
+    umb-property-layout {
+      padding: var(--uui-size-space-3) 0;
     }
 
-    .field > span {
-      font-size: 11px;
-      color: var(--uui-color-text-alt);
+    umb-property-layout:first-child {
+      padding-top: 0;
     }
 
+    /* One hop per line, each full width; every hop after the first sits behind a 2px rule, as
+       the relative-position axes do, with room either side of it. */
     .path {
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      gap: var(--uui-size-space-1);
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-4);
+      min-width: 0;
     }
 
-    .path-hop {
-      color: var(--uui-color-text-alt);
-    }
-
-    .field.inline {
-      grid-template-columns: 1fr auto;
-      align-items: center;
-    }
-
-    .pair {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    .hop {
+      display: flex;
+      flex-direction: column;
       gap: var(--uui-size-space-2);
-      margin-bottom: var(--uui-size-space-3);
+      margin-left: var(--uui-size-space-1);
+      padding: var(--uui-size-space-1) 0 var(--uui-size-space-1) var(--uui-size-space-4);
+      border-left: 2px solid var(--uui-color-border);
+      min-width: 0;
+    }
+
+    .hop-caption {
+      color: var(--uui-color-text-alt);
+      font-size: var(--uui-type-small-size, 12px);
+      line-height: 1.3;
+    }
+
+    .gradient-preview {
+      height: 28px;
+      margin: var(--uui-size-space-3) 0;
+      border: 1px solid var(--uui-color-border);
+      border-radius: var(--uui-border-radius);
+    }
+
+    .angle,
+    .stops {
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-3);
+      min-width: 0;
+    }
+
+    .stop {
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-2);
+      padding: var(--uui-size-space-3);
+      border: 1px solid var(--uui-color-border);
+      border-radius: var(--uui-border-radius);
+      min-width: 0;
+    }
+
+    .stop-position {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--uui-size-space-2);
+      min-width: 0;
+    }
+
+    .stop-position di-number-field {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .stop-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--uui-size-space-2);
+    }
+
+    /* What used to sit side by side - width and height, from and to, a select and its button -
+       is one field per line: side by side, the second was clipped at the default panel width. */
+    .stack {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .editor {
+      min-width: 0;
+    }
+
+    .editor > uui-select,
+    .editor > uui-input,
+    .editor > di-colour-input {
+      width: 100%;
+    }
+
+    .property-select {
+      width: 100%;
+      min-width: 0;
     }
 
     /* One axis reads as a unit: the mode, then whatever that mode needs. */
@@ -5294,15 +6356,8 @@ ct.styles = I`
       margin-bottom: var(--uui-size-space-3);
     }
 
-    .axis .field:last-child,
-    .axis di-number-field:last-child {
-      margin-bottom: 0;
-    }
-
-    .row {
-      display: flex;
-      gap: var(--uui-size-space-2);
-      align-items: center;
+    .axis umb-property-layout:last-child {
+      padding-bottom: 0;
     }
 
     .hint {
@@ -5316,66 +6371,90 @@ ct.styles = I`
       border-radius: 2px;
     }
   `;
-fi([
-  y({ type: Object })
-], ct.prototype, "template", 2);
-fi([
-  y({ type: Object })
-], ct.prototype, "layer", 2);
-fi([
-  y({ type: Array })
-], ct.prototype, "properties", 2);
-fi([
-  y({ type: Object })
-], ct.prototype, "linkedProperties", 2);
-fi([
-  y({ type: Array })
-], ct.prototype, "fonts", 2);
-ct = fi([
-  R("di-layer-inspector")
-], ct);
-function ee(e, t, i = {}) {
+Wt([
+  g({ type: Object })
+], Ge.prototype, "template", 2);
+Wt([
+  g({ type: Object })
+], Ge.prototype, "layer", 2);
+Wt([
+  g({ type: Array })
+], Ge.prototype, "properties", 2);
+Wt([
+  g({ type: Object })
+], Ge.prototype, "linkedProperties", 2);
+Wt([
+  g({ type: Object })
+], Ge.prototype, "linkedCaptions", 2);
+Wt([
+  g({ type: Array })
+], Ge.prototype, "fonts", 2);
+Ge = Wt([
+  M("di-layer-inspector")
+], Ge);
+function B(e, t, i = {}) {
   return e.map((a) => ({
     name: i[a] ?? a.charAt(0).toUpperCase() + a.slice(1),
     value: a,
     selected: a === t
   }));
 }
-function kl(e) {
-  return ee(["none", "media", "path", "property"], e, {
+const Zp = {
+  linear: "Linear",
+  radial: "Radial",
+  angular: "Angular (conic)",
+  diamond: "Diamond",
+  reflected: "Reflected"
+}, Qp = {
+  farthestCorner: "Farthest corner",
+  farthestSide: "Farthest side",
+  closestCorner: "Closest corner",
+  closestSide: "Closest side"
+}, em = [
+  ["↑", 0, "Upwards (0°)"],
+  ["→", 90, "To the right (90°)"],
+  ["↓", 180, "Downwards (180°)"],
+  ["←", 270, "To the left (270°)"]
+];
+function fc(e) {
+  return B(["none", "media", "path", "property"], e, {
     none: "Nothing",
     media: "A media item",
     path: "A file in wwwroot",
     property: "A property on the page"
   });
 }
-var Ph = Object.defineProperty, Dh = Object.getOwnPropertyDescriptor, Sl = (e) => {
+function oo(e) {
+  const t = e.shape ?? "rectangle";
+  return t === "ellipse" && e.lockAspect === !0 ? "circle" : t;
+}
+var tm = Object.defineProperty, im = Object.getOwnPropertyDescriptor, gc = (e) => {
   throw TypeError(e);
-}, Qi = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Dh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Ph(t, i, s), s;
-}, Mh = (e, t, i) => t.has(e) || Sl("Cannot " + i), zh = (e, t, i) => t.has(e) ? Sl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ke = (e, t, i) => (Mh(e, t, "access private method"), i), de, wt, Cl, Tl, El, Pl;
-const Oh = {
+}, sa = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? im(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && tm(t, i, s), s;
+}, am = (e, t, i) => t.has(e) || gc("Cannot " + i), sm = (e, t, i) => t.has(e) ? gc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ie = (e, t, i) => (am(e, t, "access private method"), i), ge, wt, vc, bc, _c, wc;
+const om = {
   text: "icon-font",
   image: "icon-picture",
   badges: "icon-tags",
   rect: "icon-layers"
 };
-let Lt = class extends F {
+let Lt = class extends L {
   constructor() {
-    super(...arguments), zh(this, de), this.layers = [];
+    super(...arguments), sm(this, ge), this.layers = [];
   }
   render() {
     const e = [...this.layers].reverse();
-    return r`
-      <div class="panel" @drop=${ke(this, de, El)}>
+    return n`
+      <div class="panel" @drop=${Ie(this, ge, _c)}>
         <h5>Layers</h5>
 
-        ${e.length === 0 ? r`<p class="empty">No layers yet. Drag a property from the left onto the canvas.</p>` : B(
+        ${e.length === 0 ? n`<p class="empty">No layers yet. Drag a property from the left onto the canvas.</p>` : Z(
       e,
       (t) => t.key,
-      (t, i) => ke(this, de, Pl).call(this, t, i)
+      (t, i) => Ie(this, ge, wc).call(this, t, i)
     )}
 
         <div class="row background">
@@ -5387,35 +6466,35 @@ let Lt = class extends F {
     `;
   }
 };
-de = /* @__PURE__ */ new WeakSet();
+ge = /* @__PURE__ */ new WeakSet();
 wt = function(e, t) {
   this.dispatchEvent(new CustomEvent(e, { bubbles: !0, composed: !0, detail: t }));
 };
-Cl = function(e, t) {
+vc = function(e, t) {
   this._dragKey = t, e.dataTransfer && (e.dataTransfer.effectAllowed = "move");
 };
-Tl = function(e, t) {
+bc = function(e, t) {
   this._dragKey && (e.preventDefault(), this._dropIndex = t);
 };
-El = function(e) {
+_c = function(e) {
   if (!this._dragKey || this._dropIndex === void 0) return;
   e.preventDefault();
   const t = this.layers.length - 1 - this._dropIndex;
-  ke(this, de, wt).call(this, "di-layer-move", { key: this._dragKey, toIndex: Math.max(0, t) }), this._dragKey = void 0, this._dropIndex = void 0;
+  Ie(this, ge, wt).call(this, "di-layer-move", { key: this._dragKey, toIndex: Math.max(0, t) }), this._dragKey = void 0, this._dropIndex = void 0;
 };
-Pl = function(e, t) {
+wc = function(e, t) {
   const i = e.key === this.selectedLayerKey;
-  return r`
+  return n`
       <div
         class="row ${i ? "selected" : ""} ${this._dropIndex === t ? "drop" : ""}"
         draggable="true"
         role="button"
         tabindex="0"
         aria-pressed=${i}
-        @dragstart=${(a) => ke(this, de, Cl).call(this, a, e.key)}
-        @dragover=${(a) => ke(this, de, Tl).call(this, a, t)}
-        @click=${() => ke(this, de, wt).call(this, "di-layer-select", { key: e.key })}>
-        <uui-icon name=${Oh[e.type]}></uui-icon>
+        @dragstart=${(a) => Ie(this, ge, vc).call(this, a, e.key)}
+        @dragover=${(a) => Ie(this, ge, bc).call(this, a, t)}
+        @click=${() => Ie(this, ge, wt).call(this, "di-layer-select", { key: e.key })}>
+        <uui-icon name=${om[e.type]}></uui-icon>
         <span class="name" title=${e.name}>${e.name || e.type}</span>
 
         <uui-button
@@ -5424,7 +6503,7 @@ Pl = function(e, t) {
           look=${e.isVisible ? "primary" : "secondary"}
           label="${e.isVisible ? "Hide" : "Show"} ${e.name}"
           @click=${(a) => {
-    a.stopPropagation(), ke(this, de, wt).call(this, "di-layer-visibility", { key: e.key, isVisible: !e.isVisible });
+    a.stopPropagation(), Ie(this, ge, wt).call(this, "di-layer-visibility", { key: e.key, isVisible: !e.isVisible });
   }}>
           <uui-icon name="icon-eye"></uui-icon>
         </uui-button>
@@ -5434,7 +6513,7 @@ Pl = function(e, t) {
           look="secondary"
           label="${e.isLocked ? "Unlock" : "Lock"} ${e.name}"
           @click=${(a) => {
-    a.stopPropagation(), ke(this, de, wt).call(this, "di-layer-lock", { key: e.key, isLocked: !e.isLocked });
+    a.stopPropagation(), Ie(this, ge, wt).call(this, "di-layer-lock", { key: e.key, isLocked: !e.isLocked });
   }}>
           <uui-icon name=${e.isLocked ? "icon-lock" : "icon-unlocked"}></uui-icon>
         </uui-button>
@@ -5444,7 +6523,7 @@ Pl = function(e, t) {
           look="secondary"
           label="Duplicate ${e.name}"
           @click=${(a) => {
-    a.stopPropagation(), ke(this, de, wt).call(this, "di-layer-duplicate", { key: e.key });
+    a.stopPropagation(), Ie(this, ge, wt).call(this, "di-layer-duplicate", { key: e.key });
   }}>
           <uui-icon name="icon-documents"></uui-icon>
         </uui-button>
@@ -5455,14 +6534,14 @@ Pl = function(e, t) {
           color="danger"
           label="Delete ${e.name}"
           @click=${(a) => {
-    a.stopPropagation(), ke(this, de, wt).call(this, "di-layer-delete", { key: e.key });
+    a.stopPropagation(), Ie(this, ge, wt).call(this, "di-layer-delete", { key: e.key });
   }}>
           <uui-icon name="icon-trash"></uui-icon>
         </uui-button>
       </div>
     `;
 };
-Lt.styles = I`
+Lt.styles = A`
     /* max-height: 40% resolved against the grid row the panel had already been given, so 60%
        of that row was guaranteed waste - 92px of panel in a 228.8px row, with the list clipped
        mid-row and grey space beneath it. The cap is now against the viewport instead, and the
@@ -5539,31 +6618,31 @@ Lt.styles = I`
       color: var(--uui-color-text-alt);
     }
   `;
-Qi([
-  y({ type: Array })
+sa([
+  g({ type: Array })
 ], Lt.prototype, "layers", 2);
-Qi([
-  y({ type: String })
+sa([
+  g({ type: String })
 ], Lt.prototype, "selectedLayerKey", 2);
-Qi([
-  f()
+sa([
+  y()
 ], Lt.prototype, "_dragKey", 2);
-Qi([
-  f()
+sa([
+  y()
 ], Lt.prototype, "_dropIndex", 2);
-Lt = Qi([
-  R("di-layers-panel")
+Lt = sa([
+  M("di-layers-panel")
 ], Lt);
-var Ih = Object.defineProperty, Ah = Object.getOwnPropertyDescriptor, Dl = (e) => {
+var rm = Object.defineProperty, nm = Object.getOwnPropertyDescriptor, $c = (e) => {
   throw TypeError(e);
-}, je = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Ah(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Ih(t, i, s), s;
-}, _o = (e, t, i) => t.has(e) || Dl("Cannot " + i), Lh = (e, t, i) => (_o(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Qo = (e, t, i) => t.has(e) ? Dl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Rh = (e, t, i, a) => (_o(e, t, "write to private field"), t.set(e, i), i), se = (e, t, i) => (_o(e, t, "access private method"), i), q, Ae, Aa, Ml, zl, ki;
-let $e = class extends F {
+}, Ze = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? nm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && rm(t, i, s), s;
+}, Yo = (e, t, i) => t.has(e) || $c("Cannot " + i), lm = (e, t, i) => (Yo(e, t, "read from private field"), i ? i.call(e) : t.get(e)), qr = (e, t, i) => t.has(e) ? $c("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), cm = (e, t, i, a) => (Yo(e, t, "write to private field"), t.set(e, i), i), ae = (e, t, i) => (Yo(e, t, "access private method"), i), G, We, Va, xc, kc, Di;
+let Ce = class extends L {
   constructor() {
-    super(...arguments), Qo(this, q), this.effectiveScale = 1, this.snapEnabled = !0, this.showRulers = !0, this.showSafeArea = !1, this.showMeasured = !1, this.canUndo = !1, this.canRedo = !1, this.previewing = !1, Qo(this, Aa, 100);
+    super(...arguments), qr(this, G), this.effectiveScale = 1, this.snapEnabled = !0, this.showRulers = !0, this.showSafeArea = !1, this.showMeasured = !1, this.canUndo = !1, this.canRedo = !1, this.previewing = !1, qr(this, Va, 100);
   }
   /**
    * The zoom buttons carry the registry's matched `icon-zoom-out` / `icon-zoom-in` magnifier pair.
@@ -5577,7 +6656,7 @@ let $e = class extends F {
    * real check and a comment quoting one would defeat it.
    */
   render() {
-    return r`
+    return n`
       <div class="toolbar" @focusout=${() => this.requestUpdate()}>
         <div class="zoom">
           <!-- Stepping multiplies the *effective* scale, so stepping up out of Fit lands one
@@ -5586,50 +6665,51 @@ let $e = class extends F {
             compact
             look="secondary"
             label="Zoom out"
-            @click=${() => se(this, q, Ae).call(this, "di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
+            @click=${() => ae(this, G, We).call(this, "di-zoom-change", { zoom: this.effectiveScale / 1.25 })}>
             <uui-icon name="icon-zoom-out"></uui-icon>
           </uui-button>
           <di-number-field
+            compact
             class="value"
             label="Zoom"
             suffix="%"
             step="5"
-            .min=${za.min * 100}
-            .max=${za.max * 100}
-            .value=${se(this, q, Ml).call(this)}
-            @change=${se(this, q, zl)}>
+            .min=${Ba.min * 100}
+            .max=${Ba.max * 100}
+            .value=${ae(this, G, xc).call(this)}
+            @change=${ae(this, G, kc)}>
           </di-number-field>
           <uui-button
             compact
             look="secondary"
             label="Zoom in"
-            @click=${() => se(this, q, Ae).call(this, "di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
+            @click=${() => ae(this, G, We).call(this, "di-zoom-change", { zoom: this.effectiveScale * 1.25 })}>
             <uui-icon name="icon-zoom-in"></uui-icon>
           </uui-button>
-          <uui-button compact look="secondary" label="Fit to the window" @click=${() => se(this, q, Ae).call(this, "di-zoom-fit")}>
+          <uui-button compact look="secondary" label="Fit to the window" @click=${() => ae(this, G, We).call(this, "di-zoom-fit")}>
             Fit
           </uui-button>
         </div>
 
         <div class="toggles">
-          ${se(this, q, ki).call(this, "Snap", this.snapEnabled, "di-toggle-snap")}
-          ${se(this, q, ki).call(this, "Rulers", this.showRulers, "di-toggle-rulers")}
-          ${se(this, q, ki).call(this, "Safe area", this.showSafeArea, "di-toggle-safe-area")}
-          ${se(this, q, ki).call(this, "Layer bounds", this.showMeasured, "di-toggle-measured")}
+          ${ae(this, G, Di).call(this, "Snap", this.snapEnabled, "di-toggle-snap")}
+          ${ae(this, G, Di).call(this, "Rulers", this.showRulers, "di-toggle-rulers")}
+          ${ae(this, G, Di).call(this, "Safe area", this.showSafeArea, "di-toggle-safe-area")}
+          ${ae(this, G, Di).call(this, "Layer bounds", this.showMeasured, "di-toggle-measured")}
         </div>
 
         <div class="actions">
-          <uui-button compact look="secondary" label="Undo" ?disabled=${!this.canUndo} @click=${() => se(this, q, Ae).call(this, "di-undo")}>
+          <uui-button compact look="secondary" label="Undo" ?disabled=${!this.canUndo} @click=${() => ae(this, G, We).call(this, "di-undo")}>
             <uui-icon name="icon-undo"></uui-icon>
           </uui-button>
-          <uui-button compact look="secondary" label="Redo" ?disabled=${!this.canRedo} @click=${() => se(this, q, Ae).call(this, "di-redo")}>
+          <uui-button compact look="secondary" label="Redo" ?disabled=${!this.canRedo} @click=${() => ae(this, G, We).call(this, "di-redo")}>
             <uui-icon name="icon-redo"></uui-icon>
           </uui-button>
           <uui-button
             look="secondary"
             label="Render this template on the server"
             ?disabled=${this.previewing}
-            @click=${() => se(this, q, Ae).call(this, "di-request-preview")}>
+            @click=${() => ae(this, G, We).call(this, "di-request-preview")}>
             <uui-icon name="icon-sync"></uui-icon> Server preview
           </uui-button>
         </div>
@@ -5637,31 +6717,31 @@ let $e = class extends F {
     `;
   }
 };
-q = /* @__PURE__ */ new WeakSet();
-Ae = function(e, t) {
+G = /* @__PURE__ */ new WeakSet();
+We = function(e, t) {
   this.dispatchEvent(new CustomEvent(e, { bubbles: !0, composed: !0, detail: t }));
 };
-Aa = /* @__PURE__ */ new WeakMap();
-Ml = function() {
-  return this.matches(":focus-within") || Rh(this, Aa, Math.round(this.effectiveScale * 100)), Lh(this, Aa);
+Va = /* @__PURE__ */ new WeakMap();
+xc = function() {
+  return this.matches(":focus-within") || cm(this, Va, Math.round(this.effectiveScale * 100)), lm(this, Va);
 };
-zl = function(e) {
+kc = function(e) {
   var i;
   const t = (i = e.detail) == null ? void 0 : i.value;
-  t != null && se(this, q, Ae).call(this, "di-zoom-change", { zoom: t / 100 });
+  t != null && ae(this, G, We).call(this, "di-zoom-change", { zoom: t / 100 });
 };
-ki = function(e, t, i) {
-  return r`
+Di = function(e, t, i) {
+  return n`
       <uui-button
         compact
         look=${t ? "primary" : "secondary"}
         label="${e}: ${t ? "on" : "off"}"
-        @click=${() => se(this, q, Ae).call(this, i)}>
+        @click=${() => ae(this, G, We).call(this, i)}>
         ${e}
       </uui-button>
     `;
 };
-$e.styles = I`
+Ce.styles = A`
     :host {
       display: block;
       border-bottom: 1px solid var(--uui-color-border);
@@ -5695,53 +6775,118 @@ $e.styles = I`
       font-size: 12px;
     }
   `;
-je([
-  y({ type: Number })
-], $e.prototype, "effectiveScale", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "snapEnabled", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "showRulers", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "showSafeArea", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "showMeasured", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "canUndo", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "canRedo", 2);
-je([
-  y({ type: Boolean })
-], $e.prototype, "previewing", 2);
-$e = je([
-  R("di-canvas-toolbar")
-], $e);
-var Wh = Object.defineProperty, Nh = Object.getOwnPropertyDescriptor, Ol = (e) => {
+Ze([
+  g({ type: Number })
+], Ce.prototype, "effectiveScale", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "snapEnabled", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "showRulers", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "showSafeArea", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "showMeasured", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "canUndo", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "canRedo", 2);
+Ze([
+  g({ type: Boolean })
+], Ce.prototype, "previewing", 2);
+Ce = Ze([
+  M("di-canvas-toolbar")
+], Ce);
+var um = Object.defineProperty, dm = Object.getOwnPropertyDescriptor, Tc = (e) => {
   throw TypeError(e);
-}, ea = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Nh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Wh(t, i, s), s;
-}, wo = (e, t, i) => t.has(e) || Ol("Cannot " + i), Q = (e, t, i) => (wo(e, t, "read from private field"), t.get(e)), mt = (e, t, i) => t.has(e) ? Ol("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Mt = (e, t, i, a) => (wo(e, t, "write to private field"), t.set(e, i), i), We = (e, t, i) => (wo(e, t, "access private method"), i), et, jt, Xt, zt, La, Ra, be, $o, _a, xo, Ks;
-const Fh = 400;
-let Rt = class extends F {
+}, Xo = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? dm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && um(t, i, s), s;
+}, Jo = (e, t, i) => t.has(e) || Tc("Cannot " + i), Vt = (e, t, i) => (Jo(e, t, "read from private field"), t.get(e)), pa = (e, t, i) => t.has(e) ? Tc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), ro = (e, t, i, a) => (Jo(e, t, "write to private field"), t.set(e, i), i), Hr = (e, t, i) => (Jo(e, t, "access private method"), i), pi, Sa, Mi, Ea, Sc, Ec;
+let Vi = class extends L {
   constructor() {
-    super(), mt(this, be), mt(this, et), mt(this, jt), mt(this, Xt), mt(this, zt), mt(this, La), mt(this, Ra, !0), this._loading = !1, this._collapsed = !1, this.consumeContext(Nt, (e) => {
-      Mt(this, et, e), e && (this.observe(e.template, (t) => {
-        t && We(this, be, _a).call(this, t);
+    super(), pa(this, Ea), pa(this, pi), this._selection = [], pa(this, Sa, ""), pa(this, Mi), customElements.get("umb-input-document") || import("@umbraco-cms/backoffice/document").catch(() => {
+    }), this.consumeContext(ft, (e) => {
+      ro(this, pi, e), e && (this.observe(e.sampleContentKey, (t) => {
+        this._selection = t ? [t] : [];
+      }), this.observe(e.template, (t) => {
+        const i = ((t == null ? void 0 : t.docTypeAliases) ?? []).join(",");
+        i !== Vt(this, Sa) && (ro(this, Sa, i), Hr(this, Ea, Sc).call(this, (t == null ? void 0 : t.docTypeAliases) ?? []));
+      }));
+    });
+  }
+  render() {
+    return n`
+      <umb-property-layout orientation="vertical" label="Preview content" description="Empty = sample data">
+        <umb-input-document
+          slot="editor"
+          max="1"
+          .allowedContentTypeIds=${this._allowedContentTypeIds}
+          .selection=${this._selection}
+          @change=${Hr(this, Ea, Ec)}></umb-input-document>
+      </umb-property-layout>
+    `;
+  }
+};
+pi = /* @__PURE__ */ new WeakMap();
+Sa = /* @__PURE__ */ new WeakMap();
+Mi = /* @__PURE__ */ new WeakMap();
+Ea = /* @__PURE__ */ new WeakSet();
+Sc = async function(e) {
+  if (!Vt(this, pi)) return;
+  Vt(this, Mi) ?? ro(this, Mi, ln(Vt(this, pi).getToken).catch(() => []));
+  const t = await Vt(this, Mi), i = new Set(e), a = t.filter((s) => i.has(s.alias)).map((s) => s.key);
+  this._allowedContentTypeIds = a.length > 0 ? a : void 0;
+};
+Ec = function(e) {
+  var i;
+  const t = e.target.selection;
+  (i = Vt(this, pi)) == null || i.setSampleContentKey(t[0]);
+};
+Vi.styles = A`
+    :host {
+      display: block;
+    }
+
+    umb-property-layout {
+      padding: 0;
+    }
+  `;
+Xo([
+  y()
+], Vi.prototype, "_selection", 2);
+Xo([
+  y()
+], Vi.prototype, "_allowedContentTypeIds", 2);
+Vi = Xo([
+  M("di-preview-content-picker")
+], Vi);
+var hm = Object.defineProperty, pm = Object.getOwnPropertyDescriptor, Cc = (e) => {
+  throw TypeError(e);
+}, oa = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? pm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && hm(t, i, s), s;
+}, Zo = (e, t, i) => t.has(e) || Cc("Cannot " + i), H = (e, t, i) => (Zo(e, t, "read from private field"), t.get(e)), gt = (e, t, i) => t.has(e) ? Cc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ot = (e, t, i, a) => (Zo(e, t, "write to private field"), t.set(e, i), i), Be = (e, t, i) => (Zo(e, t, "access private method"), i), at, Yt, Xt, Pt, Ga, qa, xe, Qo, Ca, er, no;
+const mm = 400;
+let Ft = class extends L {
+  constructor() {
+    super(), gt(this, xe), gt(this, at), gt(this, Yt), gt(this, Xt), gt(this, Pt), gt(this, Ga), gt(this, qa, !0), this._loading = !1, this._collapsed = !1, this.consumeContext(ft, (e) => {
+      Ot(this, at, e), e && (this.observe(e.template, (t) => {
+        t && Be(this, xe, Ca).call(this, t);
       }), this.observe(e.sampleContentKey, (t) => {
         var a;
-        Mt(this, La, t);
-        const i = (a = Q(this, et)) == null ? void 0 : a.getData();
-        i && We(this, be, _a).call(this, i);
+        Ot(this, Ga, t);
+        const i = (a = H(this, at)) == null ? void 0 : a.getData();
+        i && Be(this, xe, Ca).call(this, i);
       }), this.observe(e.useSampleData, (t) => {
-        Mt(this, Ra, t ?? !0);
+        Ot(this, qa, t ?? !0);
       }));
     });
   }
@@ -5752,15 +6897,15 @@ let Rt = class extends F {
    */
   refresh() {
     var t;
-    const e = (t = Q(this, et)) == null ? void 0 : t.getData();
-    e && (window.clearTimeout(Q(this, jt)), this._collapsed = !1, We(this, be, xo).call(this, e));
+    const e = (t = H(this, at)) == null ? void 0 : t.getData();
+    e && (window.clearTimeout(H(this, Yt)), this._collapsed = !1, Be(this, xe, er).call(this, e));
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), window.clearTimeout(Q(this, jt)), (e = Q(this, Xt)) == null || e.abort(), We(this, be, $o).call(this);
+    super.disconnectedCallback(), window.clearTimeout(H(this, Yt)), (e = H(this, Xt)) == null || e.abort(), Be(this, xe, Qo).call(this);
   }
   render() {
-    return r`
+    return n`
       <div class="strip">
         <button
           class="toggle"
@@ -5769,64 +6914,65 @@ let Rt = class extends F {
           @click=${() => {
       var e;
       if (this._collapsed = !this._collapsed, !this._collapsed) {
-        const t = (e = Q(this, et)) == null ? void 0 : e.getData();
-        t && We(this, be, _a).call(this, t);
+        const t = (e = H(this, at)) == null ? void 0 : e.getData();
+        t && Be(this, xe, Ca).call(this, t);
       }
     }}>
           <uui-icon name=${this._collapsed ? "icon-navigation-up" : "icon-navigation-down"}></uui-icon>
           Server preview
         </button>
 
-        ${this._collapsed ? m : r`
+        ${this._collapsed ? p : n`
+              <di-preview-content-picker></di-preview-content-picker>
               <div class="body">
-                ${this._loading ? r`<uui-loader-bar></uui-loader-bar>` : m}
-                ${this._error ? r`<span class="error" role="status">${this._error}</span>` : this._url ? r`<img src=${this._url} alt="Server-rendered preview of this template" />` : r`<span class="pending">Rendering…</span>`}
+                ${this._loading ? n`<uui-loader-bar></uui-loader-bar>` : p}
+                ${this._error ? n`<span class="error" role="status">${this._error}</span>` : this._url ? n`<img src=${this._url} alt="Server-rendered preview of this template" />` : n`<span class="pending">Rendering…</span>`}
               </div>
             `}
       </div>
     `;
   }
 };
-et = /* @__PURE__ */ new WeakMap();
-jt = /* @__PURE__ */ new WeakMap();
+at = /* @__PURE__ */ new WeakMap();
+Yt = /* @__PURE__ */ new WeakMap();
 Xt = /* @__PURE__ */ new WeakMap();
-zt = /* @__PURE__ */ new WeakMap();
-La = /* @__PURE__ */ new WeakMap();
-Ra = /* @__PURE__ */ new WeakMap();
-be = /* @__PURE__ */ new WeakSet();
-$o = function() {
-  Q(this, zt) && (URL.revokeObjectURL(Q(this, zt)), Mt(this, zt, void 0));
+Pt = /* @__PURE__ */ new WeakMap();
+Ga = /* @__PURE__ */ new WeakMap();
+qa = /* @__PURE__ */ new WeakMap();
+xe = /* @__PURE__ */ new WeakSet();
+Qo = function() {
+  H(this, Pt) && (URL.revokeObjectURL(H(this, Pt)), Ot(this, Pt, void 0));
 };
-_a = function(e) {
-  this._collapsed || (window.clearTimeout(Q(this, jt)), Mt(this, jt, window.setTimeout(() => void We(this, be, xo).call(this, e), Fh)));
+Ca = function(e) {
+  this._collapsed || (window.clearTimeout(H(this, Yt)), Ot(this, Yt, window.setTimeout(() => void Be(this, xe, er).call(this, e), mm)));
 };
-xo = async function(e) {
+er = async function(e) {
   var t;
-  if (Q(this, et)) {
-    (t = Q(this, Xt)) == null || t.abort(), Mt(this, Xt, new AbortController()), We(this, be, Ks).call(this, !0), this._error = void 0;
+  if (H(this, at)) {
+    (t = H(this, Xt)) == null || t.abort(), Ot(this, Xt, new AbortController()), Be(this, xe, no).call(this, !0), this._error = void 0;
     try {
-      const i = await qs(
+      const i = await cn(
         e,
         {
-          signal: Q(this, Xt).signal,
-          contentKey: Q(this, La),
-          useSampleData: Q(this, Ra)
+          signal: H(this, Xt).signal,
+          contentKey: H(this, Ga),
+          useSampleData: H(this, qa)
         },
-        Q(this, et).getToken
+        H(this, at).getToken
       );
-      We(this, be, $o).call(this), Mt(this, zt, URL.createObjectURL(i)), this._url = Q(this, zt);
+      Be(this, xe, Qo).call(this), Ot(this, Pt, URL.createObjectURL(i)), this._url = H(this, Pt);
     } catch (i) {
       if ((i == null ? void 0 : i.name) === "AbortError") return;
       this._error = i instanceof Error ? i.message : "The preview could not be rendered.";
     } finally {
-      We(this, be, Ks).call(this, !1);
+      Be(this, xe, no).call(this, !1);
     }
   }
 };
-Ks = function(e) {
+no = function(e) {
   this._loading = e, this.dispatchEvent(new CustomEvent("di-preview-state", { bubbles: !0, composed: !0, detail: { busy: e } }));
 };
-Rt.styles = I`
+Ft.styles = A`
     :host {
       display: block;
       border-top: 1px solid var(--uui-color-border);
@@ -5835,6 +6981,10 @@ Rt.styles = I`
 
     .strip {
       padding: var(--uui-size-space-2) var(--uui-size-space-3);
+    }
+
+    di-preview-content-picker {
+      margin-top: var(--uui-size-space-2);
     }
 
     .toggle {
@@ -5868,7 +7018,7 @@ Rt.styles = I`
       border-radius: var(--uui-border-radius);
       box-shadow: var(--uui-shadow-depth-2);
       /* Behind the image, so a transparent render reads as transparent rather than as white. */
-      ${no}
+      ${Po}
     }
 
     @media (prefers-reduced-motion: no-preference) {
@@ -5893,43 +7043,43 @@ Rt.styles = I`
       font-size: 12px;
     }
   `;
-ea([
-  f()
-], Rt.prototype, "_url", 2);
-ea([
-  f()
-], Rt.prototype, "_loading", 2);
-ea([
-  f()
-], Rt.prototype, "_error", 2);
-ea([
-  f()
-], Rt.prototype, "_collapsed", 2);
-Rt = ea([
-  R("di-preview-strip")
-], Rt);
-var Uh = Object.defineProperty, Bh = Object.getOwnPropertyDescriptor, Il = (e) => {
+oa([
+  y()
+], Ft.prototype, "_url", 2);
+oa([
+  y()
+], Ft.prototype, "_loading", 2);
+oa([
+  y()
+], Ft.prototype, "_error", 2);
+oa([
+  y()
+], Ft.prototype, "_collapsed", 2);
+Ft = oa([
+  M("di-preview-strip")
+], Ft);
+var ym = Object.defineProperty, fm = Object.getOwnPropertyDescriptor, Dc = (e) => {
   throw TypeError(e);
-}, X = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Bh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Uh(t, i, s), s;
-}, ko = (e, t, i) => t.has(e) || Il("Cannot " + i), v = (e, t, i) => (ko(e, t, "read from private field"), i ? i.call(e) : t.get(e)), ft = (e, t, i) => t.has(e) ? Il("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ti = (e, t, i, a) => (ko(e, t, "write to private field"), t.set(e, i), i), ie = (e, t, i) => (ko(e, t, "access private method"), i), x, Li, Ri, Wi, Yt, W, Vs, So, Al, Ll, Gs, Rl, Wl, Nl, Hs, Fl, Ul, Bl, Kl, Co, Vl, wa;
-const Kh = 400;
-let N = class extends F {
+}, K = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? fm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && ym(t, i, s), s;
+}, tr = (e, t, i) => t.has(e) || Dc("Cannot " + i), w = (e, t, i) => (tr(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Bt = (e, t, i) => t.has(e) ? Dc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Ha = (e, t, i, a) => (tr(e, t, "write to private field"), t.set(e, i), i), _e = (e, t, i) => (tr(e, t, "access private method"), i), E, Gi, qi, Jt, U, lo, ir, Ic, Oc, co, Pc, Ac, Mc, uo, Rc, zc, Lc, Da;
+const gm = 400;
+let F = class extends L {
   constructor() {
-    super(), ft(this, W), ft(this, x), ft(this, Li), ft(this, Ri), ft(this, Wi), ft(this, Yt), this._properties = [], this._linkedProperties = {}, this._fonts = [], this._serverBounds = [], this._effectiveScale = 1, this._previewing = !1, this._snapEnabled = !0, this._showRulers = !0, this._showSafeArea = !1, this._showMeasured = !1, this._canUndo = !1, this._canRedo = !1, ft(this, wa, (e) => {
+    super(), Bt(this, U), Bt(this, E), Bt(this, Gi), Bt(this, qi), Bt(this, Jt), this._properties = [], this._linkedProperties = {}, this._linkedCaptions = {}, this._fonts = [], this._serverBounds = [], this._effectiveScale = 1, this._previewing = !1, this._snapEnabled = !0, this._showRulers = !0, this._showSafeArea = !1, this._showMeasured = !1, this._canUndo = !1, this._canRedo = !1, Bt(this, Da, (e) => {
       var o;
       const t = e.composedPath()[0];
       if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t != null && t.isContentEditable) return;
-      const i = v(this, x);
+      const i = w(this, E);
       if (!i) return;
       const a = e.ctrlKey || e.metaKey;
       if (a && e.key.toLowerCase() === "z") {
         e.preventDefault(), e.shiftKey ? i.redo() : i.undo();
         return;
       }
-      const s = v(this, W, Vs);
+      const s = w(this, U, lo);
       if (s) {
         if (a && e.key.toLowerCase() === "d") {
           e.preventDefault(), i.duplicateLayer(s.key);
@@ -5938,7 +7088,7 @@ let N = class extends F {
         switch (e.key) {
           case "Delete":
           case "Backspace":
-            e.preventDefault(), ie(this, W, Gs).call(this, s.key);
+            e.preventDefault(), _e(this, U, co).call(this, s.key);
             break;
           case "Escape":
             i.selectLayer(void 0);
@@ -5948,33 +7098,33 @@ let N = class extends F {
           case "ArrowUp":
           case "ArrowDown": {
             e.preventDefault();
-            const n = e.shiftKey ? 10 : 1, l = e.key === "ArrowLeft" ? -n : e.key === "ArrowRight" ? n : 0, d = e.key === "ArrowUp" ? -n : e.key === "ArrowDown" ? n : 0, p = Pe(s.position, "x") ? 0 : l, k = Pe(s.position, "y") ? 0 : d;
-            if (p === 0 && k === 0) break;
+            const r = e.shiftKey ? 10 : 1, l = e.key === "ArrowLeft" ? -r : e.key === "ArrowRight" ? r : 0, h = e.key === "ArrowUp" ? -r : e.key === "ArrowDown" ? r : 0, m = Re(s.position, "x") ? 0 : l, C = Re(s.position, "y") ? 0 : h;
+            if (m === 0 && C === 0) break;
             i.updateLayer(s.key, {
-              position: { ...s.position, x: s.position.x + p, y: s.position.y + k }
+              position: { ...s.position, x: s.position.x + m, y: s.position.y + C }
             });
             break;
           }
           case "[":
           case "]": {
-            const n = ((o = this._template) == null ? void 0 : o.layers.findIndex((l) => l.key === s.key)) ?? -1;
-            if (n < 0) return;
-            e.preventDefault(), i.moveLayer(s.key, e.key === "]" ? n + 1 : n - 1);
+            const r = ((o = this._template) == null ? void 0 : o.layers.findIndex((l) => l.key === s.key)) ?? -1;
+            if (r < 0) return;
+            e.preventDefault(), i.moveLayer(s.key, e.key === "]" ? r + 1 : r - 1);
             break;
           }
         }
       }
-    }), this.consumeContext(Ua, (e) => {
-      Ti(this, Li, e);
-    }), this.consumeContext(Ge, (e) => {
-      Ti(this, Ri, e);
-    }), this.consumeContext(Nt, (e) => {
-      Ti(this, x, e), e && (this.observe(e.template, (t) => {
-        this._template = t, t && (ie(this, W, Rl).call(this, t), ie(this, W, Wl).call(this, t), ie(this, W, Nl).call(this));
+    }), this.consumeContext(pe, (e) => {
+      Ha(this, Gi, e);
+    }), this.consumeContext(ft, (e) => {
+      Ha(this, E, e), e && (this.observe(e.template, (t) => {
+        this._template = t, t && (_e(this, U, Pc).call(this, t), _e(this, U, Ac).call(this, t), _e(this, U, Mc).call(this));
       }), this.observe(e.selectedLayerKey, (t) => {
         this._selectedKey = t;
       }), this.observe(e.properties, (t) => {
         this._properties = t ?? [];
+      }), this.observe(e.linkedCaptions, (t) => {
+        this._linkedCaptions = t ?? {};
       }), this.observe(e.linkedProperties, (t) => {
         this._linkedProperties = t ?? {};
       }), this.observe(e.fonts, (t) => {
@@ -5989,63 +7139,61 @@ let N = class extends F {
     });
   }
   connectedCallback() {
-    super.connectedCallback(), window.addEventListener("keydown", v(this, wa));
+    super.connectedCallback(), window.addEventListener("keydown", w(this, Da));
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), window.removeEventListener("keydown", v(this, wa)), window.clearTimeout(v(this, Wi)), (e = v(this, Yt)) == null || e.abort();
+    super.disconnectedCallback(), window.removeEventListener("keydown", w(this, Da)), window.clearTimeout(w(this, qi)), (e = w(this, Jt)) == null || e.abort();
   }
   // ------------------------------------------------------------------ rendering
   render() {
-    return this._template ? r`
+    return this._template ? n`
       <div
         class="layout"
         @di-layer-change=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.updateLayer(e.detail.key, e.detail.patch);
+      return (t = w(this, E)) == null ? void 0 : t.updateLayer(e.detail.key, e.detail.patch);
     }}
         @di-canvas-change=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.updateCanvas(e.detail.patch);
+      return (t = w(this, E)) == null ? void 0 : t.updateCanvas(e.detail.patch);
     }}
         @di-layer-select=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.selectLayer(e.detail.key);
+      return (t = w(this, E)) == null ? void 0 : t.selectLayer(e.detail.key);
     }}
-        @di-layer-delete=${(e) => ie(this, W, Gs).call(this, e.detail.key)}
-        @di-layer-detach=${(e) => ie(this, W, Ll).call(this, e.detail.key, e.detail.axis)}
+        @di-layer-delete=${(e) => _e(this, U, co).call(this, e.detail.key)}
+        @di-layer-detach=${(e) => _e(this, U, Oc).call(this, e.detail.key, e.detail.axis)}
         @di-layer-duplicate=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.duplicateLayer(e.detail.key);
+      return (t = w(this, E)) == null ? void 0 : t.duplicateLayer(e.detail.key);
     }}
         @di-layer-move=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.moveLayer(e.detail.key, e.detail.toIndex);
+      return (t = w(this, E)) == null ? void 0 : t.moveLayer(e.detail.key, e.detail.toIndex);
     }}
         @di-layer-visibility=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.setLayerVisible(e.detail.key, e.detail.isVisible);
+      return (t = w(this, E)) == null ? void 0 : t.setLayerVisible(e.detail.key, e.detail.isVisible);
     }}
         @di-layer-lock=${(e) => {
       var t;
-      return (t = v(this, x)) == null ? void 0 : t.setLayerLocked(e.detail.key, e.detail.isLocked);
+      return (t = w(this, E)) == null ? void 0 : t.setLayerLocked(e.detail.key, e.detail.isLocked);
     }}
         @di-transaction-begin=${() => {
       var e;
-      return (e = v(this, x)) == null ? void 0 : e.beginTransaction();
+      return (e = w(this, E)) == null ? void 0 : e.beginTransaction();
     }}
         @di-transaction-end=${(e) => {
       var t, i;
-      return (i = v(this, x)) == null ? void 0 : i.endTransaction(((t = e.detail) == null ? void 0 : t.moved) ?? !0);
+      return (i = w(this, E)) == null ? void 0 : i.endTransaction(((t = e.detail) == null ? void 0 : t.moved) ?? !0);
     }}
-        @di-palette-add=${(e) => ie(this, W, Hs).call(this, e.detail.payload)}
-        @di-palette-drop=${(e) => ie(this, W, Hs).call(this, e.detail.payload, e.detail.x, e.detail.y, e.detail.targetKey)}
-        @di-pick-base-image=${ie(this, W, Bl)}
-        @di-pick-layer-image=${(e) => ie(this, W, Kl).call(this, e.detail.key)}
-        @di-use-image-size=${ie(this, W, Vl)}
+        @di-palette-add=${(e) => _e(this, U, uo).call(this, e.detail.payload)}
+        @di-palette-drop=${(e) => _e(this, U, uo).call(this, e.detail.payload, e.detail.x, e.detail.y, e.detail.targetKey)}
+        @di-use-image-size=${_e(this, U, Lc)}
         @di-request-preview=${() => {
       var e;
-      return (e = v(this, W, Al)) == null ? void 0 : e.refresh();
+      return (e = w(this, U, Ic)) == null ? void 0 : e.refresh();
     }}
         @di-preview-state=${(e) => {
       this._previewing = e.detail.busy;
@@ -6054,7 +7202,7 @@ let N = class extends F {
       this._effectiveScale = e.detail.scale;
     }}
         @di-zoom-change=${(e) => {
-      this._zoom = Math.max(za.min, Math.min(za.max, e.detail.zoom));
+      this._zoom = Math.max(Ba.min, Math.min(Ba.max, e.detail.zoom));
     }}
         @di-zoom-fit=${() => {
       this._zoom = void 0;
@@ -6073,11 +7221,11 @@ let N = class extends F {
     }}
         @di-undo=${() => {
       var e;
-      return (e = v(this, x)) == null ? void 0 : e.undo();
+      return (e = w(this, E)) == null ? void 0 : e.undo();
     }}
         @di-redo=${() => {
       var e;
-      return (e = v(this, x)) == null ? void 0 : e.redo();
+      return (e = w(this, E)) == null ? void 0 : e.redo();
     }}>
         <di-property-palette class="palette" .properties=${this._properties}></di-property-palette>
 
@@ -6111,110 +7259,110 @@ let N = class extends F {
         <div class="side">
           <di-layer-inspector
             .template=${this._template}
-            .layer=${v(this, W, Vs)}
+            .layer=${w(this, U, lo)}
             .properties=${this._properties}
             .linkedProperties=${this._linkedProperties}
+            .linkedCaptions=${this._linkedCaptions}
             .fonts=${this._fonts}>
           </di-layer-inspector>
 
           <di-layers-panel .layers=${this._template.layers} .selectedLayerKey=${this._selectedKey}></di-layers-panel>
         </div>
       </div>
-    ` : r`<div class="state"><uui-loader></uui-loader></div>`;
+    ` : n`<div class="state"><uui-loader></uui-loader></div>`;
   }
 };
-x = /* @__PURE__ */ new WeakMap();
-Li = /* @__PURE__ */ new WeakMap();
-Ri = /* @__PURE__ */ new WeakMap();
-Wi = /* @__PURE__ */ new WeakMap();
-Yt = /* @__PURE__ */ new WeakMap();
-W = /* @__PURE__ */ new WeakSet();
-Vs = function() {
+E = /* @__PURE__ */ new WeakMap();
+Gi = /* @__PURE__ */ new WeakMap();
+qi = /* @__PURE__ */ new WeakMap();
+Jt = /* @__PURE__ */ new WeakMap();
+U = /* @__PURE__ */ new WeakSet();
+lo = function() {
   var e;
   return (e = this._template) == null ? void 0 : e.layers.find((t) => t.key === this._selectedKey);
 };
-So = function() {
+ir = function() {
   return this.renderRoot.querySelector("di-designer-canvas");
 };
-Al = function() {
+Ic = function() {
   return this.renderRoot.querySelector("di-preview-strip");
 };
-Ll = function(e, t) {
-  var s, o, n;
+Oc = function(e, t) {
+  var s, o, r;
   const i = (s = this._template) == null ? void 0 : s.layers.find((l) => l.key === e);
   if (!i) return;
-  const a = (o = v(this, W, So)) == null ? void 0 : o.resolvedPositionOf(e);
-  (n = v(this, x)) == null || n.updateLayer(e, { position: gs(i.position, t, a) });
+  const a = (o = w(this, U, ir)) == null ? void 0 : o.resolvedPositionOf(e);
+  (r = w(this, E)) == null || r.updateLayer(e, { position: Es(i.position, t, a) });
 };
-Gs = function(e) {
+co = function(e) {
   var i, a, s;
   const t = /* @__PURE__ */ new Map();
   for (const o of ((i = this._template) == null ? void 0 : i.layers) ?? []) {
-    const n = (a = v(this, W, So)) == null ? void 0 : a.resolvedPositionOf(o.key);
-    n && t.set(o.key, n);
+    const r = (a = w(this, U, ir)) == null ? void 0 : a.resolvedPositionOf(o.key);
+    r && t.set(o.key, r);
   }
-  (s = v(this, x)) == null || s.removeLayer(e, t);
+  (s = w(this, E)) == null || s.removeLayer(e, t);
 };
-Rl = async function(e) {
+Pc = async function(e) {
   const t = e.layers.flatMap(
     (i) => i.type === "text" ? [i.style.fontKey] : i.type === "badges" ? [i.label.fontKey] : []
   );
-  t.length > 0 && v(this, x) && await or(t, v(this, x).getToken);
+  t.length > 0 && w(this, E) && await Jn(t, w(this, E).getToken);
 };
-Wl = async function(e) {
+Ac = async function(e) {
   const t = e.canvas.baseImage;
   if (t.kind === "path" && t.path) {
     this._baseImageUrl = t.path;
     return;
   }
-  if (t.kind !== "media" || !t.mediaKey || !v(this, x)) {
+  if (t.kind !== "media" || !t.mediaKey || !w(this, E)) {
     this._baseImageUrl = void 0;
     return;
   }
-  const i = await Zs(t.mediaKey, v(this, x).getToken).catch(() => {
+  const i = await dn(t.mediaKey, w(this, E).getToken).catch(() => {
   });
   this._baseImageUrl = i == null ? void 0 : i.url;
 };
-Nl = function() {
-  window.clearTimeout(v(this, Wi)), Ti(this, Wi, window.setTimeout(async () => {
+Mc = function() {
+  window.clearTimeout(w(this, qi)), Ha(this, qi, window.setTimeout(async () => {
     var t;
     const e = this._template;
-    if (!(!e || !v(this, x))) {
-      (t = v(this, Yt)) == null || t.abort(), Ti(this, Yt, new AbortController());
+    if (!(!e || !w(this, E))) {
+      (t = w(this, Jt)) == null || t.abort(), Ha(this, Jt, new AbortController());
       try {
-        const i = await Js(
+        const i = await un(
           e,
-          { signal: v(this, Yt).signal, useSampleData: !0 },
-          v(this, x).getToken
+          { signal: w(this, Jt).signal, useSampleData: !0 },
+          w(this, E).getToken
         );
-        v(this, x).setServerBounds(i.layers), v(this, x).setIssues(i.issues);
+        w(this, E).setServerBounds(i.layers), w(this, E).setIssues(i.issues);
       } catch (i) {
         (i == null ? void 0 : i.name) !== "AbortError" && console.warn("[DynamicImages] Layout measurement failed", i);
       }
     }
-  }, Kh));
+  }, gm));
 };
-Hs = function(e, t, i, a) {
+uo = function(e, t, i, a) {
   const s = this._template;
-  if (!s || !v(this, x)) return;
-  const o = { template: s, x: t, y: i, defaultFontKey: ie(this, W, Ul).call(this) };
+  if (!s || !w(this, E)) return;
+  const o = { template: s, x: t, y: i, defaultFontKey: _e(this, U, zc).call(this) };
   if (e.kind === "property") {
-    const l = Uc(e.property, o);
+    const l = vd(e.property, o);
     if (l.kind === "condition") {
-      ie(this, W, Fl).call(this, l.propertyAlias, l.propertyName, a);
+      _e(this, U, Rc).call(this, l.propertyAlias, l.propertyName, a);
       return;
     }
-    v(this, x).addLayer(l.layer);
+    w(this, E).addLayer(l.layer);
     return;
   }
-  const n = e.layerType === "image" ? An(o, "Image") : e.layerType === "badges" ? Ln(o, "Badges", "") : e.layerType === "rect" ? Nc(o, "Shape", e.shape) : In(o, "Text", { kind: "static", text: "Text" });
-  v(this, x).addLayer(n);
+  const r = e.layerType === "image" ? fn(o, "Image") : e.layerType === "badges" ? gn(o, "Badges", "") : e.layerType === "rect" ? fd(o, "Shape", e.preset) : yn(o, "Text", { kind: "static", text: "Text" });
+  w(this, E).addLayer(r);
 };
-Fl = function(e, t, i) {
-  var o, n, l, d;
-  const a = i ?? this._selectedKey, s = (o = this._template) == null ? void 0 : o.layers.find((p) => p.key === a);
+Rc = function(e, t, i) {
+  var o, r, l, h;
+  const a = i ?? this._selectedKey, s = (o = this._template) == null ? void 0 : o.layers.find((m) => m.key === a);
   if (!s) {
-    (n = v(this, Ri)) == null || n.peek("warning", {
+    (r = w(this, Gi)) == null || r.peek("warning", {
       data: {
         headline: "Nothing to apply that to",
         message: "Drop a Yes/No property onto a layer, or select one first - it controls when that layer is shown."
@@ -6222,45 +7370,29 @@ Fl = function(e, t, i) {
     });
     return;
   }
-  (l = v(this, x)) == null || l.updateLayer(s.key, {
+  (l = w(this, E)) == null || l.updateLayer(s.key, {
     visibility: { rule: "whenPropertyTruthy", propertyAlias: e }
-  }), (d = v(this, Ri)) == null || d.peek("positive", {
+  }), (h = w(this, Gi)) == null || h.peek("positive", {
     data: { message: `'${s.name}' now shows only when '${t}' is ticked.` }
   });
 };
-Ul = function() {
+zc = function() {
   var t, i;
   const e = (t = this._template) == null ? void 0 : t.layers.flatMap(
     (a) => a.type === "text" ? [a.style.fontKey] : a.type === "badges" ? [a.label.fontKey] : []
   ).filter(Boolean);
   return (e == null ? void 0 : e[0]) ?? ((i = this._fonts[0]) == null ? void 0 : i.key);
 };
-Bl = async function() {
-  var t;
-  const e = await ie(this, W, Co).call(this);
-  e && ((t = v(this, x)) == null || t.updateCanvas({ baseImage: { kind: "media", mediaKey: e } }));
-};
-Kl = async function(e) {
-  var i;
-  const t = await ie(this, W, Co).call(this);
-  t && ((i = v(this, x)) == null || i.updateLayer(e, { source: { kind: "media", mediaKey: t } }));
-};
-Co = async function() {
-  if (!v(this, Li)) return;
-  const e = v(this, Li).open(this, ln, { data: { multiple: !1 } }), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
-  }));
-  return (t == null ? void 0 : t.selection[0]) ?? void 0;
-};
-Vl = async function() {
+Lc = async function() {
   var i;
   const e = (i = this._template) == null ? void 0 : i.canvas.baseImage;
-  if ((e == null ? void 0 : e.kind) !== "media" || !e.mediaKey || !v(this, x)) return;
-  const t = await Zs(e.mediaKey, v(this, x).getToken).catch(() => {
+  if ((e == null ? void 0 : e.kind) !== "media" || !e.mediaKey || !w(this, E)) return;
+  const t = await dn(e.mediaKey, w(this, E).getToken).catch(() => {
   });
-  t && v(this, x).updateCanvas({ width: t.width, height: t.height });
+  t && w(this, E).updateCanvas({ width: t.width, height: t.height });
 };
-wa = /* @__PURE__ */ new WeakMap();
-N.styles = I`
+Da = /* @__PURE__ */ new WeakMap();
+F.styles = A`
     :host {
       display: block;
       height: 100%;
@@ -6336,230 +7468,196 @@ N.styles = I`
       }
     }
   `;
-X([
-  f()
-], N.prototype, "_template", 2);
-X([
-  f()
-], N.prototype, "_selectedKey", 2);
-X([
-  f()
-], N.prototype, "_properties", 2);
-X([
-  f()
-], N.prototype, "_linkedProperties", 2);
-X([
-  f()
-], N.prototype, "_fonts", 2);
-X([
-  f()
-], N.prototype, "_serverBounds", 2);
-X([
-  f()
-], N.prototype, "_baseImageUrl", 2);
-X([
-  f()
-], N.prototype, "_zoom", 2);
-X([
-  f()
-], N.prototype, "_effectiveScale", 2);
-X([
-  f()
-], N.prototype, "_previewing", 2);
-X([
-  f()
-], N.prototype, "_snapEnabled", 2);
-X([
-  f()
-], N.prototype, "_showRulers", 2);
-X([
-  f()
-], N.prototype, "_showSafeArea", 2);
-X([
-  f()
-], N.prototype, "_showMeasured", 2);
-X([
-  f()
-], N.prototype, "_canUndo", 2);
-X([
-  f()
-], N.prototype, "_canRedo", 2);
-N = X([
-  R("di-design-view")
-], N);
-const Vh = N, Gh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+K([
+  y()
+], F.prototype, "_template", 2);
+K([
+  y()
+], F.prototype, "_selectedKey", 2);
+K([
+  y()
+], F.prototype, "_properties", 2);
+K([
+  y()
+], F.prototype, "_linkedProperties", 2);
+K([
+  y()
+], F.prototype, "_linkedCaptions", 2);
+K([
+  y()
+], F.prototype, "_fonts", 2);
+K([
+  y()
+], F.prototype, "_serverBounds", 2);
+K([
+  y()
+], F.prototype, "_baseImageUrl", 2);
+K([
+  y()
+], F.prototype, "_zoom", 2);
+K([
+  y()
+], F.prototype, "_effectiveScale", 2);
+K([
+  y()
+], F.prototype, "_previewing", 2);
+K([
+  y()
+], F.prototype, "_snapEnabled", 2);
+K([
+  y()
+], F.prototype, "_showRulers", 2);
+K([
+  y()
+], F.prototype, "_showSafeArea", 2);
+K([
+  y()
+], F.prototype, "_showMeasured", 2);
+K([
+  y()
+], F.prototype, "_canUndo", 2);
+K([
+  y()
+], F.prototype, "_canRedo", 2);
+F = K([
+  M("di-design-view")
+], F);
+const vm = F, bm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiDesignViewElement() {
-    return N;
+    return F;
   },
-  default: Vh
+  default: vm
 }, Symbol.toStringTag, { value: "Module" }));
-var Hh = Object.defineProperty, jh = Object.getOwnPropertyDescriptor, Gl = (e) => {
+var _m = Object.defineProperty, wm = Object.getOwnPropertyDescriptor, Fc = (e) => {
   throw TypeError(e);
-}, Xe = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? jh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && Hh(t, i, s), s;
-}, To = (e, t, i) => t.has(e) || Gl("Cannot " + i), K = (e, t, i) => (To(e, t, "read from private field"), t.get(e)), Ft = (e, t, i) => t.has(e) ? Gl("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), qt = (e, t, i, a) => (To(e, t, "write to private field"), t.set(e, i), i), Z = (e, t, i) => (To(e, t, "access private method"), i), pe, Ni, Fi, Jt, Ot, G, Hl, Wa, jl, Xl, Eo, Yl, Ui, ql, Jl, Zl;
-let ue = class extends F {
+}, Qe = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? wm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && _m(t, i, s), s;
+}, ar = (e, t, i) => t.has(e) || Fc("Cannot " + i), Q = (e, t, i) => (ar(e, t, "read from private field"), t.get(e)), $i = (e, t, i) => t.has(e) ? Fc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Hi = (e, t, i, a) => (ar(e, t, "write to private field"), t.set(e, i), i), tt = (e, t, i) => (ar(e, t, "access private method"), i), Ae, Yi, Zt, At, De, sr, Ia, Wc, Uc, Nc;
+let de = class extends L {
   constructor() {
-    super(), Ft(this, G), Ft(this, pe), Ft(this, Ni), Ft(this, Fi), Ft(this, Jt), Ft(this, Ot), this._bounds = [], this._skipped = [], this._loading = !1, this._regenerating = !1, this.consumeContext(Ua, (e) => {
-      qt(this, Ni, e);
-    }), this.consumeContext(Ge, (e) => {
-      qt(this, Fi, e);
-    }), this.consumeContext(Nt, (e) => {
-      qt(this, pe, e), e && this.observe(e.template, (t) => {
-        const i = !this._template;
-        this._template = t, t && i && Z(this, G, Hl).call(this);
-      });
+    super(), $i(this, De), $i(this, Ae), $i(this, Yi), $i(this, Zt), $i(this, At), this._bounds = [], this._skipped = [], this._loading = !1, this._regenerating = !1, this.consumeContext(pe, (e) => {
+      Hi(this, Yi, e);
+    }), this.consumeContext(ft, (e) => {
+      Hi(this, Ae, e), e && (this.observe(e.template, (t) => {
+        this._template = t;
+      }), this.observe(e.sampleContentKey, (t) => {
+        t !== this._contentKey && (this._contentKey = t, tt(this, De, Ia).call(this));
+      }));
     });
   }
   connectedCallback() {
-    super.connectedCallback(), Z(this, G, Ui).call(this);
+    super.connectedCallback(), tt(this, De, Ia).call(this);
   }
   disconnectedCallback() {
     var e;
-    super.disconnectedCallback(), (e = K(this, Jt)) == null || e.abort(), Z(this, G, Eo).call(this);
+    super.disconnectedCallback(), (e = Q(this, Zt)) == null || e.abort(), tt(this, De, sr).call(this);
   }
   render() {
-    return this._template ? r`
+    return this._template ? n`
       <div class="grid">
+        <uui-box>
+          <di-preview-content-picker></di-preview-content-picker>
+        </uui-box>
+
         <uui-box headline="Preview">
           <div slot="header-actions" class="actions">
-            <uui-button look="secondary" label="Choose content to preview against" @click=${Z(this, G, Yl)}>
-              ${this._sampleNode ? this._sampleNode.name : "Sample data"}
-            </uui-button>
-            <uui-button look="secondary" label="Re-render" ?disabled=${this._loading} @click=${() => Z(this, G, Ui).call(this)}>
+            <uui-button look="secondary" label="Re-render" ?disabled=${this._loading} @click=${() => tt(this, De, Ia).call(this)}>
               Re-render
             </uui-button>
-            <uui-button look="secondary" label="Download this image" ?disabled=${!this._url} @click=${Z(this, G, Jl)}>
+            <uui-button look="secondary" label="Download this image" ?disabled=${!this._url} @click=${tt(this, De, Uc)}>
               Download
             </uui-button>
           </div>
 
-          ${this._loading ? r`<uui-loader-bar></uui-loader-bar>` : m}
-          ${this._error ? r`<div class="error" role="alert"><uui-icon name="icon-alert"></uui-icon> ${this._error}</div>` : this._url ? r`<img class="render" src=${this._url} alt="Rendered preview of this template" />` : m}
-
-          <p class="hint">
-            Choose a content item above to preview this template against a real title and image.
-          </p>
+          ${this._loading ? n`<uui-loader-bar></uui-loader-bar>` : p}
+          ${this._error ? n`<div class="error" role="alert"><uui-icon name="icon-alert"></uui-icon> ${this._error}</div>` : this._url ? n`<img class="render" src=${this._url} alt="Rendered preview of this template" />` : p}
         </uui-box>
 
         <uui-box headline="Resolved values">
-          ${this._template.layers.length === 0 ? r`<p class="empty">This template has no layers yet.</p>` : r`<uui-table>
+          ${this._template.layers.length === 0 ? n`<p class="empty">This template has no layers yet.</p>` : n`<uui-table>
                 <uui-table-head>
                   <uui-table-head-cell>Layer</uui-table-head-cell>
                   <uui-table-head-cell>Value</uui-table-head-cell>
                   <uui-table-head-cell>Position</uui-table-head-cell>
                   <uui-table-head-cell>Size</uui-table-head-cell>
                 </uui-table-head>
-                ${B(
+                ${Z(
       // A row per *template layer*, not per bounds. A layer that resolved to nothing
       // used to be dropped from this table entirely - no row, no note, no reason -
       // which is exactly when an editor most needs telling.
       this._template.layers,
       (e) => e.key,
-      (e) => Z(this, G, Zl).call(this, e)
+      (e) => tt(this, De, Nc).call(this, e)
     )}
               </uui-table>`}
         </uui-box>
 
-        ${this._sampleNode ? r`<uui-box headline="This node">
+        ${this._contentKey ? n`<uui-box headline="This page">
               <p>
                 Regenerating writes a new image into
-                <code>${this._template.targetPropertyAlias || "the target property"}</code> on
-                <strong>${this._sampleNode.name}</strong>, replacing the existing media file in place.
+                <code>${this._template.targetPropertyAlias || "the target property"}</code> on the page
+                chosen above, replacing the existing media file in place.
               </p>
               <uui-button
                 look="primary"
                 color="positive"
-                label="Regenerate the image for ${this._sampleNode.name}"
+                label="Regenerate the image for this page"
                 ?disabled=${this._regenerating}
-                @click=${Z(this, G, ql)}>
+                @click=${tt(this, De, Wc)}>
                 Regenerate this node
               </uui-button>
-            </uui-box>` : m}
+            </uui-box>` : p}
       </div>
-    ` : r`<uui-loader></uui-loader>`;
+    ` : n`<uui-loader></uui-loader>`;
   }
 };
-pe = /* @__PURE__ */ new WeakMap();
-Ni = /* @__PURE__ */ new WeakMap();
-Fi = /* @__PURE__ */ new WeakMap();
-Jt = /* @__PURE__ */ new WeakMap();
-Ot = /* @__PURE__ */ new WeakMap();
-G = /* @__PURE__ */ new WeakSet();
-Hl = async function() {
-  var t;
-  const e = Z(this, G, jl).call(this);
-  e && (this._sampleNode = e, (t = K(this, pe)) == null || t.setSampleContentKey(e.key), await Z(this, G, Ui).call(this));
+Ae = /* @__PURE__ */ new WeakMap();
+Yi = /* @__PURE__ */ new WeakMap();
+Zt = /* @__PURE__ */ new WeakMap();
+At = /* @__PURE__ */ new WeakMap();
+De = /* @__PURE__ */ new WeakSet();
+sr = function() {
+  Q(this, At) && (URL.revokeObjectURL(Q(this, At)), Hi(this, At, void 0));
 };
-Wa = function() {
-  var e;
-  return `di:sample-node:${((e = this._template) == null ? void 0 : e.key) ?? "new"}`;
-};
-jl = function() {
-  try {
-    const e = localStorage.getItem(Z(this, G, Wa).call(this));
-    return e ? JSON.parse(e) : void 0;
-  } catch {
-    return;
-  }
-};
-Xl = function(e) {
-  try {
-    e ? localStorage.setItem(Z(this, G, Wa).call(this), JSON.stringify(e)) : localStorage.removeItem(Z(this, G, Wa).call(this));
-  } catch {
-  }
-};
-Eo = function() {
-  K(this, Ot) && (URL.revokeObjectURL(K(this, Ot)), qt(this, Ot, void 0));
-};
-Yl = async function() {
-  var i, a, s;
-  if (!K(this, Ni) || !this._template) return;
-  const e = K(this, Ni).open(this, _u, {
-    data: { docTypeAliases: this._template.docTypeAliases, selectedKey: (i = this._sampleNode) == null ? void 0 : i.key }
-  }), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
-  }));
-  t && (this._sampleNode = t.item, Z(this, G, Xl).call(this, t.item), (s = K(this, pe)) == null || s.setSampleContentKey((a = t.item) == null ? void 0 : a.key), await Z(this, G, Ui).call(this));
-};
-Ui = async function() {
-  var i, a;
+Ia = async function() {
+  var i;
   const e = this._template;
-  if (!e || !K(this, pe)) return;
-  (i = K(this, Jt)) == null || i.abort(), qt(this, Jt, new AbortController()), this._loading = !0, this._error = void 0;
+  if (!e || !Q(this, Ae)) return;
+  (i = Q(this, Zt)) == null || i.abort(), Hi(this, Zt, new AbortController()), this._loading = !0, this._error = void 0;
   const t = {
-    signal: K(this, Jt).signal,
-    contentKey: (a = this._sampleNode) == null ? void 0 : a.key,
-    useSampleData: !this._sampleNode,
+    signal: Q(this, Zt).signal,
+    contentKey: this._contentKey,
+    useSampleData: !this._contentKey,
     // Full size here - this view is where fidelity matters.
     scale: 1
   };
   try {
-    const [s, o] = await Promise.all([
-      qs(e, t, K(this, pe).getToken),
-      Js(e, t, K(this, pe).getToken)
+    const [a, s] = await Promise.all([
+      cn(e, t, Q(this, Ae).getToken),
+      un(e, t, Q(this, Ae).getToken)
     ]);
-    Z(this, G, Eo).call(this), qt(this, Ot, URL.createObjectURL(s)), this._url = K(this, Ot), this._bounds = o.layers, this._skipped = o.skipped ?? [], K(this, pe).setServerBounds(o.layers), K(this, pe).setIssues(o.issues);
-  } catch (s) {
-    if ((s == null ? void 0 : s.name) === "AbortError") return;
-    this._error = s instanceof Error ? s.message : "The preview could not be rendered.";
+    tt(this, De, sr).call(this), Hi(this, At, URL.createObjectURL(a)), this._url = Q(this, At), this._bounds = s.layers, this._skipped = s.skipped ?? [], Q(this, Ae).setServerBounds(s.layers), Q(this, Ae).setIssues(s.issues);
+  } catch (a) {
+    if ((a == null ? void 0 : a.name) === "AbortError") return;
+    this._error = a instanceof Error ? a.message : "The preview could not be rendered.";
   } finally {
     this._loading = !1;
   }
 };
-ql = async function() {
+Wc = async function() {
   var e, t;
-  if (!(!this._sampleNode || !K(this, pe))) {
+  if (!(!this._contentKey || !Q(this, Ae))) {
     this._regenerating = !0;
     try {
-      const i = await Ka(this._sampleNode.key, K(this, pe).getToken), a = i.outcome === "generated" || i.outcome === "generateddraft";
-      (e = K(this, Fi)) == null || e.peek(a ? "positive" : "warning", {
-        data: { message: i.message ?? `'${this._sampleNode.name}': ${i.outcome}` }
+      const i = await vo(this._contentKey, Q(this, Ae).getToken), a = i.outcome === "generated" || i.outcome === "generateddraft";
+      (e = Q(this, Yi)) == null || e.peek(a ? "positive" : "warning", {
+        data: { message: i.message ?? i.outcome }
       });
     } catch (i) {
-      (t = K(this, Fi)) == null || t.peek("danger", {
+      (t = Q(this, Yi)) == null || t.peek("danger", {
         data: {
           headline: "The image could not be regenerated",
           message: i instanceof Error ? i.message : ""
@@ -6570,17 +7668,17 @@ ql = async function() {
     }
   }
 };
-Jl = function() {
+Uc = function() {
   if (!this._url || !this._template) return;
   const e = document.createElement("a");
   e.href = this._url, e.download = `${this._template.alias || "preview"}.${this._template.output.format}`, e.click();
 };
-Zl = function(e) {
+Nc = function(e) {
   var i;
   const t = this._bounds.find((a) => a.key === e.key);
   if (!t) {
     const a = (i = this._skipped.find((s) => s.key === e.key)) == null ? void 0 : i.reason;
-    return r`
+    return n`
         <uui-table-row class="not-drawn">
           <uui-table-cell>${e.name || e.type}</uui-table-cell>
           <uui-table-cell colspan="3">
@@ -6589,19 +7687,19 @@ Zl = function(e) {
         </uui-table-row>
       `;
   }
-  return r`
+  return n`
       <uui-table-row>
         <uui-table-cell>${e.name || e.type}</uui-table-cell>
         <uui-table-cell>
-          ${t.resolvedText ?? r`<em>—</em>`}
-          ${t.truncated ? r`<uui-tag color="warning" look="secondary">truncated</uui-tag>` : m}
+          ${t.resolvedText ?? n`<em>—</em>`}
+          ${t.truncated ? n`<uui-tag color="warning" look="secondary">truncated</uui-tag>` : p}
         </uui-table-cell>
         <uui-table-cell>${Math.round(t.x)}, ${Math.round(t.y)}</uui-table-cell>
         <uui-table-cell>${Math.round(t.width)} × ${Math.round(t.height)}</uui-table-cell>
       </uui-table-row>
     `;
 };
-ue.styles = I`
+de.styles = A`
     :host {
       display: block;
       padding: var(--uui-size-layout-1);
@@ -6626,13 +7724,7 @@ ue.styles = I`
       border-radius: var(--uui-border-radius);
       box-shadow: var(--uui-shadow-depth-2);
       /* Behind the image, so a transparent render reads as transparent rather than as white. */
-      ${no}
-    }
-
-    .hint {
-      margin: var(--uui-size-space-4) 0 0;
-      font-size: 12px;
-      color: var(--uui-color-text-alt);
+      ${Po}
     }
 
     .error {
@@ -6661,53 +7753,51 @@ ue.styles = I`
       border-radius: 2px;
     }
   `;
-Xe([
-  f()
-], ue.prototype, "_template", 2);
-Xe([
-  f()
-], ue.prototype, "_sampleNode", 2);
-Xe([
-  f()
-], ue.prototype, "_bounds", 2);
-Xe([
-  f()
-], ue.prototype, "_skipped", 2);
-Xe([
-  f()
-], ue.prototype, "_url", 2);
-Xe([
-  f()
-], ue.prototype, "_loading", 2);
-Xe([
-  f()
-], ue.prototype, "_error", 2);
-Xe([
-  f()
-], ue.prototype, "_regenerating", 2);
-ue = Xe([
-  R("di-preview-view")
-], ue);
-const Xh = ue, Yh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+Qe([
+  y()
+], de.prototype, "_template", 2);
+Qe([
+  y()
+], de.prototype, "_contentKey", 2);
+Qe([
+  y()
+], de.prototype, "_bounds", 2);
+Qe([
+  y()
+], de.prototype, "_skipped", 2);
+Qe([
+  y()
+], de.prototype, "_url", 2);
+Qe([
+  y()
+], de.prototype, "_loading", 2);
+Qe([
+  y()
+], de.prototype, "_error", 2);
+Qe([
+  y()
+], de.prototype, "_regenerating", 2);
+de = Qe([
+  M("di-preview-view")
+], de);
+const $m = de, xm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiPreviewViewElement() {
-    return ue;
+    return de;
   },
-  default: Xh
+  default: $m
 }, Symbol.toStringTag, { value: "Module" }));
-var qh = Object.defineProperty, Jh = Object.getOwnPropertyDescriptor, Ql = (e) => {
+var km = Object.defineProperty, Tm = Object.getOwnPropertyDescriptor, Bc = (e) => {
   throw TypeError(e);
-}, ts = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? Jh(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && qh(t, i, s), s;
-}, Po = (e, t, i) => t.has(e) || Ql("Cannot " + i), U = (e, t, i) => (Po(e, t, "read from private field"), i ? i.call(e) : t.get(e)), cs = (e, t, i) => t.has(e) ? Ql("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), en = (e, t, i, a) => (Po(e, t, "write to private field"), t.set(e, i), i), st = (e, t, i) => (Po(e, t, "access private method"), i), H, Wt, _e, ec, tc, ic, ac, sc, oc, nc, rc, lc;
-let ut = class extends F {
+}, ra = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Tm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && km(t, i, s), s;
+}, or = (e, t, i) => t.has(e) || Bc("Cannot " + i), Y = (e, t, i) => (or(e, t, "read from private field"), i ? i.call(e) : t.get(e)), Yr = (e, t, i) => t.has(e) ? Bc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Sm = (e, t, i, a) => (or(e, t, "write to private field"), t.set(e, i), i), Gt = (e, t, i) => (or(e, t, "access private method"), i), se, ce, Kc, jc, Ya, Vc, Gc, qc, Hc, Yc, Xc;
+let qe = class extends L {
   constructor() {
-    super(), cs(this, _e), cs(this, H), cs(this, Wt), this._properties = [], this._showAdvanced = !1, this.consumeContext(Ua, (e) => {
-      en(this, Wt, e);
-    }), this.consumeContext(Nt, (e) => {
-      en(this, H, e), e && (this.observe(e.template, (t) => {
+    super(), Yr(this, ce), Yr(this, se), this._properties = [], this._showAdvanced = !1, this.consumeContext(ft, (e) => {
+      Sm(this, se, e), e && (ln(e.getToken).then((t) => this._documentTypes = t).catch(() => this._documentTypes = []), this.observe(e.template, (t) => {
         this._template = t;
       }), this.observe(e.properties, (t) => {
         this._properties = t ?? [];
@@ -6715,81 +7805,55 @@ let ut = class extends F {
     });
   }
   render() {
-    return this._template ? r`
+    return this._template ? n`
       <div class="grid">
-        ${st(this, _e, oc).call(this)} ${st(this, _e, nc).call(this)} ${st(this, _e, rc).call(this)} ${st(this, _e, lc).call(this)}
+        ${Gt(this, ce, qc).call(this)} ${Gt(this, ce, Hc).call(this)} ${Gt(this, ce, Yc).call(this)} ${Gt(this, ce, Xc).call(this)}
       </div>
-    ` : r`<uui-loader></uui-loader>`;
+    ` : n`<uui-loader></uui-loader>`;
   }
 };
-H = /* @__PURE__ */ new WeakMap();
-Wt = /* @__PURE__ */ new WeakMap();
-_e = /* @__PURE__ */ new WeakSet();
-ec = function() {
+se = /* @__PURE__ */ new WeakMap();
+ce = /* @__PURE__ */ new WeakSet();
+Kc = function() {
   return this._properties.filter((e) => e.classification === "media");
 };
-tc = async function() {
-  var a, s;
-  if (!U(this, Wt) || !this._template) return;
-  const e = U(this, Wt).open(this, kc, {
-    data: {
-      multiple: !0,
-      // Element types are never published on their own, so nothing would trigger the template.
-      pickableFilter: (o) => !o.isElement
-    }
-  }), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
-  }));
-  if (!t) return;
-  const i = await st(this, _e, ic).call(this, t.selection.filter((o) => !!o));
-  (a = U(this, H)) == null || a.updateTemplateFields({ docTypeAliases: i }), await ((s = U(this, H)) == null ? void 0 : s.reloadProperties());
+jc = function() {
+  var t;
+  const e = new Map((this._documentTypes ?? []).map((i) => [i.alias, i.key]));
+  return (((t = this._template) == null ? void 0 : t.docTypeAliases) ?? []).map((i) => e.get(i)).filter((i) => !!i);
 };
-ic = async function(e) {
-  const { fetchDocumentTypes: t } = await Promise.resolve().then(() => Wc), i = await t(U(this, H).getToken).catch(() => []), a = new Map(i.map((s) => [s.key, s.alias]));
-  return e.map((s) => a.get(s)).filter((s) => !!s).filter((s, o, n) => n.indexOf(s) === o);
+Ya = function() {
+  var t;
+  if (!this._documentTypes) return [];
+  const e = new Set(this._documentTypes.map((i) => i.alias));
+  return (((t = this._template) == null ? void 0 : t.docTypeAliases) ?? []).filter((i) => !e.has(i));
 };
-ac = function(e) {
-  var i, a, s;
-  const t = (((i = this._template) == null ? void 0 : i.docTypeAliases) ?? []).filter((o) => o !== e);
-  (a = U(this, H)) == null || a.updateTemplateFields({ docTypeAliases: t }), (s = U(this, H)) == null || s.reloadProperties();
+Vc = async function(e) {
+  var s, o;
+  const t = e.target.selection, i = new Map((this._documentTypes ?? []).map((r) => [r.key, r.alias])), a = [
+    ...t.map((r) => i.get(r)).filter((r) => !!r),
+    ...Y(this, ce, Ya)
+  ].filter((r, l, h) => h.indexOf(r) === l);
+  (s = Y(this, se)) == null || s.updateTemplateFields({ docTypeAliases: a }), await ((o = Y(this, se)) == null ? void 0 : o.reloadProperties());
 };
-sc = async function() {
+Gc = function(e) {
   var i;
-  if (!U(this, Wt)) return;
-  const e = U(this, Wt).open(this, ln, {
-    // Not filtered to folders here: the media tree item carries its media type as a key, not
-    // an alias, so there is nothing reliable to match on. The server checks the chosen item is
-    // a folder and the validator warns when it is not.
-    data: { multiple: !1 }
-  }), t = await (e == null ? void 0 : e.onSubmit().catch(() => {
-  }));
-  t && ((i = U(this, H)) == null || i.updateOutput({ mediaFolderKey: t.selection[0] ?? null }));
+  const t = e.target.selection;
+  (i = Y(this, se)) == null || i.updateOutput({ mediaFolderKey: t[0] ?? null });
 };
-oc = function() {
+qc = function() {
   const e = this._template;
-  return r`
+  return n`
       <uui-box headline="Applies to">
         <umb-property-layout label="Document types" description="Publishing one of these generates the image.">
           <div slot="editor">
-            ${e.docTypeAliases.length === 0 ? r`<p class="empty">No document types yet - nothing will trigger this template.</p>` : r`<div class="tags">
-                  ${B(
-    e.docTypeAliases,
-    (t) => t,
-    (t) => r`
-                      <uui-tag look="secondary">
-                        ${t}
-                        <uui-button
-                          compact
-                          label="Remove ${t}"
-                          @click=${() => st(this, _e, ac).call(this, t)}>
-                          <uui-icon name="icon-trash"></uui-icon>
-                        </uui-button>
-                      </uui-tag>
-                    `
-  )}
-                </div>`}
-            <uui-button look="secondary" label="Choose document types" @click=${st(this, _e, tc)}>
-              Choose document types
-            </uui-button>
+            ${this._documentTypes ? n`<umb-input-document-type
+                  .documentTypesOnly=${!0}
+                  .selection=${Y(this, ce, jc)}
+                  @change=${Gt(this, ce, Vc)}></umb-input-document-type>` : n`<uui-loader-bar></uui-loader-bar>`}
+            ${Y(this, ce, Ya).length > 0 ? n`<p class="note">
+                  Also targets ${Y(this, ce, Ya).join(", ")}, which no document type has any more.
+                </p>` : p}
           </div>
         </umb-property-layout>
 
@@ -6798,10 +7862,12 @@ oc = function() {
           description="The media picker the generated image is written to.">
           <uui-select
             slot="editor"
+            class="full"
+            label="Target property"
             .value=${e.targetPropertyAlias}
             .options=${[
     { name: "- none -", value: "" },
-    ...U(this, _e, ec).map((t) => ({
+    ...Y(this, ce, Kc).map((t) => ({
       name: `${t.name} (${t.alias})`,
       value: t.alias,
       selected: t.alias === e.targetPropertyAlias
@@ -6809,7 +7875,7 @@ oc = function() {
   ]}
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateTemplateFields({
+    return (i = Y(this, se)) == null ? void 0 : i.updateTemplateFields({
       targetPropertyAlias: t.target.value
     });
   }}>
@@ -6822,31 +7888,26 @@ oc = function() {
             ?checked=${e.isEnabled}
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateTemplateFields({ isEnabled: t.target.checked });
+    return (i = Y(this, se)) == null ? void 0 : i.updateTemplateFields({ isEnabled: t.target.checked });
   }}>
           </uui-toggle>
         </umb-property-layout>
       </uui-box>
     `;
 };
-nc = function() {
+Hc = function() {
   const e = this._template;
-  return r`
+  return n`
       <uui-box headline="Output">
-        <umb-property-layout label="Media folder" description="Where generated images are saved.">
-          <div slot="editor" class="row">
-            <uui-input readonly .value=${e.output.mediaFolderKey ?? "Media root"}></uui-input>
-            <uui-button look="secondary" label="Choose folder" @click=${st(this, _e, sc)}>Choose</uui-button>
-            ${e.output.mediaFolderKey ? r`<uui-button
-                  look="secondary"
-                  label="Use the media root"
-                  @click=${() => {
-    var t;
-    return (t = U(this, H)) == null ? void 0 : t.updateOutput({ mediaFolderKey: null });
-  }}>
-                  Clear
-                </uui-button>` : m}
-          </div>
+        <umb-property-layout
+          label="Media folder"
+          description="Where generated images are saved. Empty = the media root.">
+          <umb-input-media
+            slot="editor"
+            max="1"
+            folder-filter="foldersOnly"
+            .selection=${e.output.mediaFolderKey ? [e.output.mediaFolderKey] : []}
+            @change=${Gt(this, ce, Gc)}></umb-input-media>
         </umb-property-layout>
 
         <umb-property-layout label="File name" description="Tokens: {name}, {template}.">
@@ -6855,7 +7916,7 @@ nc = function() {
             .value=${e.output.fileNamePattern}
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateOutput({ fileNamePattern: t.target.value });
+    return (i = Y(this, se)) == null ? void 0 : i.updateOutput({ fileNamePattern: t.target.value });
   }}>
           </uui-input>
         </umb-property-layout>
@@ -6871,14 +7932,14 @@ nc = function() {
   }))}
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateOutput({
+    return (i = Y(this, se)) == null ? void 0 : i.updateOutput({
       format: t.target.value
     });
   }}>
           </uui-select>
         </umb-property-layout>
 
-        ${e.output.format === "png" ? m : r`<umb-property-layout label="Quality" description="1-100. Ignored for PNG.">
+        ${e.output.format === "png" ? p : n`<umb-property-layout label="Quality" description="1-100. Ignored for PNG.">
               <uui-input
                 slot="editor"
                 type="number"
@@ -6887,16 +7948,16 @@ nc = function() {
                 .value=${String(e.output.quality)}
                 @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateOutput({ quality: Number(t.target.value) });
+    return (i = Y(this, se)) == null ? void 0 : i.updateOutput({ quality: Number(t.target.value) });
   }}>
               </uui-input>
             </umb-property-layout>`}
       </uui-box>
     `;
 };
-rc = function() {
+Yc = function() {
   const e = this._template;
-  return r`
+  return n`
       <uui-box headline="When to run">
         <umb-property-layout label="On publish" description="Generate the image as the content is published.">
           <uui-toggle
@@ -6904,7 +7965,7 @@ rc = function() {
             ?checked=${e.trigger.onPublish}
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateTrigger({ onPublish: t.target.checked });
+    return (i = Y(this, se)) == null ? void 0 : i.updateTrigger({ onPublish: t.target.checked });
   }}>
           </uui-toggle>
         </umb-property-layout>
@@ -6917,16 +7978,16 @@ rc = function() {
             ?checked=${e.trigger.onlyWhenEmpty}
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateTrigger({ onlyWhenEmpty: t.target.checked });
+    return (i = Y(this, se)) == null ? void 0 : i.updateTrigger({ onlyWhenEmpty: t.target.checked });
   }}>
           </uui-toggle>
         </umb-property-layout>
       </uui-box>
     `;
 };
-lc = function() {
+Xc = function() {
   const e = this._template;
-  return r`
+  return n`
       <uui-box headline="Advanced">
         <umb-property-layout label="Alias" description="Used by export, import and file sync.">
           <uui-input
@@ -6935,7 +7996,7 @@ lc = function() {
             placeholder="Generated from the name"
             @change=${(t) => {
     var i;
-    return (i = U(this, H)) == null ? void 0 : i.updateTemplateFields({ alias: t.target.value });
+    return (i = Y(this, se)) == null ? void 0 : i.updateTemplateFields({ alias: t.target.value });
   }}>
           </uui-input>
         </umb-property-layout>
@@ -6950,13 +8011,13 @@ lc = function() {
   }}>
               ${this._showAdvanced ? "Hide" : "Show"} JSON
             </uui-button>
-            ${this._showAdvanced ? r`<pre class="json">${JSON.stringify(e, null, 2)}</pre>` : m}
+            ${this._showAdvanced ? n`<pre class="json">${JSON.stringify(e, null, 2)}</pre>` : p}
           </div>
         </umb-property-layout>
       </uui-box>
     `;
 };
-ut.styles = I`
+qe.styles = A`
     :host {
       display: block;
       padding: var(--uui-size-layout-1);
@@ -6968,22 +8029,12 @@ ut.styles = I`
       max-width: 1100px;
     }
 
-    .row {
-      display: flex;
-      gap: var(--uui-size-space-3);
-      align-items: center;
-      flex-wrap: wrap;
+    uui-select.full {
+      width: 100%;
     }
 
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--uui-size-space-2);
-      margin-bottom: var(--uui-size-space-3);
-    }
-
-    .empty {
-      margin: 0 0 var(--uui-size-space-3);
+    .note {
+      margin: var(--uui-size-space-3) 0 0;
       color: var(--uui-color-text-alt);
     }
 
@@ -6998,55 +8049,58 @@ ut.styles = I`
       font-size: 12px;
     }
   `;
-ts([
-  f()
-], ut.prototype, "_template", 2);
-ts([
-  f()
-], ut.prototype, "_properties", 2);
-ts([
-  f()
-], ut.prototype, "_showAdvanced", 2);
-ut = ts([
-  R("di-settings-view")
-], ut);
-const Zh = ut, Qh = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+ra([
+  y()
+], qe.prototype, "_template", 2);
+ra([
+  y()
+], qe.prototype, "_properties", 2);
+ra([
+  y()
+], qe.prototype, "_showAdvanced", 2);
+ra([
+  y()
+], qe.prototype, "_documentTypes", 2);
+qe = ra([
+  M("di-settings-view")
+], qe);
+const Em = qe, Cm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiSettingsViewElement() {
-    return ut;
+    return qe;
   },
-  default: Zh
+  default: Em
 }, Symbol.toStringTag, { value: "Module" }));
-var ed = Object.defineProperty, td = Object.getOwnPropertyDescriptor, cc = (e) => {
+var Dm = Object.defineProperty, Im = Object.getOwnPropertyDescriptor, Jc = (e) => {
   throw TypeError(e);
-}, ta = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? td(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && ed(t, i, s), s;
-}, Do = (e, t, i) => t.has(e) || cc("Cannot " + i), tn = (e, t, i) => (Do(e, t, "read from private field"), t.get(e)), an = (e, t, i) => t.has(e) ? cc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), id = (e, t, i, a) => (Do(e, t, "write to private field"), t.set(e, i), i), sn = (e, t, i) => (Do(e, t, "access private method"), i), Bi, $a, js;
-let Ke = class extends F {
+}, na = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Im(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Dm(t, i, s), s;
+}, rr = (e, t, i) => t.has(e) || Jc("Cannot " + i), Xr = (e, t, i) => (rr(e, t, "read from private field"), t.get(e)), Jr = (e, t, i) => t.has(e) ? Jc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Om = (e, t, i, a) => (rr(e, t, "write to private field"), t.set(e, i), i), Zr = (e, t, i) => (rr(e, t, "access private method"), i), Xi, Oa, ho;
+let He = class extends L {
   constructor() {
-    super(), an(this, $a), an(this, Bi), this._loading = !0, this._onlyMissing = !1, this.consumeContext(Nt, (e) => {
-      id(this, Bi, e), e && this.observe(e.template, (t) => {
+    super(), Jr(this, Oa), Jr(this, Xi), this._loading = !0, this._onlyMissing = !1, this.consumeContext(ft, (e) => {
+      Om(this, Xi, e), e && this.observe(e.template, (t) => {
         const i = !this._template;
-        this._template = t, t && i && sn(this, $a, js).call(this);
+        this._template = t, t && i && Zr(this, Oa, ho).call(this);
       });
     });
   }
   render() {
-    if (this._loading) return r`<uui-loader></uui-loader>`;
-    if (!this._usage) return r`<p class="empty">Save the template to see which content it applies to.</p>`;
+    if (this._loading) return n`<uui-loader></uui-loader>`;
+    if (!this._usage) return n`<p class="empty">Save the template to see which content it applies to.</p>`;
     const e = this._onlyMissing ? this._usage.items.filter((t) => !t.hasImage) : this._usage.items;
-    return r`
+    return n`
       <uui-box headline="Content using this template">
         <div slot="header-actions">
-          <uui-button look="secondary" label="Reload" @click=${() => sn(this, $a, js).call(this)}>Reload</uui-button>
+          <uui-button look="secondary" label="Reload" @click=${() => Zr(this, Oa, ho).call(this)}>Reload</uui-button>
         </div>
 
         <p class="summary">
           <strong>${this._usage.withImageOnPage}</strong> of the
           <strong>${this._usage.items.length}</strong> shown have an image.
-          ${this._usage.total > this._usage.items.length ? r`<span class="muted">${this._usage.total} in total.</span>` : m}
+          ${this._usage.total > this._usage.items.length ? n`<span class="muted">${this._usage.total} in total.</span>` : p}
         </p>
 
         <uui-toggle
@@ -7058,20 +8112,20 @@ let Ke = class extends F {
           Only without an image
         </uui-toggle>
 
-        ${e.length === 0 ? r`<p class="empty">Nothing to show.</p>` : r`<uui-table>
+        ${e.length === 0 ? n`<p class="empty">Nothing to show.</p>` : n`<uui-table>
               <uui-table-head>
                 <uui-table-head-cell>Name</uui-table-head-cell>
                 <uui-table-head-cell>Image</uui-table-head-cell>
                 <uui-table-head-cell>State</uui-table-head-cell>
               </uui-table-head>
-              ${B(
+              ${Z(
       e,
       (t) => t.key,
-      (t) => r`
+      (t) => n`
                   <uui-table-row>
                     <uui-table-cell>${t.name}</uui-table-cell>
                     <uui-table-cell>
-                      ${t.hasImage ? r`<uui-tag color="positive" look="secondary">Has one</uui-tag>` : r`<uui-tag color="warning" look="secondary">Missing</uui-tag>`}
+                      ${t.hasImage ? n`<uui-tag color="positive" look="secondary">Has one</uui-tag>` : n`<uui-tag color="warning" look="secondary">Missing</uui-tag>`}
                     </uui-table-cell>
                     <uui-table-cell>${t.isPublished ? "Published" : "Draft"}</uui-table-cell>
                   </uui-table-row>
@@ -7082,14 +8136,14 @@ let Ke = class extends F {
     `;
   }
 };
-Bi = /* @__PURE__ */ new WeakMap();
-$a = /* @__PURE__ */ new WeakSet();
-js = async function() {
+Xi = /* @__PURE__ */ new WeakMap();
+Oa = /* @__PURE__ */ new WeakSet();
+ho = async function() {
   const e = this._template;
-  if (!(!e || !tn(this, Bi))) {
+  if (!(!e || !Xr(this, Xi))) {
     this._loading = !0;
     try {
-      this._usage = await Pn(e.key, tn(this, Bi).getToken);
+      this._usage = await ld(e.key, Xr(this, Xi).getToken);
     } catch (t) {
       console.error("[DynamicImages] Failed to load usage", t), this._usage = void 0;
     } finally {
@@ -7097,7 +8151,7 @@ js = async function() {
     }
   }
 };
-Ke.styles = I`
+He.styles = A`
     :host {
       display: block;
       padding: var(--uui-size-layout-1);
@@ -7116,66 +8170,65 @@ Ke.styles = I`
       color: var(--uui-color-text-alt);
     }
   `;
-ta([
-  f()
-], Ke.prototype, "_template", 2);
-ta([
-  f()
-], Ke.prototype, "_usage", 2);
-ta([
-  f()
-], Ke.prototype, "_loading", 2);
-ta([
-  f()
-], Ke.prototype, "_onlyMissing", 2);
-Ke = ta([
-  R("di-usage-view")
-], Ke);
-const ad = Ke, sd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+na([
+  y()
+], He.prototype, "_template", 2);
+na([
+  y()
+], He.prototype, "_usage", 2);
+na([
+  y()
+], He.prototype, "_loading", 2);
+na([
+  y()
+], He.prototype, "_onlyMissing", 2);
+He = na([
+  M("di-usage-view")
+], He);
+const Pm = He, Am = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiUsageViewElement() {
-    return Ke;
+    return He;
   },
-  default: ad
-}, Symbol.toStringTag, { value: "Module" })), od = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  default: Pm
+}, Symbol.toStringTag, { value: "Module" })), Mm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  api: Wo,
-  default: Wo
-}, Symbol.toStringTag, { value: "Module" })), nd = 1500;
-var fe, Pt, Fa, uc;
-class us extends Tc {
+  api: xs,
+  default: xs
+}, Symbol.toStringTag, { value: "Module" }));
+var lt, Dt;
+class bs extends cu {
   constructor(i, a) {
     super(i, a);
-    w(this, Fa);
-    w(this, fe);
-    w(this, Pt);
-    this.consumeContext(Ge, (s) => {
-      _(this, fe, s);
-    }), this.consumeContext(Nt, (s) => {
-      _(this, Pt, s);
+    x(this, lt);
+    x(this, Dt);
+    this.consumeContext(pe, (s) => {
+      b(this, lt, s);
+    }), this.consumeContext(ft, (s) => {
+      b(this, Dt, s);
     });
   }
   async execute() {
-    var s, o, n;
-    const i = c(this, Pt), a = i == null ? void 0 : i.getData();
+    var s, o, r;
+    const i = d(this, Dt), a = i == null ? void 0 : i.getData();
     if (!(!i || !a)) {
       if (i.getIsNew()) {
-        (s = c(this, fe)) == null || s.peek("warning", { data: { message: "Save the template before regenerating." } });
+        (s = d(this, lt)) == null || s.peek("warning", { data: { message: "Save the template before regenerating." } });
         return;
       }
-      await Xs(this._host, {
+      await fo(this._host, {
         headline: `Regenerate every image for '${a.name}'?`,
         content: "Each node's existing image file is replaced in place, so links keep working. This can take a while on a large site.",
         confirmLabel: "Regenerate",
         color: "warning"
       });
       try {
-        const l = await Cn(a.key, !1, i.getToken);
-        (o = c(this, fe)) == null || o.peek("positive", {
+        const l = await hn(a.key, !1, i.getToken);
+        (o = d(this, lt)) == null || o.peek("positive", {
           data: { message: `Regenerating ${l.total} item(s)…` }
-        }), await T(this, Fa, uc).call(this, l, i);
+        }), await Ln(l, i.getToken, d(this, lt));
       } catch (l) {
-        (n = c(this, fe)) == null || n.peek("danger", {
+        (r = d(this, lt)) == null || r.peek("danger", {
           data: {
             headline: "Regeneration could not be started",
             message: l instanceof Error ? l.message : ""
@@ -7186,52 +8239,26 @@ class us extends Tc {
   }
   /** Exposed so a future progress UI can stop a long run; the endpoint already supports it. */
   async cancel(i) {
-    c(this, Pt) && await En(i, c(this, Pt).getToken);
+    d(this, Dt) && await nd(i, d(this, Dt).getToken);
   }
 }
-fe = new WeakMap(), Pt = new WeakMap(), Fa = new WeakSet(), uc = async function(i, a) {
-  var o, n, l, d;
-  let s = i;
-  for (; s.status === "queued" || s.status === "running"; ) {
-    await new Promise((p) => setTimeout(p, nd));
-    try {
-      s = await Tn(s.id, a.getToken);
-    } catch {
-      (o = c(this, fe)) == null || o.peek("warning", { data: { message: "Lost track of the regeneration job." } });
-      return;
-    }
-  }
-  if (s.status === "completed") {
-    const p = s.failures.length;
-    (n = c(this, fe)) == null || n.peek(p > 0 ? "warning" : "positive", {
-      data: {
-        headline: "Regeneration finished",
-        message: `${s.generated} generated, ${s.skipped} skipped${p > 0 ? `, ${p} failed` : ""}.`
-      }
-    });
-    for (const k of s.failures.slice(0, 3))
-      (l = c(this, fe)) == null || l.peek("danger", { data: { message: k } });
-  } else
-    (d = c(this, fe)) == null || d.peek("danger", {
-      data: { headline: `Regeneration ${s.status}`, message: s.failures[0] ?? "" }
-    });
-};
-const rd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+lt = new WeakMap(), Dt = new WeakMap();
+const Rm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  DiRegenerateWorkspaceAction: us,
-  api: us,
-  default: us
+  DiRegenerateWorkspaceAction: bs,
+  api: bs,
+  default: bs
 }, Symbol.toStringTag, { value: "Module" }));
-var Gi, ri;
-class hs extends Mc {
+var Zi, ci;
+class _s extends Za {
   constructor(i, a) {
     super(i, a);
-    w(this, Gi);
-    w(this, ri);
-    this.consumeContext(Ve, (s) => {
-      _(this, Gi, s);
-    }), this.consumeContext(Ge, (s) => {
-      _(this, ri, s);
+    x(this, Zi);
+    x(this, ci);
+    this.consumeContext(Le, (s) => {
+      b(this, Zi, s);
+    }), this.consumeContext(pe, (s) => {
+      b(this, ci, s);
     });
   }
   async execute() {
@@ -7239,228 +8266,110 @@ class hs extends Mc {
     const i = this.args.unique;
     if (i)
       try {
-        const o = await Ka(i, () => {
+        const o = await vo(i, () => {
           var l;
-          return (l = c(this, Gi)) == null ? void 0 : l.getLatestToken();
-        }), n = o.outcome === "generated" || o.outcome === "generateddraft";
-        (a = c(this, ri)) == null || a.peek(n ? "positive" : "warning", {
+          return (l = d(this, Zi)) == null ? void 0 : l.getLatestToken();
+        }), r = o.outcome === "generated" || o.outcome === "generateddraft";
+        (a = d(this, ci)) == null || a.peek(r ? "positive" : "warning", {
           data: {
             headline: "Dynamic Images",
-            message: n ? o.message ?? "The image has been regenerated." : o.message ?? o.outcome
+            message: r ? o.message ?? "The image has been regenerated." : o.message ?? o.outcome
           }
         });
       } catch (o) {
-        const n = o instanceof nt && o.status === 404;
-        (s = c(this, ri)) == null || s.peek(n ? "warning" : "danger", {
+        const r = o instanceof ht && o.status === 404;
+        (s = d(this, ci)) == null || s.peek(r ? "warning" : "danger", {
           data: {
             headline: "Dynamic Images",
-            message: o instanceof nt ? o.detail ?? o.message : "The image could not be regenerated."
+            message: o instanceof ht ? o.detail ?? o.message : "The image could not be regenerated."
           }
         });
       }
   }
 }
-Gi = new WeakMap(), ri = new WeakMap();
-const ld = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+Zi = new WeakMap(), ci = new WeakMap();
+const zm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  DiRegenerateDocumentEntityAction: hs,
-  api: hs,
-  default: hs
+  DiRegenerateDocumentEntityAction: _s,
+  api: _s,
+  default: _s
 }, Symbol.toStringTag, { value: "Module" }));
-var Hi, Dt, ji, li;
-class ds extends zc {
+var Qi, It, ea, ui;
+class ws extends Du {
   constructor(i, a) {
     super(i, a);
-    w(this, Hi);
-    w(this, Dt);
-    w(this, ji);
-    w(this, li);
-    this.consumeContext(Ve, (s) => {
-      _(this, Hi, s);
-    }), this.consumeContext(Ge, (s) => {
-      _(this, Dt, s);
-    }), this.consumeContext(Oc, (s) => {
-      _(this, ji, s);
-    }), this.consumeContext(Ic, (s) => {
-      _(this, li, (s == null ? void 0 : s.getUnique()) ?? void 0);
+    x(this, Qi);
+    x(this, It);
+    x(this, ea);
+    x(this, ui);
+    this.consumeContext(Le, (s) => {
+      b(this, Qi, s);
+    }), this.consumeContext(pe, (s) => {
+      b(this, It, s);
+    }), this.consumeContext(Iu, (s) => {
+      b(this, ea, s);
+    }), this.consumeContext(Ou, (s) => {
+      b(this, ui, (s == null ? void 0 : s.getUnique()) ?? void 0);
     });
   }
   async execute() {
     var i, a, s, o;
-    if (!c(this, li)) {
-      (i = c(this, Dt)) == null || i.peek("warning", { data: { message: "Save this page before regenerating its image." } });
+    if (!d(this, ui)) {
+      (i = d(this, It)) == null || i.peek("warning", { data: { message: "Save this page before regenerating its image." } });
       return;
     }
     try {
-      const n = await Ka(c(this, li), () => {
+      const r = await vo(d(this, ui), () => {
         var l;
-        return (l = c(this, Hi)) == null ? void 0 : l.getLatestToken();
+        return (l = d(this, Qi)) == null ? void 0 : l.getLatestToken();
       });
-      n.propertyValue && ((a = c(this, ji)) == null || a.setValue(JSON.parse(n.propertyValue))), (s = c(this, Dt)) == null || s.peek("positive", {
+      r.propertyValue && ((a = d(this, ea)) == null || a.setValue(JSON.parse(r.propertyValue))), (s = d(this, It)) == null || s.peek("positive", {
         data: {
           headline: "Dynamic Images",
-          message: n.message ?? "The image has been regenerated."
+          message: r.message ?? "The image has been regenerated."
         }
       });
-    } catch (n) {
-      const l = n instanceof nt && n.status === 404;
-      (o = c(this, Dt)) == null || o.peek(l ? "warning" : "danger", {
+    } catch (r) {
+      const l = r instanceof ht && r.status === 404;
+      (o = d(this, It)) == null || o.peek(l ? "warning" : "danger", {
         data: {
           headline: "Dynamic Images",
-          message: n instanceof nt ? n.detail ?? n.message : "The image could not be regenerated."
+          message: r instanceof ht ? r.detail ?? r.message : "The image could not be regenerated."
         }
       });
     }
   }
 }
-Hi = new WeakMap(), Dt = new WeakMap(), ji = new WeakMap(), li = new WeakMap();
-const cd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+Qi = new WeakMap(), It = new WeakMap(), ea = new WeakMap(), ui = new WeakMap();
+const Lm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
-  DiRegeneratePropertyAction: ds,
-  api: ds,
-  default: ds
+  DiRegeneratePropertyAction: ws,
+  api: ws,
+  default: ws
 }, Symbol.toStringTag, { value: "Module" }));
-var ud = Object.defineProperty, hd = Object.getOwnPropertyDescriptor, hc = (e) => {
+var Fm = Object.defineProperty, Wm = Object.getOwnPropertyDescriptor, Zc = (e) => {
   throw TypeError(e);
-}, is = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? hd(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && ud(t, i, s), s;
-}, Mo = (e, t, i) => t.has(e) || hc("Cannot " + i), Na = (e, t, i) => (Mo(e, t, "read from private field"), t.get(e)), ra = (e, t, i) => t.has(e) ? hc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), dc = (e, t, i, a) => (Mo(e, t, "write to private field"), t.set(e, i), i), Bt = (e, t, i) => (Mo(e, t, "access private method"), i), xa, Ki, zo, Je, Oo, pc, ka;
-let ht = class extends rn {
-  constructor() {
-    super(), ra(this, Je), ra(this, xa), ra(this, Ki), this._items = [], this._loading = !0, this._search = "", ra(this, zo, () => {
-      var e;
-      return (e = Na(this, xa)) == null ? void 0 : e.getLatestToken();
-    }), this.consumeContext(Ve, (e) => {
-      dc(this, xa, e), e && Bt(this, Je, Oo).call(this);
-    });
-  }
-  disconnectedCallback() {
-    super.disconnectedCallback(), window.clearTimeout(Na(this, Ki));
-  }
-  render() {
-    return r`
-      <umb-body-layout headline="Preview against">
-        <uui-input
-          type="search"
-          label="Search content"
-          placeholder="Search"
-          .value=${this._search}
-          @input=${Bt(this, Je, pc)}>
-        </uui-input>
-
-        <uui-button look="secondary" label="Use sample data instead" @click=${() => Bt(this, Je, ka).call(this, void 0)}>
-          Use sample data
-        </uui-button>
-
-        ${this._loading ? r`<uui-loader></uui-loader>` : this._items.length === 0 ? r`<p class="empty">No content of the selected document types was found.</p>` : r`<uui-ref-list>
-                ${B(
-      this._items,
-      (e) => e.key,
-      (e) => {
-        var t;
-        return r`
-                    <uui-ref-node
-                      name=${e.name}
-                      detail=${e.isPublished ? "Published" : "Draft"}
-                      ?selected=${e.key === ((t = this.data) == null ? void 0 : t.selectedKey)}
-                      @open=${() => Bt(this, Je, ka).call(this, e)}
-                      @click=${() => Bt(this, Je, ka).call(this, e)}>
-                    </uui-ref-node>
-                  `;
-      }
-    )}
-              </uui-ref-list>`}
-
-        <div slot="actions">
-          <uui-button look="secondary" label="Cancel" @click=${() => this._rejectModal()}>Cancel</uui-button>
-        </div>
-      </umb-body-layout>
-    `;
-  }
-};
-xa = /* @__PURE__ */ new WeakMap();
-Ki = /* @__PURE__ */ new WeakMap();
-zo = /* @__PURE__ */ new WeakMap();
-Je = /* @__PURE__ */ new WeakSet();
-Oo = async function() {
-  var t;
-  const e = ((t = this.data) == null ? void 0 : t.docTypeAliases) ?? [];
-  if (e.length === 0) {
-    this._items = [], this._loading = !1;
-    return;
-  }
-  this._loading = !0;
-  try {
-    const i = await Promise.all(
-      e.map(
-        (a) => Sn(a, this._search, 0, 30, Na(this, zo)).catch(() => ({ total: 0, items: [] }))
-      )
-    );
-    this._items = i.flatMap((a) => a.items);
-  } finally {
-    this._loading = !1;
-  }
-};
-pc = function(e) {
-  this._search = e.target.value, window.clearTimeout(Na(this, Ki)), dc(this, Ki, window.setTimeout(() => void Bt(this, Je, Oo).call(this), 300));
-};
-ka = function(e) {
-  this.value = { item: e }, this._submitModal();
-};
-ht.styles = I`
-    uui-input {
-      width: 100%;
-      margin-bottom: var(--uui-size-space-3);
-    }
-
-    .empty {
-      color: var(--uui-color-text-alt);
-    }
-  `;
-is([
-  f()
-], ht.prototype, "_items", 2);
-is([
-  f()
-], ht.prototype, "_loading", 2);
-is([
-  f()
-], ht.prototype, "_search", 2);
-ht = is([
-  R("di-sample-node-picker-modal")
-], ht);
-const dd = ht, pd = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
-  __proto__: null,
-  get DiSampleNodePickerModalElement() {
-    return ht;
-  },
-  default: dd
-}, Symbol.toStringTag, { value: "Module" }));
-var md = Object.defineProperty, fd = Object.getOwnPropertyDescriptor, mc = (e) => {
-  throw TypeError(e);
-}, Ye = (e, t, i, a) => {
-  for (var s = a > 1 ? void 0 : a ? fd(t, i) : t, o = e.length - 1, n; o >= 0; o--)
-    (n = e[o]) && (s = (a ? n(t, i, s) : n(s)) || s);
-  return a && s && md(t, i, s), s;
-}, Io = (e, t, i) => t.has(e) || mc("Cannot " + i), di = (e, t, i) => (Io(e, t, "read from private field"), i ? i.call(e) : t.get(e)), ps = (e, t, i) => t.has(e) ? mc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), gd = (e, t, i, a) => (Io(e, t, "write to private field"), t.set(e, i), i), $t = (e, t, i) => (Io(e, t, "access private method"), i), Sa, ia, ge, fc, gc, yc, Ao, vc, bc, _c, wc;
-const yd = [100, 200, 300, 400, 500, 600, 700, 800, 900], vd = [
+}, et = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Wm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = (a ? r(t, i, s) : r(s)) || s);
+  return a && s && Fm(t, i, s), s;
+}, nr = (e, t, i) => t.has(e) || Zc("Cannot " + i), mi = (e, t, i) => (nr(e, t, "read from private field"), i ? i.call(e) : t.get(e)), $s = (e, t, i) => t.has(e) ? Zc("Cannot add the same private member more than once") : t instanceof WeakSet ? t.add(e) : t.set(e, i), Um = (e, t, i, a) => (nr(e, t, "write to private field"), t.set(e, i), i), $t = (e, t, i) => (nr(e, t, "access private method"), i), Pa, la, we, Qc, eu, tu, lr, iu, au, su, ou;
+const Nm = [100, 200, 300, 400, 500, 600, 700, 800, 900], Bm = [
   { value: "google", name: "Google Fonts" },
   { value: "bunny", name: "Bunny Fonts" },
   { value: "direct", name: "A direct URL to a font file" }
 ];
-let he = class extends rn {
+let he = class extends on {
   constructor() {
-    super(), ps(this, ge), ps(this, Sa), this._busy = !1, this._path = "", this._provider = "google", this._family = "", this._weights = /* @__PURE__ */ new Set([400]), this._italic = !1, this._url = "", ps(this, ia, () => {
+    super(), $s(this, we), $s(this, Pa), this._busy = !1, this._path = "", this._provider = "google", this._family = "", this._weights = /* @__PURE__ */ new Set([400]), this._italic = !1, this._url = "", $s(this, la, () => {
       var e;
-      return (e = di(this, Sa)) == null ? void 0 : e.getLatestToken();
-    }), this.consumeContext(Ve, (e) => {
-      gd(this, Sa, e);
+      return (e = mi(this, Pa)) == null ? void 0 : e.getLatestToken();
+    }), this.consumeContext(Le, (e) => {
+      Um(this, Pa, e);
     });
   }
   render() {
-    return r`
+    return n`
       <umb-body-layout headline="Add a font">
         <uui-box headline="Upload a file">
           <!-- uui-file-dropzone rather than a raw <input type="file">: the native
@@ -7472,7 +8381,7 @@ let he = class extends rn {
             multiple
             label="Drop font files here, or click to browse"
             ?disabled=${this._busy}
-            @change=${$t(this, ge, fc)}>
+            @change=${$t(this, we, Qc)}>
           </uui-file-dropzone>
           <p class="hint">
             .ttf, .otf, .woff2 or .woff. The family name and weight are read from the file. Uploads are stored in the
@@ -7494,7 +8403,7 @@ let he = class extends rn {
             look="secondary"
             label="Register this path"
             ?disabled=${this._busy || !this._path.trim()}
-            @click=${$t(this, ge, yc)}>
+            @click=${$t(this, we, tu)}>
             Register
           </uui-button>
         </uui-box>
@@ -7503,7 +8412,7 @@ let he = class extends rn {
           <uui-select
             label="Provider"
             .value=${this._provider}
-            .options=${vd.map((e) => ({
+            .options=${Bm.map((e) => ({
       name: e.name,
       value: e.value,
       selected: e.value === this._provider
@@ -7514,19 +8423,19 @@ let he = class extends rn {
     }}>
           </uui-select>
 
-          ${this._provider === "direct" ? $t(this, ge, wc).call(this) : $t(this, ge, _c).call(this)}
+          ${this._provider === "direct" ? $t(this, we, ou).call(this) : $t(this, we, su).call(this)}
 
           <uui-button
             look="secondary"
             label="Add this web font"
-            ?disabled=${this._busy || !di(this, ge, Ao)}
-            @click=${$t(this, ge, vc)}>
+            ?disabled=${this._busy || !mi(this, we, lr)}
+            @click=${$t(this, we, iu)}>
             Add web font
           </uui-button>
         </uui-box>
 
-        ${this._error ? r`<p class="error" role="alert">${this._error}</p>` : m}
-        ${this._busy ? r`<uui-loader-bar></uui-loader-bar>` : m}
+        ${this._error ? n`<p class="error" role="alert">${this._error}</p>` : p}
+        ${this._busy ? n`<uui-loader-bar></uui-loader-bar>` : p}
 
         <div slot="actions">
           <uui-button look="secondary" label="Cancel" @click=${() => this._rejectModal()}>Cancel</uui-button>
@@ -7535,20 +8444,20 @@ let he = class extends rn {
     `;
   }
 };
-Sa = /* @__PURE__ */ new WeakMap();
-ia = /* @__PURE__ */ new WeakMap();
-ge = /* @__PURE__ */ new WeakSet();
-fc = function(e) {
+Pa = /* @__PURE__ */ new WeakMap();
+la = /* @__PURE__ */ new WeakMap();
+we = /* @__PURE__ */ new WeakSet();
+Qc = function(e) {
   var i;
   const t = ((i = e.detail) == null ? void 0 : i.files) ?? [];
-  $t(this, ge, gc).call(this, t);
+  $t(this, we, eu).call(this, t);
 };
-gc = async function(e) {
+eu = async function(e) {
   if (e.length !== 0) {
     this._busy = !0, this._error = void 0;
     try {
       for (const t of e)
-        await gn(t, di(this, ia));
+        await Ju(t, mi(this, la));
       this.value = { uploaded: !0 }, this._submitModal();
     } catch (t) {
       this._error = t instanceof Error ? t.message : "The font could not be uploaded.";
@@ -7557,11 +8466,11 @@ gc = async function(e) {
     }
   }
 };
-yc = async function() {
+tu = async function() {
   if (this._path.trim()) {
     this._busy = !0, this._error = void 0;
     try {
-      await yn(this._path.trim(), di(this, ia)), this.value = { uploaded: !0 }, this._submitModal();
+      await Zu(this._path.trim(), mi(this, la)), this.value = { uploaded: !0 }, this._submitModal();
     } catch (e) {
       this._error = e instanceof Error ? e.message : "That path could not be registered.";
     } finally {
@@ -7569,21 +8478,21 @@ yc = async function() {
     }
   }
 };
-Ao = function() {
+lr = function() {
   return this._provider === "direct" ? this._url.trim().length > 0 : this._family.trim().length > 0 && this._weights.size > 0;
 };
-vc = async function() {
-  if (di(this, ge, Ao)) {
+iu = async function() {
+  if (mi(this, we, lr)) {
     this._busy = !0, this._error = void 0;
     try {
-      const e = await vn(
+      const e = await Qu(
         this._provider === "direct" ? { provider: "direct", includeItalic: !1, url: this._url.trim() } : {
           provider: this._provider,
           family: this._family.trim(),
           weights: [...this._weights].sort((t, i) => t - i),
           includeItalic: this._italic
         },
-        di(this, ia)
+        mi(this, la)
       );
       this.value = { uploaded: !0, warnings: e.errors }, this._submitModal();
     } catch (e) {
@@ -7593,12 +8502,12 @@ vc = async function() {
     }
   }
 };
-bc = function(e, t) {
+au = function(e, t) {
   const i = new Set(this._weights);
   t ? i.add(e) : i.delete(e), this._weights = i;
 };
-_c = function() {
-  return r`
+su = function() {
+  return n`
       <uui-input
         label="Family"
         placeholder="Inter"
@@ -7610,15 +8519,15 @@ _c = function() {
       </uui-input>
 
       <div class="weights" role="group" aria-label="Weights">
-        ${B(
-    yd,
+        ${Z(
+    Nm,
     (e) => e,
-    (e) => r`
+    (e) => n`
             <uui-checkbox
               label=${String(e)}
               ?checked=${this._weights.has(e)}
               ?disabled=${this._busy}
-              @change=${(t) => $t(this, ge, bc).call(this, e, t.target.checked)}>
+              @change=${(t) => $t(this, we, au).call(this, e, t.target.checked)}>
               ${e}
             </uui-checkbox>
           `
@@ -7639,12 +8548,12 @@ _c = function() {
         One font is added per weight (and per italic). The family name is the one the provider uses - type it as it
         appears on their site. The file is fetched from the provider the first time each server needs it and cached
         there; it is not stored in the media library.
-        ${this._provider === "bunny" ? r`<br />Bunny Fonts serve the Latin subset only, so accented Latin renders but other scripts do not.` : m}
+        ${this._provider === "bunny" ? n`<br />Bunny Fonts serve the Latin subset only, so accented Latin renders but other scripts do not.` : p}
       </p>
     `;
 };
-wc = function() {
-  return r`
+ou = function() {
+  return n`
       <uui-input
         label="Font file URL"
         placeholder="https://cdn.example.com/fonts/Inter-Bold.ttf"
@@ -7660,7 +8569,7 @@ wc = function() {
       </p>
     `;
 };
-he.styles = I`
+he.styles = A`
     uui-box {
       margin-bottom: var(--uui-size-space-4);
     }
@@ -7692,42 +8601,62 @@ he.styles = I`
       color: var(--uui-color-danger);
     }
   `;
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_busy", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_error", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_path", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_provider", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_family", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_weights", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_italic", 2);
-Ye([
-  f()
+et([
+  y()
 ], he.prototype, "_url", 2);
-he = Ye([
-  R("di-font-upload-modal")
+he = et([
+  M("di-font-upload-modal")
 ], he);
-const bd = he, _d = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+const Km = he, jm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
   __proto__: null,
   get DiFontUploadModalElement() {
     return he;
   },
-  default: bd
+  default: Km
+}, Symbol.toStringTag, { value: "Module" }));
+var Vm = Object.getOwnPropertyDescriptor, Gm = (e, t, i, a) => {
+  for (var s = a > 1 ? void 0 : a ? Vm(t, i) : t, o = e.length - 1, r; o >= 0; o--)
+    (r = e[o]) && (s = r(s) || s);
+  return s;
+};
+let Xa = class extends L {
+  render() {
+    return n`<umb-folder-workspace-editor></umb-folder-workspace-editor>`;
+  }
+};
+Xa = Gm([
+  M("di-template-folder-editor")
+], Xa);
+const qm = Xa, Hm = /* @__PURE__ */ Object.freeze(/* @__PURE__ */ Object.defineProperty({
+  __proto__: null,
+  get DiTemplateFolderEditorElement() {
+    return Xa;
+  },
+  default: qm
 }, Symbol.toStringTag, { value: "Module" }));
 export {
-  iu as manifests,
-  Rd as onInit
+  Qd as manifests,
+  $y as onInit
 };
 //# sourceMappingURL=dynamic-images.js.map

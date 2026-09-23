@@ -1,7 +1,7 @@
 import type {
   DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiJob, DiLayout, DiLinkedProperties,
   DiProperty, DiRegisterWebFontRequest, DiRegisterWebFontResponse, DiSampleContentItem,
-  DiSyncStatus, DiTemplate, DiTemplateSaveResponse, DiTemplateSummary, DiUsage,
+  DiCollectionItem, DiSyncStatus, DiTemplate, DiTemplateFolder, DiTemplateSaveResponse, DiTemplateSummary, DiTreeItem, DiUsage,
 } from "./types.js";
 
 export type TokenGetter = () => Promise<string | undefined> | undefined;
@@ -93,12 +93,91 @@ export async function exportTemplate(key: string, getToken: TokenGetter): Promis
   return (await request(`/templates/${key}/export`, getToken)).blob();
 }
 
+/** `parentKey` is the folder the import was started from; null or omitted is the Templates root. */
 export const importTemplate = async (
   templateJson: string,
   mode: "create" | "overwrite",
   getToken: TokenGetter,
+  parentKey: string | null = null,
 ): Promise<DiTemplateSaveResponse> =>
-  json(await request("/templates/import", getToken, { method: "POST", json: { json: templateJson, mode } }));
+  json(await request("/templates/import", getToken, { method: "POST", json: { json: templateJson, mode, parentKey } }));
+
+// ---------------------------------------------------------------- tree and folders
+
+export interface DiPaged<T> {
+  total: number;
+  items: T[];
+}
+
+function treeQuery(skip: number, take: number, foldersOnly: boolean, parentKey?: string): string {
+  const search = new URLSearchParams({ skip: String(skip), take: String(take) });
+  if (foldersOnly) search.set("foldersOnly", "true");
+  if (parentKey) search.set("parentKey", parentKey);
+  return search.toString();
+}
+
+export const fetchTreeRoot = async (
+  skip: number, take: number, foldersOnly: boolean, getToken: TokenGetter,
+): Promise<DiPaged<DiTreeItem>> => json(await request(`/tree/root?${treeQuery(skip, take, foldersOnly)}`, getToken));
+
+export const fetchTreeChildren = async (
+  parentKey: string, skip: number, take: number, foldersOnly: boolean, getToken: TokenGetter,
+): Promise<DiPaged<DiTreeItem>> =>
+  json(await request(`/tree/children?${treeQuery(skip, take, foldersOnly, parentKey)}`, getToken));
+
+/** From the top of the tree down to the item, the item itself last. */
+export const fetchTreeAncestors = async (key: string, getToken: TokenGetter): Promise<DiTreeItem[]> =>
+  json(await request(`/tree/ancestors?descendantKey=${encodeURIComponent(key)}`, getToken));
+
+export async function fetchTreeItems(keys: string[], getToken: TokenGetter): Promise<DiTreeItem[]> {
+  if (keys.length === 0) return [];
+  const search = new URLSearchParams();
+  for (const key of keys) search.append("key", key);
+  return json(await request(`/item?${search}`, getToken));
+}
+
+export async function fetchCollection(
+  query: { parentKey: string | null; filter?: string; skip?: number; take?: number; orderBy?: "name" | "updated" },
+  getToken: TokenGetter,
+): Promise<DiPaged<DiCollectionItem>> {
+  const search = new URLSearchParams({ skip: String(query.skip ?? 0), take: String(query.take ?? 100) });
+  if (query.parentKey) search.set("parentKey", query.parentKey);
+  if (query.filter) search.set("filter", query.filter);
+  if (query.orderBy) search.set("orderBy", query.orderBy);
+  return json(await request(`/collection/templates?${search}`, getToken));
+}
+
+/**
+ * A rendered thumbnail of a saved template against sample data. Fetched rather than put in an
+ * `<img src>`, because the Management API needs the bearer token an image request cannot carry.
+ */
+export async function fetchThumbnail(key: string, width: number, getToken: TokenGetter): Promise<Blob> {
+  return (await request(`/templates/${key}/thumbnail?width=${width}`, getToken)).blob();
+}
+
+export const createFolder = async (
+  folder: { key?: string; name: string; parentKey: string | null }, getToken: TokenGetter,
+): Promise<DiTemplateFolder> => json(await request("/folders", getToken, { method: "POST", json: folder }));
+
+export const fetchFolder = async (key: string, getToken: TokenGetter): Promise<DiTemplateFolder> =>
+  json(await request(`/folders/${key}`, getToken));
+
+export const updateFolder = async (key: string, name: string, getToken: TokenGetter): Promise<DiTemplateFolder> =>
+  json(await request(`/folders/${key}`, getToken, { method: "PUT", json: { name } }));
+
+/** Refused with a 409 while the folder holds anything. */
+export async function deleteFolder(key: string, getToken: TokenGetter): Promise<void> {
+  await request(`/folders/${key}`, getToken, { method: "DELETE" });
+}
+
+/** `targetKey` null is the Templates root. */
+export async function moveTemplate(key: string, targetKey: string | null, getToken: TokenGetter): Promise<void> {
+  await request(`/templates/${key}/move`, getToken, { method: "PUT", json: { targetKey } });
+}
+
+export async function moveFolder(key: string, targetKey: string | null, getToken: TokenGetter): Promise<void> {
+  await request(`/folders/${key}/move`, getToken, { method: "PUT", json: { targetKey } });
+}
 
 // ---------------------------------------------------------------- fonts
 
@@ -274,8 +353,18 @@ export function hrefForTemplate(key: string): string {
   return new URL(relative, document.baseURI).pathname;
 }
 
-export function hrefForCreate(): string {
-  return new URL(`section/${SECTION_PATHNAME}/workspace/${TEMPLATE_ENTITY_TYPE}/create`, document.baseURI).pathname;
+/**
+ * The create route. With a parent, the new template is created in that folder - the same
+ * `create/parent/:parentEntityType/:parentUnique` shape core's own create routes use.
+ */
+export function hrefForCreate(parent?: { entityType: string; unique: string | null }): string {
+  const suffix = parent ? `/parent/${parent.entityType}/${parent.unique ?? "null"}` : "";
+  return new URL(`section/${SECTION_PATHNAME}/workspace/${TEMPLATE_ENTITY_TYPE}/create${suffix}`, document.baseURI).pathname;
+}
+
+export function hrefForWorkspace(entityType: string, unique?: string | null): string {
+  const suffix = unique ? `/edit/${unique}` : "";
+  return new URL(`section/${SECTION_PATHNAME}/workspace/${entityType}${suffix}`, document.baseURI).pathname;
 }
 
 export function hrefForDashboard(pathname: string): string {

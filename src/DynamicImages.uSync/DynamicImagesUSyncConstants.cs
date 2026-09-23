@@ -19,6 +19,10 @@ public static class DynamicImagesUSyncConstants
         public const string FontAlias = "dynamicImagesFontHandler";
         public const string FontName = "Dynamic Images Fonts";
         public const string FontFolder = "DynamicImagesFonts";
+
+        public const string TemplateFolderAlias = "dynamicImagesTemplateFolderHandler";
+        public const string TemplateFolderName = "Dynamic Images Template Folders";
+        public const string TemplateFolderFolder = "DynamicImagesTemplateFolders";
     }
 
     /// <summary>
@@ -30,6 +34,9 @@ public static class DynamicImagesUSyncConstants
     {
         public const int Font = uSyncConstants.Priorites.USYNC_RESERVED_UPPER + 10;
         public const int Template = uSyncConstants.Priorites.USYNC_RESERVED_UPPER + 20;
+
+        /// <summary>Before templates, so a template's folder exists by the time the template arrives.</summary>
+        public const int TemplateFolder = uSyncConstants.Priorites.USYNC_RESERVED_UPPER + 15;
     }
 
     /// <summary>
@@ -41,6 +48,7 @@ public static class DynamicImagesUSyncConstants
     {
         public const string Template = "dynamic-images-template";
         public const string Font = "dynamic-images-font";
+        public const string TemplateFolder = "dynamic-images-template-folder";
     }
 
     /// <summary>
@@ -51,6 +59,7 @@ public static class DynamicImagesUSyncConstants
     {
         public const string Template = "DynamicImagesTemplate";
         public const string Font = "DynamicImagesFont";
+        public const string TemplateFolder = "DynamicImagesTemplateFolder";
     }
 
     /// <summary>Fixed forever: uSync looks a handler's serializer up by this GUID.</summary>
@@ -58,5 +67,6 @@ public static class DynamicImagesUSyncConstants
     {
         public const string Template = "0A0C6D3F-3F0B-4B7E-9C2B-4E1D6A5C7B21";
         public const string Font = "5E8B1C47-2D9A-4F63-8A15-C3B79D0E4F82";
+        public const string TemplateFolder = "B7D2E4A1-6C3F-4E58-9A0D-2F1B8C5E7D93";
     }
 }

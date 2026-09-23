@@ -1,5 +1,8 @@
 import { DiTemplateWorkspaceContext } from "./workspace/di-template-workspace.context.js";
 import { TEMPLATE_ENTITY_TYPE } from "./api/dynamic-images-api.js";
+import { manifests as treeManifests } from "./tree/manifests.js";
+import { manifests as entityActionManifests } from "./entity-actions/manifests.js";
+import { manifests as collectionManifests } from "./collection/manifests.js";
 
 /**
  * Every extension that references an element or the workspace context is registered here rather
@@ -11,6 +14,10 @@ import { TEMPLATE_ENTITY_TYPE } from "./api/dynamic-images-api.js";
  * before this bundle loads and they can therefore paint straight away.
  */
 export const manifests: Array<UmbExtensionManifest> = [
+  ...treeManifests,
+  ...entityActionManifests,
+  ...collectionManifests,
+
   // ---------------------------------------------------------------- sidebar
   //
   // The sidebar app, the menu and the Fonts/Health link items are NOT here - they live in
@@ -18,16 +25,8 @@ export const manifests: Array<UmbExtensionManifest> = [
   // bundle loads, so the section chrome paints immediately rather than after the entry point
   // has downloaded. None of them needs an element, so nothing is lost by moving them.
   //
-  // This one stays, because it has an element and so benefits from the compile-time safety the
-  // comment above argues for.
-  {
-    type: "menuItem",
-    alias: "DynamicImages.MenuItem.Templates",
-    name: "Dynamic Images Templates Menu Item",
-    element: () => import("./menu/di-templates-menu-item.element.js"),
-    weight: 200,
-    meta: { label: "Templates", menus: ["DynamicImages.Menu"] },
-  },
+  // The Templates tree's menu item is in tree/manifests.ts: a `tree` kind menu item, which needs
+  // the tree registered first.
 
   // ---------------------------------------------------------------- dashboards
   {
@@ -150,12 +149,6 @@ export const manifests: Array<UmbExtensionManifest> = [
   },
 
   // ---------------------------------------------------------------- modals
-  {
-    type: "modal",
-    alias: "DynamicImages.Modal.SampleNodePicker",
-    name: "Dynamic Images Sample Node Picker",
-    element: () => import("./modals/di-sample-node-picker-modal.element.js"),
-  },
   {
     type: "modal",
     alias: "DynamicImages.Modal.FontUpload",

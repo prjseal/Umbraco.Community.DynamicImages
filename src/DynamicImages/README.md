@@ -31,14 +31,31 @@ sees the section until you do, including administrators.
 1. **Add a font.** Dynamic Images → Fonts → *Add a font*. Upload a `.ttf`, `.otf` or `.woff2`,
    register a path to one already in `wwwroot`, or name a [web font](#web-fonts) from Google Fonts
    or Bunny Fonts. Text layers cannot render without one.
-2. **Create a template.** Dynamic Images → Templates → *Create template*.
+2. **Create a template.** In the Dynamic Images section, open the **Templates** tree's ⋯ (or its
+   **+**) → *Create…* → **Template**. Start it from a folder and it is saved in that folder.
 3. **In Settings**, choose the document types it applies to and the media picker property the
    generated image should be written to.
 4. **In Design**, pick a base image, then drag properties from the left onto the canvas. Drop a
    text property and you get a text layer; drop a media picker and you get an image layer; drop a
    multi-node picker and you get a badge row.
-5. **In Preview & test**, pick a real page and check the render.
+5. **In Preview & test**, choose a page under **Preview content** and check the render. The same
+   choice drives the designer's Server preview strip; leave it empty for sample data.
 6. Publish a page of that type. The image is generated and attached.
+
+## Organising templates
+
+The **Templates** tree in the section's sidebar works like Settings → Document Types. The ⋯ on the
+Templates root and on a folder offers *Create…* (Template or Folder), **Import JSON…** and
+*Reload*; on a folder also *Rename*, *Move to…* and *Delete* (refused while the folder holds
+anything); on a template *Move to…*, *Duplicate*, **Export JSON**, **Regenerate all** and *Delete*.
+
+Selecting the root or a folder shows everything directly inside it as a **collection**: a list
+with each template's document types, target property, canvas size, layer count, whether it is
+enabled and when it was last saved, or a grid of cards showing each template rendered against
+sample data. The collection has its own filter and *Create…*, and each row or card has the same ⋯.
+
+Folders only organise: which documents a template applies to is decided by its document types,
+never by where it sits. Templates that existed before folders are directly under the root.
 
 ## How a template works
 
@@ -48,8 +65,7 @@ A fixed size in pixels, a fill, and an optional base image - a media item, a fil
 a property on the page being rendered. The base image is drawn on top of the fill, so a *contain*
 fit pads onto it. *Use image size* sets the canvas to the base image's own dimensions.
 
-The **fill** is a solid colour, a two-stop gradient - **linear** at an angle, or **radial** from a
-centre you place - or **transparent**. PNG and WebP keep transparency; JPEG has no alpha channel,
+The **fill** is a solid colour, a [gradient](#gradients), or **transparent**. PNG and WebP keep transparency; JPEG has no alpha channel,
 so it flattens whatever is transparent to the colour underneath it, and the validator warns when
 the template is set up that way.
 
@@ -126,12 +142,36 @@ polygon has 3 to 12 **sides**, the first point at the top; a star has that many 
 box, the way CSS `clip-path` does, so a circle is an ellipse in a square box. **Corner radius**
 applies to rectangles only.
 
-The fill is a solid colour, a two-stop gradient (linear or radial, the same as the canvas's), or
+The fill is a solid colour, a [gradient](#gradients) (the same editor as the canvas's), or
 nothing: turn **Fill** off and set a **Border**
 for an outline alone - a ring, a frame, a rule. The border is drawn inside the box, the way an
 image layer's border and a CSS border are, so a bordered shape occupies exactly its box. A shape
-with no fill, no gradient and no border draws nothing, and the validator says so. The palette
-offers a rectangle and an ellipse; polygon and star are a select away in the inspector.
+with no fill, no gradient and no border draws nothing, and the validator says so.
+
+The palette's **Elements** group, at the top, holds Text, Image, Badge row and **Shape**. Dragging
+Shape drops a rectangle; its **+** opens *Add shape*: Rectangle, Rounded rectangle, **Circle**,
+Ellipse, Polygon, Triangle and Star. A circle is an ellipse with **Lock aspect ratio** on, which
+keeps its width and height in proportion however it is resized - on the canvas or in the Width and
+Height fields - and any shape can have the lock turned on.
+
+### Gradients
+
+The gradient editor offers what an art program's does:
+
+| Type | What it draws |
+|---|---|
+| **Linear** | Along a line at an **angle** (180° is top to bottom), with one-click ↑ → ↓ ← presets |
+| **Radial** | Out from a **centre**, as an **ellipse** with the box's proportions or a **circle**, reaching its last colour at the farthest or closest corner or side |
+| **Angular** | Round the centre, sweeping clockwise from a **start angle** - a conic gradient |
+| **Diamond** | Out from the centre in a diamond that reaches its last colour on the box's four sides |
+| **Reflected** | A linear gradient mirrored about the middle: the first colour down the centre line, the last at both ends |
+
+A gradient has any number of **colour stops**, each with a colour (and its opacity) and a
+position. **Add stop** puts one in the middle of the widest gap, in the colour already there;
+**Reverse** runs the colours the other way. The strip under the type shows the gradient as it
+will render. A gradient saved before stops existed is its *from* and *to* colours and renders
+exactly as it did.
+
 
 ### Badge layout
 
@@ -359,11 +399,13 @@ them up and uSync on its own does not move them. The optional companion package 
 dotnet add package Umbraco.Community.DynamicImages.uSync
 ```
 
-It adds two handlers to the uSync dashboard's **Settings** group, which export to
-`uSync/{version}/DynamicImagesTemplates` and `uSync/{version}/DynamicImagesFonts`, one `.config`
-file per row. Saving a template or a font in the backoffice writes its file straight away, the way
-uSync already does for a document type. Fonts import before templates, because a text layer names
-its font by key.
+It adds three handlers to the uSync dashboard's **Settings** group, which export to
+`uSync/{version}/DynamicImagesFonts`, `uSync/{version}/DynamicImagesTemplateFolders` and
+`uSync/{version}/DynamicImagesTemplates`, one `.config` file per row. Saving a template, a folder or
+a font in the backoffice writes its file straight away, the way uSync already does for a document
+type. Fonts import before folders and folders before templates, because a text layer names its font
+by key and a template names its folder. A template whose folder is missing in the target
+environment imports at the root rather than failing.
 
 It is a separate package so that uSync, which is MPL-2.0, never becomes a transitive dependency of
 Dynamic Images itself. It tracks the uSync **17** line; a uSync 18 site needs an 18.x build of it.

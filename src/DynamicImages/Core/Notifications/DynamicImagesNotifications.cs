@@ -29,3 +29,11 @@ public sealed class DynamicImagesFontSavedNotification(FontDefinition target, Ev
 /// <summary>Published after a font row is deleted. The target is the row as it was before.</summary>
 public sealed class DynamicImagesFontDeletedNotification(FontDefinition target, EventMessages messages)
     : DeletedNotification<FontDefinition>(target, messages);
+
+/// <summary>Published after a template folder is created, renamed or moved.</summary>
+public sealed class DynamicImagesTemplateFolderSavedNotification(TemplateFolder target, EventMessages messages)
+    : SavedNotification<TemplateFolder>(target, messages);
+
+/// <summary>Published after a template folder is deleted. The target is the row as it was before.</summary>
+public sealed class DynamicImagesTemplateFolderDeletedNotification(TemplateFolder target, EventMessages messages)
+    : DeletedNotification<TemplateFolder>(target, messages);

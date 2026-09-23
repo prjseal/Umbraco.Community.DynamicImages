@@ -10,6 +10,7 @@ namespace Umbraco.Community.DynamicImages.Core.Services;
 
 public sealed partial class TemplateService(
     ITemplateRepository repository,
+    ITemplateFolderRepository folderRepository,
     ITemplateValidator validator,
     ITemplateCache cache,
     DistributedCache distributedCache,
@@ -25,6 +26,10 @@ public sealed partial class TemplateService(
     {
         if (template.Key == Guid.Empty) template.Key = Guid.NewGuid();
         if (string.IsNullOrWhiteSpace(template.Alias)) template.Alias = SuggestAlias(template.Name);
+
+        // A folder that is not there - deleted meanwhile, or never synced to this environment - puts
+        // the template at the root rather than failing the create or orphaning it.
+        if (template.ParentKey is { } parentKey && folderRepository.Get(parentKey) is null) template.ParentKey = null;
 
         var validation = await validator.ValidateAsync(template, cancellationToken);
         if (!validation.IsValid) return SaveResult.Failed(SaveOutcome.Invalid, validation);
@@ -43,6 +48,10 @@ public sealed partial class TemplateService(
     {
         var existing = repository.Get(template.Key);
         if (existing is null) return SaveResult.Failed(SaveOutcome.NotFound);
+
+        // The folder only changes through MoveAsync. The designer sends back the parentKey it
+        // loaded, so honouring it here would undo a move made in the tree while it was open.
+        template.ParentKey = existing.ParentKey;
 
         var validation = await validator.ValidateAsync(template, cancellationToken);
         if (!validation.IsValid) return SaveResult.Failed(SaveOutcome.Invalid, validation);
@@ -75,6 +84,23 @@ public sealed partial class TemplateService(
         }
 
         return true;
+    }
+
+    public async Task<TreeOperationOutcome> MoveAsync(Guid key, Guid? targetKey, CancellationToken cancellationToken = default)
+    {
+        if (targetKey is { } target && folderRepository.Get(target) is null) return TreeOperationOutcome.TargetNotFound;
+        if (!repository.Move(key, targetKey)) return TreeOperationOutcome.NotFound;
+
+        Notify(key);
+
+        // Published as a save, so uSync re-exports the file with its new parent.
+        if (repository.Get(key) is { } moved)
+        {
+            await eventAggregator.PublishAsync(
+                new DynamicImagesTemplateSavedNotification(moved, new EventMessages()), cancellationToken);
+        }
+
+        return TreeOperationOutcome.Success;
     }
 
     public async Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default)

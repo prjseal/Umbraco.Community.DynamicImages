@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { login, openSection, openTemplate } from "./helpers.js";
+import { field, login, openSection, openTemplate } from "./helpers.js";
 
 /**
  * The canvas fill, end to end: the checks `plans/canvas-fill-plan.md` lists as manual ones.
@@ -15,7 +15,7 @@ import { login, openSection, openTemplate } from "./helpers.js";
  *    reload, and nothing below the API can see that.
  */
 
-const FIELD = (label: string) => `di-layer-inspector label.field:has(> span:text-is("${label}"))`;
+const FIELD = (label: string) => field("di-layer-inspector", label);
 
 /** The native control inside a `uui-select`; Playwright's CSS pierces the shadow root. */
 const selectIn = (scope: string) => `${scope} select`;
@@ -87,6 +87,15 @@ async function samplePreview(page: import("@playwright/test").Page, points: [num
   }, points);
 }
 
+/**
+ * Takes the base image away, unsaved. The fixture's base image is an opaque 1200 x 630 PNG at
+ * `cover`, drawn over the fill, so with it in place the server render shows no fill at all and a
+ * pixel sample measures the photograph.
+ */
+async function withoutBaseImage(page: import("@playwright/test").Page) {
+  await page.locator(selectIn(FIELD("Base image"))).selectOption("none");
+}
+
 async function setFill(page: import("@playwright/test").Page, mode: "colour" | "gradient" | "transparent") {
   await page.locator(selectIn(FIELD("Fill"))).selectOption(mode);
 }
@@ -99,8 +108,7 @@ test("the canvas panel reads size, then fill, then image", async ({ page }) => {
     const walk = (node: Element) => {
       for (const child of Array.from(node.children)) {
         const tag = child.tagName.toLowerCase();
-        if (tag === "di-number-field") out.push(child.getAttribute("label") ?? "");
-        else if (tag === "span" && child.parentElement?.classList.contains("field")) out.push(child.textContent!.trim());
+        if (tag === "di-number-field" || tag === "umb-property-layout") out.push(child.getAttribute("label") ?? "");
         else walk(child);
       }
     };
@@ -119,36 +127,45 @@ test("the canvas panel reads size, then fill, then image", async ({ page }) => {
 });
 
 test("a gradient paints the artboard and the server render alike", async ({ page }) => {
+  await withoutBaseImage(page);
   await setFill(page, "gradient");
 
   const stage = await stageStyle(page);
   expect(stage?.backgroundImage).toMatch(/^linear-gradient\(/);
 
   // The default gradient is #000000CC to #00000000 at 180deg: near-opaque black at the top,
-  // fading to nothing at the bottom. The base image is under it, so the alpha is the tell.
+  // fading to nothing at the bottom, over a transparent canvas.
   await openWorkspaceView(page, "Preview & test");
   const [top, bottom] = await samplePreview(page, [[0.5, 0.02], [0.5, 0.98]]);
 
-  expect(top.r + top.g + top.b, "the top should be the dark stop").toBeLessThan(bottom.r + bottom.g + bottom.b);
+  // Black at both ends, so it is the alpha that runs from the near-opaque stop to nothing.
+  expect(top.a, "the top should be the near-opaque stop").toBeGreaterThan(bottom.a + 100);
 });
 
 test("a radial gradient's hotspot moves with its centre, on both surfaces", async ({ page }) => {
+  await withoutBaseImage(page);
   await setFill(page, "gradient");
-  await page.locator(selectIn(FIELD("Type"))).selectOption("radial");
+  await page.locator(selectIn(FIELD("Gradient type"))).selectOption("radial");
 
   const centreX = page.locator("di-layer-inspector di-number-field[label='Centre X'] input");
   await centreX.fill("20");
   await centreX.press("Enter");
 
+  // Up in the top band, where this template draws nothing: a sample lower down lands on its text
+  // and its hexagon, and measures a layer instead of the fill.
+  const centreY = page.locator("di-layer-inspector di-number-field[label='Centre Y'] input");
+  await centreY.fill("3");
+  await centreY.press("Enter");
+
   const stage = await stageStyle(page);
   expect(stage?.backgroundImage).toMatch(/^radial-gradient\(/);
-  expect(stage?.backgroundImage).toContain("20%");
+  expect(stage?.backgroundImage).toContain("20% 3%");
 
   await openWorkspaceView(page, "Preview & test");
-  const [left, right] = await samplePreview(page, [[0.2, 0.5], [0.9, 0.5]]);
+  const [left, right] = await samplePreview(page, [[0.2, 0.03], [0.9, 0.03]]);
 
   // The centre is the `from` stop - near-opaque black - and the edge is the transparent one.
-  expect(left.r + left.g + left.b, "the hotspot should be at 20%").toBeLessThan(right.r + right.g + right.b);
+  expect(left.a, "the hotspot should be at 20%").toBeGreaterThan(right.a + 50);
 });
 
 test("switching to transparent and back keeps the colour", async ({ page }) => {
@@ -228,15 +245,16 @@ test("the canvas stops at the largest side the server will render", async ({ pag
 test("a shape layer's radial gradient paints its box, rotated or not", async ({ page }) => {
   // This template has no shape layer, so add one from the palette. It is never saved, so the
   // template is unchanged for the next spec.
-  await page.locator("di-property-palette uui-button[label='Add Rectangle to the canvas']").click();
+  await page.locator("di-property-palette uui-button[label='Add a shape']").click();
+  await page.locator("di-property-palette uui-menu-item[label='Rectangle']").click();
 
   // The element is a positioned wrapper whose paint lives in its shadow root, so "attached" is
   // the state to wait for - `toBeVisible` measures the host box and reads hidden.
   const box = page.locator("di-layer-box[selected]").last();
   await box.waitFor({ state: "attached" });
 
-  await page.locator('di-layer-inspector label.field.inline:has(> span:text-is("Gradient")) uui-toggle').click();
-  await page.locator(selectIn(FIELD("Type"))).selectOption("radial");
+  await page.locator(`${FIELD("Gradient")} uui-toggle`).click();
+  await page.locator(selectIn(FIELD("Gradient type"))).selectOption("radial");
 
   const paintOf = () => box.evaluate((element) => {
     const shape = element.shadowRoot?.querySelector(".shape") as HTMLElement | null;
@@ -285,7 +303,7 @@ function savedToast(page: import("@playwright/test").Page) {
 
 test("a gradient survives a save and a reload", async ({ page }) => {
   await setFill(page, "gradient");
-  await page.locator(selectIn(FIELD("Type"))).selectOption("radial");
+  await page.locator(selectIn(FIELD("Gradient type"))).selectOption("radial");
 
   await page.locator("umb-workspace-action button:has-text('Save')").first().click();
   await expect(savedToast(page)).toBeVisible({ timeout: 60_000 });
@@ -294,7 +312,7 @@ test("a gradient survives a save and a reload", async ({ page }) => {
   await openTemplate(page);
 
   await expect(page.locator(selectIn(FIELD("Fill")))).toHaveValue("gradient");
-  await expect(page.locator(selectIn(FIELD("Type")))).toHaveValue("radial");
+  await expect(page.locator(selectIn(FIELD("Gradient type")))).toHaveValue("radial");
 
   // Leave the template as it was found, so the other specs still start from a solid canvas.
   await setFill(page, "colour");

@@ -11,10 +11,9 @@ colour picker — use the real extension type or core component rather than a lo
 
 This plan covers eight changes (sections 1–8 below), each with its current state, target state,
 server-side impact, risks and size. The screenshots under `mockups/before/` were taken from
-`src/DynamicImages.TestSite.Clean`, running on this branch on 2026-09-23. **The "after" mock-ups
-the brief asked for were not produced in the planning session.** The target states below are
-specified in terms of the core components and kinds to use, and each names the core screen that
-is the visual reference.
+`src/DynamicImages.TestSite.Clean`, running on this branch on 2026-09-23. The "after" images under
+`mockups/after/` were captured from the same site at 1440×900 once the overhaul was implemented;
+they sit next to the matching "before" images below.
 
 ### Decisions made with the user
 
@@ -158,17 +157,19 @@ is the visual reference.
     any number of `ColorStop`s, so multi-stop costs nothing in the renderer itself.
   - The client mirror is `models/gradient-css.ts`.
 
-## Before
+## Before and after
 
-| Screen | File |
-|---|---|
-| Section landing / overview (template cards, Create, Import JSON) | ![](mockups/before/01-overview-dashboard.png) |
-| Settings: document type tags, media folder as a raw key | ![](mockups/before/04-settings.png) |
-| Designer: palette top, canvas panel with side-by-side fields | ![](mockups/before/05-designer-palette-top.png) |
-| Palette bottom: the Static group, Rectangle and Ellipse chips | ![](mockups/before/06-palette-static-group.png) |
-| Preview & test: no visible content picker | ![](mockups/before/07-preview.png) |
-| Property binding: nested select beside the first, clipped | ![](mockups/before/08-property-binding.png) |
-| Shape fill: colour swatch and hex side by side | ![](mockups/before/09-shape-fill.png) |
+| Screen | Before | After |
+|---|---|---|
+| Section landing / overview | ![](mockups/before/01-overview-dashboard.png) | ![](mockups/after/01-overview-dashboard.png) - stats and Needs attention only; the Templates tree is in the sidebar |
+| Templates: tree, root collection (list), ⋯ menu | (the template cards on the overview, above) | ![](mockups/after/02-templates-collection-list.png) ![](mockups/after/02b-tree-actions.png) |
+| Templates: grid with rendered thumbnails | - | ![](mockups/after/03-templates-collection-grid.png) |
+| Settings: document types and media folder | ![](mockups/before/04-settings.png) | ![](mockups/after/04-settings.png) |
+| Designer: palette top, canvas panel | ![](mockups/before/05-designer-palette-top.png) | ![](mockups/after/05-designer-palette-top.png) |
+| Palette: Static group / Elements and Add shape | ![](mockups/before/06-palette-static-group.png) | ![](mockups/after/06-palette-elements-shape-menu.png) |
+| Preview & test: content picker | ![](mockups/before/07-preview.png) | ![](mockups/after/07-preview.png) |
+| Property binding: the linked dropdown | ![](mockups/before/08-property-binding.png) | ![](mockups/after/08-property-binding.png) - also shows the strip's Preview content picker holding the page chosen in Preview & test |
+| Shape fill: colour and gradient | ![](mockups/before/09-shape-fill.png) | ![](mockups/after/09-shape-fill.png) ![](mockups/after/09b-gradient-editor.png) |
 
 ## Design
 
@@ -276,6 +277,34 @@ the "+ Create template" row is a link.
   through the `isEnabled` flag in the item model and a `treeItem` element override *only if* core's
   default cannot express it. Otherwise leave it for later.
 
+**As built - where the code differs**
+
+- The installed `@umbraco-cms/backoffice` is **17.5.3** (the served backoffice on the test site is
+  17.7.0). Every kind above was checked against 17.5.3 before use.
+- **No tree store.** 17.5.3 marks `UmbUniqueTreeStore` deprecated ("use the tree repository"), and
+  `UmbTreeRepositoryBase`'s store argument is optional; the tree, the tree picker and the
+  collection all read through `requestTreeRootItems` / `requestTreeItemsOf`.
+- **The tree is worked out in memory** (`Core/Services/TemplateTree.cs`) from the folder rows and
+  the cached templates, rather than through `TemplateRepository.GetChildren` / `HasChildren`
+  queries. Both lists are small, and it makes the ordering and the move cycle guard testable
+  without a database.
+- **A template's folder only changes through a move.** An ordinary update keeps the stored
+  `parentKey` (a designer left open cannot undo a move made in the tree), and a move does not bump
+  `updatedUtc` (no spurious 412). The `Update` SQL writes `parentKey` but not `sortOrder`.
+- The create route is core's `create/parent/:parentEntityType/:parentUnique`, not `?parent=<key>`.
+- The root workspace is kind `default` with a headline, as core's document type root is.
+- The tree endpoints take `foldersOnly`, which core's move picker passes.
+- A disabled template shows a greyed icon (`icon-picture color-grey`) rather than a `treeItem`
+  override. Sorting was left out, as recommended.
+- **Moving reloads the destination.** Core's `moveTo` action reloads only the source (its code
+  carries "TODO: Reload destination"), so the move repositories dispatch a reload of the target.
+- The uSync design JSON omits `parentKey` (`Info/Parent` is the one copy), and a root template
+  keeps `Level="0"` so existing uSync files do not change. Folders import through their own
+  handler, between fonts and templates; a missing parent imports to the root.
+- Known console noise: on the very first visit to the section after the bundle loads, core's tree
+  logs "repository is missing" / "Tree context is not set" once while the extensions register. The
+  tree works, and it does not recur.
+
 ### 2. Templates overview: a native collection — **M**
 
 **Current:** the Templates box on the Overview dashboard, with custom cards and Create / Import
@@ -318,6 +347,17 @@ JSON buttons (`before/01-overview-dashboard.png`).
 cache. The card should lazy-load (`loading="lazy"`), and the cache keeps it to one render per
 save. Rendering is already capped by `RenderLimits`.
 
+**As built - where the code differs**
+
+- The thumbnail cannot be an `<img loading="lazy">`: the Management API needs a bearer token an
+  image request cannot send. The card fetches it when an `IntersectionObserver` sees it and shows
+  it from an object URL - the same lazy behaviour.
+- A collection context (`DiTemplateCollectionContext`) supplies each item's link, as core's user
+  group collection does; the default context links nothing.
+- Delete, Move, Export, Import and Regenerate carry `additionalOptions`, so they sit in the ⋯ menu
+  rather than inline. The Overview's Templates tile links to the root; the dashboard still listens
+  to `TEMPLATES_CHANGED_EVENT` for its counts.
+
 ### 3. Template settings: native pickers and selected-item display — **S**
 
 **Current:** alias tags plus a *Choose document types* button; a raw key in a read-only input
@@ -348,6 +388,9 @@ plus *Choose* (`before/04-settings.png`).
 **Future (out of scope):** multi-document-type support already exists. What a future change
 might add is a target property *per* document type, a `Dictionary<docTypeAlias,
 propertyAlias>` on `Template`, if types stop sharing the property alias.
+
+**As built:** a stored alias that no document type has any more is kept, and named under the
+picker, rather than silently dropped by the key-based picker.
 
 ### 4. Designer: the layer panel — non-property layers on top, and an Add shape chooser — **S–M**
 
@@ -392,6 +435,9 @@ Rectangle and Ellipse chips.
 the unknown property. `TemplateValidator` warns when `LockAspect` is set and width ≠ height,
 which is possible via JSON import.
 
+**As built:** the palette payload carries a `preset` rather than a `ShapeKind`, and the presets live
+in `SHAPE_PRESETS` in `models/layer-factories.ts`. `LockAspectNotSquare` is the validator warning.
+
 ### 5. Designer and Preview: preview content selection — **S**
 
 **Current:** a header button labelled with the node's name or "Sample data", opening a custom
@@ -416,6 +462,15 @@ modal. The designer's preview strip has no indication of what it renders
 
 **Server-side impact:** none. The picker needs document type **keys**, which `fetchDocumentTypes`
 already returns alongside the aliases.
+
+**As built - where the code differs**
+
+- One element, `workspace/views/di-preview-content-picker.element.ts`, is used in both places.
+- Remembering the chosen page per template moved into the workspace context, since it is now set
+  from two places. It is still the `di:sample-node:<key>` entry (in `localStorage`, as before), and
+  the old stored shape still reads.
+- `umb-input-document` is loaded through a guarded dynamic import: a static import makes vitest's
+  browser mode evaluate a second copy of core and redefine its elements.
 
 ### 6. Designer: binding to a property — full width, grouped — **S–M**
 
@@ -442,6 +497,13 @@ already returns alongside the aliases.
 inspector sorts client-side. Add controller-level tests for the tab/group derivation (a group
 with no tab, a composition's groups, and a tab with properties directly on it).
 
+**As built - where the code differs**
+
+- `uui-select` has no per-option title, so the selected property's alias is the select's own
+  `title`.
+- `uui-select` renders ungrouped options after its groups, so `- none -` (and a stale alias) come
+  last rather than first. The ordering and labels live in `models/property-options.ts`.
+
 ### 7. Designer: nested (rich) properties stacked below — **S**
 
 **Current:** `.path` is a three-column grid, so the second dropdown sits to the right and is cut
@@ -464,55 +526,84 @@ resolves one hop from a *document type*. Add `…/linked?path=a.b` (or accept a 
 `propertyAlias`) so the server walks the path, inferring target types at each hop with the
 existing `InferTargets`. Test it in `PropertyPathTests`.
 
+**As built:** the linked endpoint takes the dotted path in its existing `propertyAlias` segment
+(`…/properties/author.employer/linked`), walked by `Api/Controllers/LinkedPath.cs`. The context
+loads every prefix breadth first down to `MAX_HOPS`, capped at 36 prefixes, with a caption per
+prefix.
+
 ### 8. Designer: fill layer and colours — **M client, M server**
 
 **Current:** a colour swatch and hex field side by side; From/To and Centre X/Y in two-column
 pairs; a two-stop gradient only (`before/09-shape-fill.png`, `before/05-designer-palette-top.png`).
 
-**Target**
+**Scope widened during implementation (with the user).** The brief's gradient item is not only
+multi-stop: it is the set of gradient options an art program (Photoshop, Figma, Illustrator)
+offers. So the editor gained gradient *types*, a radial shape and size, and Reverse, as well as
+stops.
 
-- **Colour input.** `di-colour-input` is rebuilt on **`uui-color-picker`** (`opacity`, hex
-  output including alpha as `#RRGGBBAA`), keeping its tag, `label`, `value` and `change` event.
-  Every colour field in the inspector — canvas fill, shape fill, borders, text colour, badge
-  colours, gradient stops — upgrades at once. Swatches are off unless we add a theme palette
-  later.
-- **Everything stacks.** Delete `.pair` and `.row` from the inspector's styles. Width/Height,
-  From/To, Centre X/Y, and the base image source + *Choose* all become one field per line. The
-  base-image media selection itself becomes an `umb-input-media max="1"`, following section 3.
+**Target (as built)**
+
+- **Colour input.** `di-colour-input` is rebuilt on **`uui-color-picker`** (`opacity`, `uppercase`,
+  hex output including alpha as `#RRGGBBAA`), keeping its tag, `label`, `value` and `change`
+  event. The compact picker shows only a swatch, so an editable hex `uui-input` sits beside it in
+  the same control - a brand colour is typed, not dragged to. Every colour field in the inspector
+  upgraded at once. Swatches are off.
+- **Everything stacks.** `.pair` and `.row` are gone from the inspector's styles. Width/Height,
+  From/To, Centre X/Y and the base image's source are one field per line. The base-image and
+  image-layer media selection is an `umb-input-media max="1"` (the Choose buttons and their
+  `di-pick-*-image` events are gone).
 - **Gradient editor**, stacked in this order:
-  1. **Type:** Linear / Radial.
+  1. **Type:** Linear, Radial, **Angular** (conic), **Diamond**, **Reflected**.
   2. **Preview bar:** a full-width strip painted with `gradientCss()`.
-  3. Linear: **Angle**, as a `uui-slider` (0–359) plus the number field, and a `uui-button-group`
-     of direction presets (↑ 0°, → 90°, ↓ 180°, ← 270°).
-     Radial: **Centre X** and **Centre Y** (%, each on its own line), then **Size**, a select of
-     closest-side / closest-corner / farthest-side / farthest-corner (default farthest-corner,
-     today's behaviour).
-  4. **Stops:** one block per stop, each a colour picker, a **Position** % field and a remove
-     button (disabled at two stops). **Add stop** below inserts at the midpoint of the widest gap,
-     with the interpolated colour.
+  3. Per type:
+     - Linear and Reflected: **Angle**, a `uui-slider` (0–359) plus the number field, and a
+       `uui-button-group` of direction presets (↑ 0°, → 90°, ↓ 180°, ← 270°).
+     - Radial: **Shape** (Ellipse / Circle), **Size** (farthest-corner, farthest-side,
+       closest-corner, closest-side; default farthest-corner, today's behaviour), **Centre X**
+       and **Centre Y** (%).
+     - Angular: **Start angle** (slider, number, presets) and Centre X/Y.
+     - Diamond: Centre X/Y.
+  4. **Colour stops:** one block per stop, each a colour picker, a **Position** % field and a
+     remove button (disabled at two stops). **Add stop** inserts at the midpoint of the widest
+     gap, in the interpolated colour; **Reverse** flips the gradient.
 
 **Server-side impact**
 
-- `Gradient` gains `Stops: List<GradientStop { Colour, Position (0..1) }>?` and
-  `Extent: GradientExtent` (`closestSide|closestCorner|farthestSide|farthestCorner`, default
-  `farthestCorner`).
+- `GradientKind` gains `Angular`, `Diamond` and `Reflected`. `Gradient` gains
+  `Stops: List<GradientStop { Colour, Position (0..1) }>?`, `Extent: GradientExtent`
+  (`farthestCorner` default) and `Shape: GradientShape` (`ellipse` default). `Angle` is the start
+  of the sweep for Angular (degrees clockwise from up, as CSS `conic-gradient(from …)`); the centre
+  is used by Radial, Angular and Diamond.
 - `From`/`To` stay. When `Stops` is null or has fewer than 2 entries, the effective stops are
-  `[From@0, To@1]`, so every stored template renders exactly as before, with no migration. When
-  `Stops` is set, it wins, and the writer also sets `From`/`To` to the first and last stop so an
-  older package still draws something close.
-- `GradientBrushes.Build` passes all effective stops, sorted by position and clamped to 0..1.
-  `GradientGeometry.RadialSemiAxes` takes the extent.
-- The client's `DiGradient`, `createGradient()` and `models/gradient-css.ts` mirror the same
-  rules, so the designer and the render agree.
-- `TemplateValidator`: warn when there are more than 16 stops, or a stop colour does not parse.
+  `[From@0, To@1]` (`GradientGeometry.EffectiveStops`), so every stored template renders exactly as
+  before, with no migration. When `Stops` is set it wins, and the designer also writes the first
+  and last stop into `From`/`To` so an older package still draws something close. An older package
+  cannot read the new kinds at all (a downgrade concern only).
+- `GradientBrushes.Build` passes all effective stops. Radial ellipse: `RadialSemiAxes(…, extent)`;
+  radial circle: `RadialCircleRadius(…, extent)` into a `RadialGradientBrush`. Reflected: a linear
+  brush over `GradientGeometry.ReflectedStops` (first stop at the middle, last at both ends).
+  Angular and Diamond: ImageSharp.Drawing 2.1.5 has no conic brush and its gradient applicator
+  base is internal, so `PositionGradientBrush` (a `Brush` with its own `BrushApplicator`) evaluates
+  `GradientGeometry.AngularPosition` / `DiamondPosition` per pixel, in the box's own coordinates via
+  the inverse layer transform, interpolating stops and blending as ImageSharp's brushes do.
+- The client's `DiGradient`, `models/gradient-css.ts` mirror the same rules: `conic-gradient` for
+  Angular, mirrored stops for Reflected, and for Diamond four `to <corner>` linear gradients, one per
+  quadrant, sized to the quadrant with the stops halved - CSS's "magic corners" put those lines
+  exactly on the diamond `GradientGeometry.DiamondPosition` draws.
+- `TemplateValidator`: warns when there are more than 16 stops, or a stop colour does not parse;
+  the JPEG-transparency check reads every stop.
 
 **Tests**
 
-- `GradientGeometryTests`: each extent against hand-computed axes.
-- `RendererTests`: a three-stop linear gradient, sampling the middle pixel.
-- `TemplateJsonTests`: a v-current document with only `from`/`to` reads as two stops.
-- `gradient-css.test.ts`: multi-stop and extent CSS.
-- `canvas-gradient.browser.test.ts`: the preview bar matches.
+- `GradientGeometryTests`: every extent for ellipse and circle against hand-computed numbers, the
+  half-pixel floor, angular bearings, diamond positions (off-centre), reflected and effective stops.
+- `RendererTests`: a three-stop linear (middle pixel), angular, diamond, circular radial and
+  reflected, sampled.
+- `TemplateJsonTests`: a document with only `from`/`to` reads as two stops; the new options round
+  trip as camel case. `TemplateValidatorTests`: too many stops, an unreadable stop.
+- `gradient-css.test.ts`: multi-stop, every kind, shape/extent, add/remove/reverse, alpha mixing.
+- `canvas-gradient.browser.test.ts`: the preview bar's computed background equals the builder's,
+  for every kind.
 
 ### General layout rules (all of the above)
 
@@ -524,6 +615,17 @@ pairs; a two-stop gradient only (`before/09-shape-fill.png`, `before/05-designer
   320px for each layer type and gradient kind, and asserts that no descendant has `scrollWidth >
   clientWidth` and that every control's right edge is within the host.
 - The Settings view keeps `uui-box` + `umb-property-layout`, which is already core's pattern.
+
+**As built**
+
+- Every inspector field is `umb-property-layout orientation="vertical"`, tightened for the panel:
+  core pads 24px above and below, so the inspector uses `--uui-size-space-3` (the user asked for
+  even padding above and below each field). `di-number-field` renders its label through the same
+  layout, with a `compact` mode that keeps the canvas toolbar's zoom box as it was.
+- `inspector-overflow.browser.test.ts` covers every layer type and every gradient kind at 320px,
+  and was checked to fail on a deliberately over-wide control.
+- The browser tests now load UUI's `custom-properties.css`: without the tokens every `var()` is
+  invalid, so paddings and borders collapse and a layout assertion measured nothing real.
 
 ## Files
 
@@ -656,6 +758,9 @@ Each step leaves the build and tests green, with the bundle rebuilt.
     save round trip keeps aliases and the folder key
   - extend `linked-property.spec.ts` to assert the second select sits *below* the first
     (`boundingBox().y` greater, x equal)
+- **Result (2026-09-23):** `dotnet test` 809 passing; `npm test` 213, `npm run test:browser` 75;
+  the full E2E suite 32 of 32 against the booted Clean site, including the two new specs. The
+  manual checks below were made on that site; the after images above are from it.
 - **Manual, on the test site:**
   - The uSync-imported "Article OG image" appears under the Templates root after the migration.
   - The ⋯ and + menus match Settings → Document Types.

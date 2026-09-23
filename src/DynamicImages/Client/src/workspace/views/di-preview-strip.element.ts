@@ -4,6 +4,7 @@ import { checkerboard } from "../../designer/checkerboard.js";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import { fetchPreview } from "../../api/dynamic-images-api.js";
 import type { DiTemplate } from "../../api/types.js";
+import "./di-preview-content-picker.element.js";
 
 /** Long enough that a drag does not fire a render per frame, short enough to feel live. */
 const PREVIEW_DEBOUNCE_MS = 400;
@@ -19,7 +20,7 @@ export class DiPreviewStripElement extends UmbLitElement {
   #abort?: AbortController;
   #objectUrl?: string;
 
-  /** The node picked in Preview & test, so the strip shows the same thing that view does. */
+  /** The page chosen in either Preview content picker, so the strip shows what Preview & test does. */
   #contentKey?: string;
   #useSampleData = true;
 
@@ -157,6 +158,7 @@ export class DiPreviewStripElement extends UmbLitElement {
         ${this._collapsed
           ? nothing
           : html`
+              <di-preview-content-picker></di-preview-content-picker>
               <div class="body">
                 ${this._loading ? html`<uui-loader-bar></uui-loader-bar>` : nothing}
                 ${this._error
@@ -179,6 +181,10 @@ export class DiPreviewStripElement extends UmbLitElement {
 
     .strip {
       padding: var(--uui-size-space-2) var(--uui-size-space-3);
+    }
+
+    di-preview-content-picker {
+      margin-top: var(--uui-size-space-2);
     }
 
     .toggle {

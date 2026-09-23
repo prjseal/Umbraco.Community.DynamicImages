@@ -1,21 +1,4 @@
 import { UmbModalToken } from "@umbraco-cms/backoffice/modal";
-import type { DiSampleContentItem } from "../api/types.js";
-
-export interface SampleNodePickerData {
-  /** The document types to offer nodes from - the template's own, normally. */
-  docTypeAliases: string[];
-  selectedKey?: string;
-}
-
-export interface SampleNodePickerValue {
-  /** Undefined means "use sample data", which is a real choice, not a cancel. */
-  item?: DiSampleContentItem;
-}
-
-export const DI_SAMPLE_NODE_PICKER_MODAL = new UmbModalToken<SampleNodePickerData, SampleNodePickerValue>(
-  "DynamicImages.Modal.SampleNodePicker",
-  { modal: { type: "sidebar", size: "small" } },
-);
 
 export interface FontUploadValue {
   uploaded: boolean;
@@ -26,4 +9,15 @@ export interface FontUploadValue {
 export const DI_FONT_UPLOAD_MODAL = new UmbModalToken<object, FontUploadValue>(
   "DynamicImages.Modal.FontUpload",
   { modal: { type: "dialog", size: "small" } },
+);
+
+export interface ImportTemplateValue {
+  /** The template document, pasted or read from a file. */
+  json: string;
+}
+
+/** Paste or choose a template JSON file - the Import JSON entity action on the root and on folders. */
+export const DI_IMPORT_TEMPLATE_MODAL = new UmbModalToken<object, ImportTemplateValue>(
+  "DynamicImages.Modal.ImportTemplate",
+  { modal: { type: "sidebar", size: "small" } },
 );

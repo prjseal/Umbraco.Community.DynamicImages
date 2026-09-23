@@ -177,6 +177,10 @@ public class TemplatesController(
             template.Key = Guid.NewGuid();
         }
 
+        // Into the folder the import was started from. Whatever parent the file carries names a
+        // folder in the environment it was exported from, which may not exist here.
+        template.ParentKey = request.ParentKey;
+
         var created = await templateService.CreateAsync(template, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
 
         return created.Outcome == SaveOutcome.Saved

@@ -1,15 +1,16 @@
 import { css, customElement, html, property, repeat, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
-import type { DiProperty, PropertyClassification, ShapeKind } from "../api/types.js";
+import type { DiProperty, PropertyClassification } from "../api/types.js";
+import { SHAPE_PRESETS, SHAPE_PRESET_ORDER, type ShapePreset } from "../models/layer-factories.js";
 
 /**
  * What the palette puts on the drag payload. The canvas turns it into a layer on drop. A "rect"
- * chip may name the shape it starts as; polygon and star are a select away in the inspector,
- * where their sides and inner ratio live anyway.
+ * chip names the preset it starts as - chosen from the Add shape menu, or a rectangle when the
+ * Shape chip itself is dragged.
  */
 export type PalettePayload =
   | { kind: "property"; property: DiProperty }
-  | { kind: "static"; layerType: "text" | "image" | "badges" | "rect"; shape?: ShapeKind };
+  | { kind: "static"; layerType: "text" | "image" | "badges" | "rect"; preset?: ShapePreset };
 
 const ICONS: Record<PropertyClassification, string> = {
   text: "icon-font",
@@ -72,6 +73,8 @@ export class DiPropertyPaletteElement extends UmbLitElement {
           }}>
         </uui-input>
 
+        ${this.#renderStaticGroup()}
+
         ${this.properties.length === 0
           ? html`<p class="empty">Pick one or more document types in Settings to see their properties here.</p>`
           : repeat(
@@ -79,8 +82,6 @@ export class DiPropertyPaletteElement extends UmbLitElement {
               ([group]) => group,
               ([group, properties]) => this.#renderGroup(group, properties),
             )}
-
-        ${this.#renderStaticGroup()}
       </div>
     `;
   }
@@ -107,17 +108,62 @@ export class DiPropertyPaletteElement extends UmbLitElement {
     `;
   }
 
+  /**
+   * The layers that are not a property: first, because they are what a design starts from, and
+   * because a long document type used to push them below the fold.
+   */
   #renderStaticGroup() {
     return html`
       <div class="group">
-        <h5>Static</h5>
+        <h5>Elements</h5>
         ${this.#renderChip("Text", "icon-font", "text", { kind: "static", layerType: "text" })}
         ${this.#renderChip("Image", "icon-picture", "media", { kind: "static", layerType: "image" })}
         ${this.#renderChip("Badge row", "icon-tags", "list", { kind: "static", layerType: "badges" })}
-        ${this.#renderChip("Rectangle", "icon-stop", "other", { kind: "static", layerType: "rect", shape: "rectangle" })}
-        ${this.#renderChip("Ellipse", "icon-record", "other", { kind: "static", layerType: "rect", shape: "ellipse" })}
+        ${this.#renderShapeChip()}
       </div>
     `;
+  }
+
+  /**
+   * Shape: dragging it drops a rectangle, and its + (or a click anywhere on it) opens the Add
+   * shape menu of every shape the renderer draws, plus presets of them.
+   */
+  #renderShapeChip() {
+    const payload: PalettePayload = { kind: "static", layerType: "rect", preset: "rectangle" };
+
+    return html`
+      <div
+        class="chip other shape"
+        draggable="true"
+        title="Shape"
+        @dragstart=${(event: DragEvent) => this.#onDragStart(event, payload)}>
+        <uui-icon name="icon-shape-circle"></uui-icon>
+        <button type="button" class="label chip-open" popovertarget="shape-menu" aria-label="Choose a shape">
+          Shape
+        </button>
+        <uui-button compact look="secondary" label="Add a shape" popovertarget="shape-menu">
+          <uui-icon name="icon-add"></uui-icon>
+        </uui-button>
+      </div>
+      <uui-popover-container id="shape-menu" placement="bottom-end">
+        <div class="menu">
+          <uui-menu-item label="Add shape" class="menu-heading" disabled></uui-menu-item>
+          ${SHAPE_PRESET_ORDER.map((preset) => html`
+            <uui-menu-item
+              label=${SHAPE_PRESETS[preset].label}
+              data-preset=${preset}
+              @click-label=${() => this.#addShape(preset)}>
+              <uui-icon slot="icon" name=${SHAPE_PRESETS[preset].icon}></uui-icon>
+            </uui-menu-item>
+          `)}
+        </div>
+      </uui-popover-container>
+    `;
+  }
+
+  #addShape(preset: ShapePreset) {
+    (this.shadowRoot?.querySelector("#shape-menu") as HTMLElement & { hidePopover?: () => void })?.hidePopover?.();
+    this.#add({ kind: "static", layerType: "rect", preset });
   }
 
   #renderChip(
@@ -218,6 +264,30 @@ export class DiPropertyPaletteElement extends UmbLitElement {
     .chip.boolean {
       border-left-color: var(--uui-color-selected);
       border-left-style: dashed;
+    }
+
+    /* The Shape chip's name opens the menu too, so it is a real button - reset to read as the
+       label it replaces. */
+    .chip-open {
+      border: 0;
+      background: none;
+      padding: 0;
+      font: inherit;
+      color: inherit;
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .menu {
+      min-width: 200px;
+      padding: var(--uui-size-space-2) 0;
+      background: var(--uui-color-surface);
+      border-radius: var(--uui-border-radius);
+      box-shadow: var(--uui-shadow-depth-3);
+    }
+
+    .menu-heading {
+      --uui-menu-item-color-disabled: var(--uui-color-text-alt);
     }
 
     .empty {

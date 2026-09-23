@@ -98,13 +98,19 @@ public class DocumentTypesController(
                     var editorAlias = editorAliases.GetValueOrDefault(property.DataTypeKey)
                                       ?? property.PropertyEditorAlias;
 
+                    var placement = Place(Groups(contentType), property.Alias);
+
                     return new DocumentTypePropertyResponse(
                         property.Alias,
                         property.Name ?? property.Alias,
-                        GroupName(contentType, property),
+                        placement.Group,
                         editorAlias,
                         Classify(editorAlias),
-                        IsSystem: false);
+                        IsSystem: false,
+                        placement.Tab,
+                        placement.TabSortOrder,
+                        placement.GroupSortOrder,
+                        property.SortOrder);
                 }))
             .GroupBy(property => property.Alias, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
@@ -124,7 +130,13 @@ public class DocumentTypesController(
 
     /// <summary>
     /// What a content-reference property on <paramref name="alias"/> points at, and the properties
-    /// available on the far side of it - the designer's second dropdown.
+    /// available on the far side of it - the designer's next dropdown.
+    /// <para>
+    /// <paramref name="propertyAlias"/> may be a dotted path, <c>author.company</c>: the path is
+    /// walked a reference at a time, inferring the target types at each hop the same way, and the
+    /// answer is about its last segment. That is what lets the designer offer a dropdown for every
+    /// hop the renderer follows, not only the first.
+    /// </para>
     /// </summary>
     [HttpGet("document-types/{alias}/properties/{propertyAlias}/linked")]
     [ProducesResponseType(typeof(LinkedPropertiesResponse), StatusCodes.Status200OK)]
@@ -138,28 +150,73 @@ public class DocumentTypesController(
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        var property = contentType.CompositionPropertyTypes
-            .FirstOrDefault(p => string.Equals(p.Alias, propertyAlias, StringComparison.OrdinalIgnoreCase));
-
-        if (property is null)
+        var segments = propertyAlias.Split('.', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length == 0 || segments.Length > PropertyPath.MaxHops)
         {
             return Problem(title: "Property not found",
-                detail: $"'{alias}' has no property called '{propertyAlias}'.",
+                detail: $"'{propertyAlias}' is not a property path of up to {PropertyPath.MaxHops} references.",
                 statusCode: StatusCodes.Status404NotFound);
         }
 
         // The "all" fallback is the expensive case on a large site. The key carries the caller's
         // start-node signature because two users with different start nodes can legitimately sample
         // different nodes, and a shared entry would leak one user's narrowing to the other.
-        var cacheKey = $"DynamicImages.LinkedProperties.{contentType.Key}.{property.Alias}.{StartNodeSignature()}";
+        var cacheKey = $"DynamicImages.LinkedProperties.{contentType.Key}.{string.Join('.', segments).ToLowerInvariant()}.{StartNodeSignature()}";
 
         if (appCaches.RuntimeCache.Get(cacheKey) is LinkedPropertiesResponse cached) return Ok(cached);
 
-        var response = await BuildLinkedPropertiesAsync(contentType, property);
+        var walk = await LinkedPath.WalkAsync<IContentType, IPropertyType>(
+            [contentType],
+            segments,
+            FindProperty,
+            async (owner, property) =>
+            {
+                var dataType = await dataTypeService.GetAsync(property.DataTypeKey);
+                if (Classify(dataType?.EditorAlias ?? property.PropertyEditorAlias) != "content") return (null, "none");
+
+                return InferTargets(owner, property, dataType);
+            });
+
+        LinkedPropertiesResponse response;
+        switch (walk.Outcome)
+        {
+            case LinkedPathOutcome.PropertyMissing:
+                return Problem(title: "Property not found",
+                    detail: $"'{alias}' has no property path '{propertyAlias}' ('{walk.FailedSegment}' is not there).",
+                    statusCode: StatusCodes.Status404NotFound);
+
+            // A hop before the last that goes nowhere: the same empty answer a non-reference gets,
+            // for the same reason - the designer asks speculatively.
+            case LinkedPathOutcome.NotAReference:
+                response = new LinkedPropertiesResponse(propertyAlias, "none", [], []);
+                break;
+
+            case LinkedPathOutcome.NoTargets:
+                response = new LinkedPropertiesResponse(propertyAlias, walk.Inference ?? "none", [], []);
+                break;
+
+            default:
+                response = await BuildLinkedPropertiesAsync(walk.Owner!, walk.Property!);
+                break;
+        }
 
         appCaches.RuntimeCache.Insert(cacheKey, () => response, TimeSpan.FromSeconds(60));
 
         return Ok(response);
+    }
+
+    /// <summary>A property on the first of some document types that has it, compositions included.</summary>
+    private static (IContentType Owner, IPropertyType Property)? FindProperty(IReadOnlyList<IContentType> owners, string alias)
+    {
+        foreach (var owner in owners)
+        {
+            var property = owner.CompositionPropertyTypes
+                .FirstOrDefault(p => string.Equals(p.Alias, alias, StringComparison.OrdinalIgnoreCase));
+
+            if (property is not null) return (owner, property);
+        }
+
+        return null;
     }
 
     private async Task<LinkedPropertiesResponse> BuildLinkedPropertiesAsync(IContentType contentType, IPropertyType property)
@@ -175,7 +232,7 @@ public class DocumentTypesController(
 
         var (targets, inference) = InferTargets(contentType, property, dataType);
 
-        if (targets.Count == 0) return Empty(property, inference);
+        if (targets is null || targets.Count == 0) return Empty(property, inference);
 
         var properties = await PropertiesOfAsync(targets);
 
@@ -186,7 +243,7 @@ public class DocumentTypesController(
         return new LinkedPropertiesResponse(property.Alias, inference, targets.Select(Describe).ToList(), properties);
     }
 
-    private (IReadOnlyList<IContentType> Targets, string Inference) InferTargets(
+    private (IReadOnlyList<IContentType>? Targets, string Inference) InferTargets(
         IContentType contentType, IPropertyType property, IDataType? dataType)
     {
         // 1. What the picker itself allows. Read by dictionary key rather than by casting to
@@ -365,11 +422,49 @@ public class DocumentTypesController(
             : filter.WhereAny(conditions);
     }
 
-    private static string GroupName(IContentType contentType, IPropertyType property)
+    /// <summary>A document type's groups and tabs, compositions included, as <see cref="Place"/> reads them.</summary>
+    private static IReadOnlyList<GroupInfo> Groups(IContentType contentType)
         => contentType.CompositionPropertyGroups
-               .FirstOrDefault(group => group.PropertyTypes?.Any(p => p.Alias == property.Alias) == true)
-               ?.Name
-           ?? "Other";
+            .Select(group => new GroupInfo(
+                group.Alias,
+                group.Name ?? group.Alias,
+                group.Type == PropertyGroupType.Tab,
+                group.SortOrder,
+                group.PropertyTypes?.Select(p => p.Alias).ToList() ?? []))
+            .ToList();
+
+    /// <summary>One group or tab: what <see cref="Place"/> needs, without Umbraco's model behind it.</summary>
+    internal sealed record GroupInfo(string Alias, string Name, bool IsTab, int SortOrder, IReadOnlyList<string> PropertyAliases);
+
+    internal sealed record Placement(string Group, string? Tab, int TabSortOrder, int GroupSortOrder);
+
+    /// <summary>
+    /// Where a property sits: its group, and the tab that group is on.
+    /// <para>
+    /// A group whose type is <c>Tab</c> is a tab. A group's tab is the tab whose alias is the
+    /// prefix of the group's own - <c>content/seo</c> sits on <c>content</c>. A property placed
+    /// directly on a tab has the tab as its group and no separate tab, and sorts before the tab's
+    /// groups, as the Document Type editor shows it. A group on no tab has none, and sorts first,
+    /// where the editor's generic tab puts it. A composition's groups arrive in
+    /// <c>CompositionPropertyGroups</c> alongside the type's own, so they need nothing special.
+    /// </para>
+    /// </summary>
+    internal static Placement Place(IReadOnlyList<GroupInfo> groups, string propertyAlias)
+    {
+        var group = groups.FirstOrDefault(g => g.PropertyAliases.Contains(propertyAlias, StringComparer.OrdinalIgnoreCase));
+        if (group is null) return new Placement("Other", null, int.MaxValue, int.MaxValue);
+
+        if (group.IsTab) return new Placement(group.Name, null, group.SortOrder, -1);
+
+        var slash = group.Alias.LastIndexOf('/');
+        var tab = slash > 0
+            ? groups.FirstOrDefault(g => g.IsTab && string.Equals(g.Alias, group.Alias[..slash], StringComparison.OrdinalIgnoreCase))
+            : null;
+
+        return tab is null
+            ? new Placement(group.Name, null, -1, group.SortOrder)
+            : new Placement(group.Name, tab.Name, tab.SortOrder, group.SortOrder);
+    }
 
     /// <summary>
     /// Buckets an editor alias into the handful of kinds the palette cares about. The chip's

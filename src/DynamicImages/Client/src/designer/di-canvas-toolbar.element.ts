@@ -97,6 +97,7 @@ export class DiCanvasToolbarElement extends UmbLitElement {
             <uui-icon name="icon-zoom-out"></uui-icon>
           </uui-button>
           <di-number-field
+            compact
             class="value"
             label="Zoom"
             suffix="%"

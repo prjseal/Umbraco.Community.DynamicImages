@@ -24,7 +24,60 @@ public sealed record TemplateListResponse(int Total, IReadOnlyList<TemplateSumma
 /// <summary>A save's outcome, so the designer can show validation warnings on a successful save too.</summary>
 public sealed record TemplateSaveResponse(Template Template, IReadOnlyList<ValidationIssue> Warnings);
 
-public sealed record TemplateImportRequest(string Json, string Mode = "create");
+/// <summary><c>ParentKey</c> is the folder the import was started from; null is the Templates root.</summary>
+public sealed record TemplateImportRequest(string Json, string Mode = "create", Guid? ParentKey = null);
+
+// ---------------------------------------------------------------- tree and folders
+
+/// <summary>
+/// One row of the Templates tree. <c>EntityType</c> is <c>"folder"</c> or <c>"template"</c>; the
+/// client maps it to its own entity types.
+/// </summary>
+public sealed record TemplateTreeItemResponse(
+    Guid Key,
+    string Name,
+    string EntityType,
+    Guid? ParentKey,
+    bool HasChildren,
+    bool IsEnabled)
+{
+    public static TemplateTreeItemResponse From(TemplateTreeNode node) => new(
+        node.Key, node.Name, node.IsFolder ? "folder" : "template", node.ParentKey, node.HasChildren, node.IsEnabled);
+}
+
+public sealed record TemplateTreeResponse(int Total, IReadOnlyList<TemplateTreeItemResponse> Items);
+
+public sealed record TemplateFolderResponse(Guid Key, string Name, Guid? ParentKey)
+{
+    public static TemplateFolderResponse From(TemplateFolder folder) => new(folder.Key, folder.Name, folder.ParentKey);
+}
+
+/// <summary><c>Key</c> is optional: the backoffice's folder modal chooses one up front.</summary>
+public sealed record CreateTemplateFolderRequest(string Name, Guid? ParentKey = null, Guid? Key = null);
+
+public sealed record UpdateTemplateFolderRequest(string Name);
+
+/// <summary>
+/// One row of the Templates collection: a folder, or a template with the columns the table view
+/// shows. The template-only fields are null on a folder.
+/// </summary>
+public sealed record TemplateCollectionItemResponse(
+    Guid Key,
+    string EntityType,
+    string Name,
+    Guid? ParentKey,
+    bool IsEnabled,
+    IReadOnlyList<string>? DocTypeAliases,
+    string? TargetPropertyAlias,
+    int? LayerCount,
+    int? CanvasWidth,
+    int? CanvasHeight,
+    DateTime? UpdatedUtc);
+
+public sealed record TemplateCollectionResponse(int Total, IReadOnlyList<TemplateCollectionItemResponse> Items);
+
+/// <summary>Null <c>TargetKey</c> is the Templates root.</summary>
+public sealed record MoveRequest(Guid? TargetKey);
 
 // ---------------------------------------------------------------- fonts
 
@@ -98,13 +151,23 @@ public sealed record UpdateFontRequest(
 /// A property as the designer's palette shows it. <see cref="Classification"/> is what decides
 /// which layer type a dragged chip creates.
 /// </summary>
+/// <para>
+/// <see cref="Tab"/> and the three sort orders say where the property sits on the document type -
+/// tab, then group, then property - so the inspector can group and order its dropdown the way the
+/// Document Type editor shows it. <see cref="Group"/> is the group's name, or the tab's name for a
+/// property placed directly on a tab. The system pseudo-properties have no tab and sort first.
+/// </para>
 public sealed record DocumentTypePropertyResponse(
     string Alias,
     string Name,
     string Group,
     string EditorAlias,
     string Classification,
-    bool IsSystem);
+    bool IsSystem,
+    string? Tab = null,
+    int TabSortOrder = -1,
+    int GroupSortOrder = -1,
+    int SortOrder = -1);
 
 public sealed record DocumentTypeResponse(Guid Key, string Alias, string Name, string Icon);
 

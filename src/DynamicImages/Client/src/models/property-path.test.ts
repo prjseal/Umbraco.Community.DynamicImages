@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hopCount, isPath, joinPath, MAX_HOPS, splitPath } from "./property-path.js";
+import { hopCount, isPath, joinPath, MAX_HOPS, pathPrefix, pathSegments, splitPath } from "./property-path.js";
 
 describe("splitPath", () => {
   it("leaves a bare alias as the root with no tail", () => {
@@ -74,5 +74,20 @@ describe("isPath and hopCount", () => {
     expect(isPath("title")).toBe(false);
     expect(isPath("author.")).toBe(false);
     expect(isPath(null)).toBe(false);
+  });
+});
+
+describe("pathSegments and pathPrefix", () => {
+  it("gives one segment per hop, at the full three-hop depth", () => {
+    expect(pathSegments("author.employer.parent.logo")).toEqual(["author", "employer", "parent", "logo"]);
+    expect(pathSegments("")).toEqual([]);
+  });
+
+  it("rebuilds the key each hop's properties are stored under", () => {
+    const segments = pathSegments("author.employer.logo");
+
+    expect(pathPrefix(segments, 1)).toBe("author");
+    expect(pathPrefix(segments, 2)).toBe("author.employer");
+    expect(pathPrefix(segments, 0)).toBe("");
   });
 });

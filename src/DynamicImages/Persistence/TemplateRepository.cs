@@ -79,6 +79,9 @@ public sealed class TemplateRepository(
         var dto = ToDto(template, userKey);
         dto.Id = existing.Id;
         dto.CreatedUtc = existing.CreatedUtc;
+
+        // Nothing sorts templates yet, so an ordinary save keeps whatever order the row has.
+        dto.SortOrder = existing.SortOrder;
         dto.UpdatedUtc = now;
 
         // Optimistic concurrency as a condition on the write itself, not a comparison against the
@@ -92,10 +95,10 @@ public sealed class TemplateRepository(
             ? scope.Database.Execute(
                 $"UPDATE {DynamicImagesConstants.TemplateTableName} " +
                 "SET alias = @0, name = @1, isEnabled = @2, schemaVersion = @3, json = @4, " +
-                "docTypeAliases = @5, updatedUtc = @6, updatedByUserKey = @7 " +
-                "WHERE [key] = @8 AND updatedUtc BETWEEN @9 AND @10",
+                "docTypeAliases = @5, updatedUtc = @6, updatedByUserKey = @7, parentKey = @8 " +
+                "WHERE [key] = @9 AND updatedUtc BETWEEN @10 AND @11",
                 dto.Alias, dto.Name, dto.IsEnabled, dto.SchemaVersion, dto.Json,
-                dto.DocTypeAliases, dto.UpdatedUtc, dto.UpdatedByUserKey,
+                dto.DocTypeAliases, dto.UpdatedUtc, dto.UpdatedByUserKey, dto.ParentKey,
                 dto.Key, expectedUpdatedUtc.Value.AddSeconds(-1), expectedUpdatedUtc.Value.AddSeconds(1))
             : scope.Database.Update(dto);
 
@@ -104,6 +107,20 @@ public sealed class TemplateRepository(
         // Zero rows means someone else saved between this caller's read and this write. Null is
         // the conflict, exactly as it was when the check was a comparison.
         return updated > 0 ? template : null;
+    }
+
+    public bool Move(Guid key, Guid? parentKey)
+    {
+        // Only the column. The JSON copy of parentKey is refreshed on the next save and is
+        // overruled by the column on every read in the meantime. updatedUtc is deliberately left
+        // alone: a move is not an edit, and bumping it would give anyone with the template open
+        // in the designer a 412 on their next save for something they cannot see.
+        using var scope = scopeProvider.CreateScope();
+        var moved = scope.Database.Execute(
+            $"UPDATE {DynamicImagesConstants.TemplateTableName} SET parentKey = @0 WHERE [key] = @1", parentKey, key);
+        scope.Complete();
+
+        return moved > 0;
     }
 
     public bool Delete(Guid key)
@@ -127,9 +144,10 @@ public sealed class TemplateRepository(
         => database.FirstOrDefault<TemplateDto>(
             new Sql().Select("*").From(DynamicImagesConstants.TemplateTableName).Where("[key] = @0", key));
 
-    private static TemplateDto ToDto(Template template, Guid? userKey) => new()
+    internal static TemplateDto ToDto(Template template, Guid? userKey) => new()
     {
         Key = template.Key,
+        ParentKey = template.ParentKey,
         Alias = template.Alias,
         Name = template.Name,
         IsEnabled = template.IsEnabled,
@@ -139,7 +157,7 @@ public sealed class TemplateRepository(
         UpdatedByUserKey = userKey
     };
 
-    private Template? Map(TemplateDto? dto)
+    internal Template? Map(TemplateDto? dto)
     {
         if (dto is null) return null;
 
@@ -156,6 +174,7 @@ public sealed class TemplateRepository(
             template.Alias = dto.Alias;
             template.Name = dto.Name;
             template.IsEnabled = dto.IsEnabled;
+            template.ParentKey = dto.ParentKey;
             template.UpdatedUtc = dto.UpdatedUtc;
 
             return template;

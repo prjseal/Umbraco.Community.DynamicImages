@@ -21,8 +21,20 @@ const PROPERTIES: DiProperty[] = [
 ];
 
 const LINKED: Record<string, DiProperty[]> = {
-  author: [property("jobTitle", "text", "Job title"), property("mainImage", "media", "Main image")],
+  author: [
+    property("jobTitle", "text", "Job title"),
+    property("mainImage", "media", "Main image"),
+    property("employer", "content", "Employer"),
+  ],
   editor: [property("nickname", "text", "Nickname")],
+  "author.employer": [property("logo", "media", "Logo"), property("parent", "content", "Parent")],
+  "author.employer.parent": [property("companyName", "text", "Company name")],
+};
+
+const CAPTIONS: Record<string, string> = {
+  author: "Property on the linked Person",
+  "author.employer": "Property on the linked Company",
+  "author.employer.parent": "Property on the linked Company",
 };
 
 /** Mounts the inspector on a text layer bound to `alias`, and returns it with the change events. */
@@ -39,12 +51,14 @@ async function mountInspector(alias: string) {
 
   const inspector = document.createElement("di-layer-inspector") as HTMLElement & {
     template: unknown; layer: unknown; properties: DiProperty[]; linkedProperties: Record<string, DiProperty[]>;
+    linkedCaptions: Record<string, string>;
   };
 
   inspector.template = template;
   inspector.layer = layer;
   inspector.properties = PROPERTIES;
   inspector.linkedProperties = LINKED;
+  inspector.linkedCaptions = CAPTIONS;
 
   const changes: { propertyAlias?: string | null }[] = [];
   inspector.addEventListener("di-layer-change", (event) => {
@@ -57,12 +71,18 @@ async function mountInspector(alias: string) {
   return { inspector, changes, layer };
 }
 
-/** The property dropdowns inside the binding field, in document order: root then tail. */
-function selects(inspector: HTMLElement): HTMLSelectElement[] {
-  const labels = [...inspector.shadowRoot!.querySelectorAll("label.field")];
-  const field = labels.find((label) => label.querySelector("span")?.textContent?.trim() === "Property");
+/** The binding field: an `umb-property-layout` labelled Property. */
+function propertyField(inspector: HTMLElement): Element {
+  return inspector.shadowRoot!.querySelector("umb-property-layout[label='Property']")!;
+}
 
-  return [...field!.querySelectorAll("uui-select")]
+/** The property dropdowns inside the binding field, in document order: one per hop. */
+function selectElements(inspector: HTMLElement): HTMLElement[] {
+  return [...propertyField(inspector).querySelectorAll<HTMLElement>("uui-select")];
+}
+
+function selects(inspector: HTMLElement): HTMLSelectElement[] {
+  return selectElements(inspector)
     .map((select) => select.shadowRoot!.querySelector("select")!)
     .filter(Boolean);
 }
@@ -147,5 +167,63 @@ describe("property path select", () => {
 
     expect(root.value).toBe("unknownRoot");
     expect(tail.value).toBe("someProperty");
+  });
+
+  it("stacks a three-hop path as four full-width dropdowns, one under the other", async () => {
+    const { inspector } = await mountInspector("author.employer.parent.companyName");
+
+    const boxes = selectElements(inspector).map((select) => select.getBoundingClientRect());
+
+    expect(boxes).toHaveLength(4);
+    for (let index = 1; index < boxes.length; index++) {
+      // Below the one above, never beside it.
+      expect(boxes[index].top).toBeGreaterThanOrEqual(boxes[index - 1].bottom);
+      // Every hop after the first is indented behind the same rule, so they line up.
+      expect(Math.round(boxes[index].left)).toBe(Math.round(boxes[1].left));
+    }
+    expect(boxes[1].left).toBeGreaterThan(boxes[0].left);
+
+    expect(selects(inspector).map((select) => select.value)).toEqual(["author", "employer", "parent", "companyName"]);
+  });
+
+  it("captions each hop with what the reference above points at", async () => {
+    const { inspector } = await mountInspector("author.employer.logo");
+
+    const captions = [...propertyField(inspector).querySelectorAll(".hop-caption")].map((c) => c.textContent?.trim());
+
+    expect(captions).toEqual(["Property on the linked Person", "Property on the linked Company"]);
+  });
+
+  it("offers a further hop only once the one above is a reference", async () => {
+    // jobTitle is text, so nothing follows it; employer is a reference, so a third dropdown appears.
+    expect(selects((await mountInspector("author.jobTitle")).inspector)).toHaveLength(2);
+    expect(selects((await mountInspector("author.employer")).inspector)).toHaveLength(3);
+  });
+
+  it("clears every hop below the one that changed", async () => {
+    const { inspector, changes } = await mountInspector("author.employer.parent.companyName");
+
+    choose(selects(inspector)[1], "jobTitle");
+
+    expect(changes.at(-1)?.propertyAlias).toBe("author.jobTitle");
+  });
+
+  it("groups the options and labels them by name", async () => {
+    const grouped: DiProperty[] = [
+      { ...property("title", "text", "Title"), tab: "Content", tabSortOrder: 1, groupSortOrder: 0, sortOrder: 0 },
+      { ...property("metaTitle", "text", "Meta title"), group: "Meta", tab: "SEO", tabSortOrder: 2, groupSortOrder: 0, sortOrder: 0 },
+      { ...property("name", "text", "Name"), group: "Node", isSystem: true },
+    ];
+
+    const { inspector } = await mountInspector("title");
+    (inspector as unknown as { properties: DiProperty[] }).properties = grouped;
+    await settle(inspector, 3);
+
+    const [root] = selects(inspector);
+    const groups = [...root.querySelectorAll("optgroup")].map((group) => group.label);
+
+    expect(groups).toEqual(["Page", "Content › Content", "SEO › Meta"]);
+    expect([...root.options].find((option) => option.value === "metaTitle")?.textContent?.trim()).toBe("Meta title");
+    expect(selectElements(inspector)[0].getAttribute("title")).toBe("title");
   });
 });

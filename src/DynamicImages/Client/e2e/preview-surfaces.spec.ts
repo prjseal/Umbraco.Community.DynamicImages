@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { layerNames, login, openSection, openTemplate, openView, recordPreviewRequests } from "./helpers.js";
+import { choosePreviewContent, layerNames, login, openSection, openTemplate, openView, recordPreviewRequests } from "./helpers.js";
 
 /**
  * A3 - the preview strip under the canvas ignored the node picked in Preview & test, because it
@@ -27,17 +27,8 @@ async function pickSampleNode(page: import("@playwright/test").Page): Promise<st
 
   await openView(page, "Preview & test");
 
-  const picker = page.locator("di-preview-view uui-button[label='Choose content to preview against']");
-  await expect(picker).toBeVisible({ timeout: 60_000 });
-  await picker.click();
-
-  const modal = page.locator("di-sample-node-picker-modal");
-  await expect(modal).toBeVisible({ timeout: 60_000 });
-
-  // Clicking the node submits the modal; there is no separate confirm button.
-  await modal.locator(`uui-ref-node[name='${SAMPLE_NODE}']`).click();
-
-  await expect(picker).toContainText(SAMPLE_NODE, { timeout: 60_000 });
+  // Core's document picker, limited to the template's document types.
+  await choosePreviewContent(page, SAMPLE_NODE);
 
   // The render this triggered carries the key, which saves looking it up another way.
   await expect
@@ -149,4 +140,28 @@ test("the Resolved values table has a row for every layer", async ({ page }) => 
     .map((name) => name.replace(/\s+/g, " ").trim());
 
   expect(rowNames.sort()).toEqual([...layers].sort());
+});
+
+test("the designer strip shows and changes the same page as Preview & test", async ({ page }) => {
+  const contentKey = await pickSampleNode(page);
+
+  await openView(page, "Design");
+
+  // One value, two pickers: the strip's reads what Preview & test chose...
+  const strip = page.locator("di-preview-strip di-preview-content-picker umb-input-document");
+  await expect(strip).toContainText(SAMPLE_NODE, { timeout: 60_000 });
+
+  // ...and clearing it there puts both surfaces back on sample data.
+  const previews = recordPreviewRequests(page);
+  await strip.locator("uui-button[label='Remove']").first().click().catch(async () => {
+    await strip.locator("[label^='Remove']").first().click();
+  });
+  const dialog = page.locator("umb-confirm-modal uui-button[color='danger']");
+  if (await dialog.isVisible().catch(() => false)) await dialog.click();
+
+  await expect.poll(() => previews.at(-1)?.useSampleData, { timeout: 60_000 }).toBe(true);
+
+  await openView(page, "Preview & test");
+  await expect(page.locator("di-preview-view di-preview-content-picker umb-input-document")).not.toContainText(SAMPLE_NODE);
+  expect(contentKey.length).toBeGreaterThan(0);
 });

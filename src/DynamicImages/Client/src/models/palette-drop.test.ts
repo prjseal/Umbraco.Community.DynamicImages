@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createLayerForProperty, createTemplate, layerTypeFor } from "./layer-factories.js";
+import {
+  SHAPE_PRESETS, SHAPE_PRESET_ORDER, createLayerForProperty, createRectLayer, createTemplate, layerTypeFor,
+} from "./layer-factories.js";
 import type { DiProperty, PropertyClassification } from "../api/types.js";
 
 /**
@@ -76,5 +78,50 @@ describe("layerTypeFor", () => {
     expect(layerTypeFor("list")).toBe("badges");
     expect(layerTypeFor("content")).toBe("badges");
     expect(layerTypeFor("text")).toBe("text");
+  });
+});
+
+describe("createRectLayer presets", () => {
+  it("offers every renderer shape, plus the presets, in menu order", () => {
+    expect(SHAPE_PRESET_ORDER).toEqual([
+      "rectangle", "roundedRectangle", "circle", "ellipse", "polygon", "triangle", "star",
+    ]);
+    expect(new Set(SHAPE_PRESET_ORDER.map((preset) => SHAPE_PRESETS[preset].shape)))
+      .toEqual(new Set(["rectangle", "ellipse", "polygon", "star"]));
+  });
+
+  it("makes a circle a square ellipse with its aspect locked", () => {
+    const circle = createRectLayer(context, "Shape", "circle");
+
+    expect(circle.shape).toBe("ellipse");
+    expect(circle.lockAspect).toBe(true);
+    expect(circle.size.width).toBe(circle.size.height);
+    expect(circle.name).toBe("Circle");
+  });
+
+  it("leaves an ordinary ellipse unlocked", () => {
+    const ellipse = createRectLayer(context, "Shape", "ellipse");
+
+    expect(ellipse.shape).toBe("ellipse");
+    expect(ellipse.lockAspect).toBeUndefined();
+  });
+
+  it("rounds a rounded rectangle and not a plain one", () => {
+    expect(createRectLayer(context, "Shape", "roundedRectangle").cornerRadius).toBe(24);
+    expect(createRectLayer(context, "Shape", "rectangle").cornerRadius).toBe(0);
+  });
+
+  it("gives a triangle three sides, a polygon six and a star five points at half depth", () => {
+    expect(createRectLayer(context, "Shape", "triangle")).toMatchObject({ shape: "polygon", sides: 3 });
+    expect(createRectLayer(context, "Shape", "polygon")).toMatchObject({ shape: "polygon", sides: 6 });
+    expect(createRectLayer(context, "Shape", "star")).toMatchObject({ shape: "star", sides: 5, innerRatio: 0.5 });
+  });
+
+  it("drops a rectangle when no preset is named, as dragging the Shape chip does", () => {
+    expect(createRectLayer(context)).toMatchObject({ shape: "rectangle", name: "Rectangle" });
+  });
+
+  it("keeps a name the caller gave", () => {
+    expect(createRectLayer(context, "Scrim", "rectangle").name).toBe("Scrim");
   });
 });

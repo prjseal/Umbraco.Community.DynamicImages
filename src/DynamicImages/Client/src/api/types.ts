@@ -166,7 +166,19 @@ export interface DiBadgesLayer extends DiLayerBase {
 
 export type ShapeKind = "rectangle" | "ellipse" | "polygon" | "star";
 
-export type GradientKind = "linear" | "radial";
+export type GradientKind = "linear" | "radial" | "angular" | "diamond" | "reflected";
+
+/** How far a radial gradient's last stop reaches - CSS's size keywords, in camel case. */
+export type GradientExtent = "farthestCorner" | "farthestSide" | "closestCorner" | "closestSide";
+
+/** A radial gradient's ending shape. */
+export type GradientShape = "ellipse" | "circle";
+
+export interface DiGradientStop {
+  colour: string;
+  /** 0..1 along the gradient. */
+  position: number;
+}
 
 /**
  * A two-stop gradient, on a shape layer or as the canvas's fill. The server writes every field,
@@ -175,13 +187,24 @@ export type GradientKind = "linear" | "radial";
  */
 export interface DiGradient {
   kind: GradientKind;
+  /** The first colour. With `stops`, kept equal to the first stop so an older package draws something close. */
   from: string;
+  /** The last colour. With `stops`, kept equal to the last stop. */
   to: string;
-  /** Linear only. Degrees clockwise from "top to bottom" = 180, as in CSS. */
+  /**
+   * Linear and reflected: degrees clockwise from "top to bottom" = 180, as in CSS. Angular: where
+   * the sweep starts, degrees clockwise from straight up, as in `conic-gradient(from …)`.
+   */
   angle: number;
-  /** Radial only. The centre as a fraction of the box, 0..1. */
+  /** Radial, angular and diamond. The centre as a fraction of the box, 0..1. */
   centreX: number;
   centreY: number;
+  /** Two or more stops; absent or fewer means `from` at 0 and `to` at 1. */
+  stops?: DiGradientStop[] | null;
+  /** Radial only. Absent means farthest-corner. */
+  extent?: GradientExtent;
+  /** Radial only. Absent means ellipse. */
+  shape?: GradientShape;
 }
 
 /**
@@ -202,6 +225,8 @@ export interface DiRectLayer extends DiLayerBase {
   innerRatio: number;
   /** Drawn inside the box, like an image border. */
   border?: { width: number; colour: string } | null;
+  /** Keep width:height when resized - what keeps a circle a circle. Designer-only; absent means off. */
+  lockAspect?: boolean;
 }
 
 export type DiLayer = DiTextLayer | DiImageLayer | DiBadgesLayer | DiRectLayer;
@@ -217,6 +242,8 @@ export interface DiTemplate {
   alias: string;
   name: string;
   isEnabled: boolean;
+  /** The folder in the Templates tree; null (or absent, before folders existed) is the root. */
+  parentKey?: string | null;
   docTypeAliases: string[];
   targetPropertyAlias: string;
   trigger: { onPublish: boolean; onlyWhenEmpty: boolean };
@@ -251,6 +278,37 @@ export interface DiTemplateSummary {
   canvasWidth: number;
   canvasHeight: number;
   updatedUtc: string;
+}
+
+/** A row of the Templates tree, as `tree/*` and `item` return it. */
+export interface DiTreeItem {
+  key: string;
+  name: string;
+  entityType: "folder" | "template";
+  parentKey: string | null;
+  hasChildren: boolean;
+  isEnabled: boolean;
+}
+
+/** A row of `collection/templates`. The template-only fields are null on a folder. */
+export interface DiCollectionItem {
+  key: string;
+  entityType: "folder" | "template";
+  name: string;
+  parentKey: string | null;
+  isEnabled: boolean;
+  docTypeAliases: string[] | null;
+  targetPropertyAlias: string | null;
+  layerCount: number | null;
+  canvasWidth: number | null;
+  canvasHeight: number | null;
+  updatedUtc: string | null;
+}
+
+export interface DiTemplateFolder {
+  key: string;
+  name: string;
+  parentKey: string | null;
 }
 
 export interface DiValidationIssue {
@@ -358,10 +416,17 @@ export interface DiLinkedProperties {
 export interface DiProperty {
   alias: string;
   name: string;
+  /** The group's name, or the tab's for a property placed directly on a tab. */
   group: string;
   editorAlias: string;
   classification: PropertyClassification;
   isSystem: boolean;
+  /** The tab the group is on, when it is on one. */
+  tab?: string | null;
+  /** Where the property sits on its document type; -1 sorts first. Absent from older servers. */
+  tabSortOrder?: number;
+  groupSortOrder?: number;
+  sortOrder?: number;
 }
 
 export interface DiSampleContentItem {
