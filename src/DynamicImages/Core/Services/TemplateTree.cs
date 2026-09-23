@@ -40,12 +40,21 @@ public sealed class TemplateTree
     /// A parent that points at a folder which no longer exists is treated as the root, so nothing
     /// can become unreachable.
     /// </summary>
-    public IReadOnlyList<TemplateTreeNode> ChildrenOf(Guid? parentKey)
+    /// <param name="parentKey">The folder, or null for the root.</param>
+    /// <param name="foldersOnly">
+    /// Only folders, and <c>HasChildren</c> counting only folders - what the move picker asks for,
+    /// since a template is never a move target.
+    /// </param>
+    public IReadOnlyList<TemplateTreeNode> ChildrenOf(Guid? parentKey, bool foldersOnly = false)
     {
         var folders = _folders
             .Where(f => EffectiveParent(f.ParentKey) == parentKey)
             .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase)
-            .Select(f => new TemplateTreeNode(f.Key, f.Name, true, EffectiveParent(f.ParentKey), HasChildren(f.Key), true));
+            .Select(f => new TemplateTreeNode(
+                f.Key, f.Name, true, EffectiveParent(f.ParentKey),
+                foldersOnly ? _folders.Any(c => c.ParentKey == f.Key) : HasChildren(f.Key), true));
+
+        if (foldersOnly) return folders.ToList();
 
         var templates = _templates
             .Where(t => EffectiveParent(t.ParentKey) == parentKey)

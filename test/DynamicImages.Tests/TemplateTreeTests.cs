@@ -53,6 +53,18 @@ public class TemplateTreeTests
     }
 
     [Fact]
+    public void Folders_only_leaves_templates_out_and_counts_only_subfolders()
+    {
+        var tree = Sample(out _, out _);
+
+        Assert.Equal(["Social"], tree.ChildrenOf(null, foldersOnly: true).Select(n => n.Name));
+
+        var blog = Assert.Single(tree.ChildrenOf(Social, foldersOnly: true));
+        Assert.True(blog.HasChildren);
+        Assert.False(Assert.Single(tree.ChildrenOf(Blog, foldersOnly: true)).HasChildren);
+    }
+
+    [Fact]
     public void Ancestors_run_from_the_top_down_to_the_item_itself()
     {
         var tree = Sample(out _, out var inBlog);

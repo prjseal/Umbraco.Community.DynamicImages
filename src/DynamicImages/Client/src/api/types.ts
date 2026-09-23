@@ -217,6 +217,8 @@ export interface DiTemplate {
   alias: string;
   name: string;
   isEnabled: boolean;
+  /** The folder in the Templates tree; null (or absent, before folders existed) is the root. */
+  parentKey?: string | null;
   docTypeAliases: string[];
   targetPropertyAlias: string;
   trigger: { onPublish: boolean; onlyWhenEmpty: boolean };
@@ -251,6 +253,22 @@ export interface DiTemplateSummary {
   canvasWidth: number;
   canvasHeight: number;
   updatedUtc: string;
+}
+
+/** A row of the Templates tree, as `tree/*` and `item` return it. */
+export interface DiTreeItem {
+  key: string;
+  name: string;
+  entityType: "folder" | "template";
+  parentKey: string | null;
+  hasChildren: boolean;
+  isEnabled: boolean;
+}
+
+export interface DiTemplateFolder {
+  key: string;
+  name: string;
+  parentKey: string | null;
 }
 
 export interface DiValidationIssue {

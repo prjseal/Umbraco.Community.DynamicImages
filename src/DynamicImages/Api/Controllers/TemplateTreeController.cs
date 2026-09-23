@@ -17,13 +17,14 @@ public class TemplateTreeController(
 
     [HttpGet("tree/root")]
     [ProducesResponseType(typeof(TemplateTreeResponse), StatusCodes.Status200OK)]
-    public IActionResult Root([FromQuery] int skip = 0, [FromQuery] int take = 100)
-        => Ok(Page(folderService.GetTree().ChildrenOf(null), skip, take));
+    public IActionResult Root([FromQuery] int skip = 0, [FromQuery] int take = 100, [FromQuery] bool foldersOnly = false)
+        => Ok(Page(folderService.GetTree().ChildrenOf(null, foldersOnly), skip, take));
 
     [HttpGet("tree/children")]
     [ProducesResponseType(typeof(TemplateTreeResponse), StatusCodes.Status200OK)]
-    public IActionResult Children([FromQuery] Guid? parentKey, [FromQuery] int skip = 0, [FromQuery] int take = 100)
-        => Ok(Page(folderService.GetTree().ChildrenOf(parentKey), skip, take));
+    public IActionResult Children(
+        [FromQuery] Guid? parentKey, [FromQuery] int skip = 0, [FromQuery] int take = 100, [FromQuery] bool foldersOnly = false)
+        => Ok(Page(folderService.GetTree().ChildrenOf(parentKey, foldersOnly), skip, take));
 
     /// <summary>From the top of the tree down to the item, the item itself last.</summary>
     [HttpGet("tree/ancestors")]
@@ -74,7 +75,8 @@ public class TemplateTreeController(
     private static TemplateTreeResponse Page(IReadOnlyList<TemplateTreeNode> nodes, int skip, int take)
         => new(nodes.Count, nodes
             .Skip(Math.Max(0, skip))
-            .Take(Math.Clamp(take, 1, MaxTake))
+            // take=0 is how the backoffice asks "is there anything?" for the root's hasChildren.
+            .Take(Math.Clamp(take, 0, MaxTake))
             .Select(TemplateTreeItemResponse.From)
             .ToList());
 }

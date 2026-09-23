@@ -5,6 +5,10 @@ import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { UMB_DISCARD_CHANGES_MODAL, umbOpenModal } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import type { UmbControllerHost } from "@umbraco-cms/backoffice/controller-api";
+import { UMB_ACTION_EVENT_CONTEXT } from "@umbraco-cms/backoffice/action";
+import {
+  UmbRequestReloadChildrenOfEntityEvent, UmbRequestReloadStructureForEntityEvent,
+} from "@umbraco-cms/backoffice/entity-action";
 import {
   DiApiError, createTemplate as apiCreate, fetchFonts, fetchLinkedProperties, fetchProperties, fetchTemplate,
   hrefForTemplate, notifyTemplatesChanged, updateTemplate,
@@ -110,6 +114,16 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     // The routable workspace kind renders whichever of these matches the address bar. Both land
     // on the same editor element; only how the context is seeded differs.
     this.routes.setRoutes([
+      {
+        // Create… on a folder in the tree: the same shape as core's create routes, so the new
+        // template is saved into the folder it was started from.
+        path: "create/parent/:parentEntityType/:parentUnique",
+        component: () => import("./di-template-editor.element.js"),
+        setup: (_component, info) => {
+          const parent = info.match.params.parentUnique;
+          return this.createScaffold(undefined, parent && parent !== "null" ? parent : null);
+        },
+      },
       {
         path: "create",
         component: () => import("./di-template-editor.element.js"),
@@ -230,13 +244,13 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     }
   }
 
-  async createScaffold(name = "New template"): Promise<void> {
+  async createScaffold(name = "New template", parentKey: string | null = null): Promise<void> {
     this.#loading.setValue(true);
     this.#isNew = true;
 
     // The scaffold is persisted as well as current, so opening Create and navigating straight
     // back out does not prompt over changes nobody made.
-    this.#setTemplate(createTemplate(name), { resetHistory: true, persist: true });
+    this.#setTemplate({ ...createTemplate(name), parentKey }, { resetHistory: true, persist: true });
     this.setIsNew(true);
     await this.#loadSupportingData(this._data.getCurrent()!);
 
@@ -535,6 +549,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
       this.setIsNew(false);
 
       notifyTemplatesChanged();
+      await this.#reloadTree(response.template, wasNew);
 
       this.#notificationContext?.peek("positive", {
         data: { message: `'${response.template.name}' saved.` },
@@ -550,6 +565,25 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     } catch (error) {
       this.#notifyError("The template could not be saved", error);
       throw error;
+    }
+  }
+
+  /**
+   * Tells the Templates tree (and the collection) what changed, the way core's detail workspaces
+   * do: a new template reloads its parent's children, and a saved one reloads its own structure
+   * so a rename shows.
+   */
+  async #reloadTree(template: DiTemplate, created: boolean): Promise<void> {
+    const events = await this.getContext(UMB_ACTION_EVENT_CONTEXT).catch(() => undefined);
+    if (!events) return;
+
+    if (created) {
+      events.dispatchEvent(new UmbRequestReloadChildrenOfEntityEvent({
+        entityType: template.parentKey ? "di-template-folder" : "di-template-root",
+        unique: template.parentKey ?? null,
+      }));
+    } else {
+      events.dispatchEvent(new UmbRequestReloadStructureForEntityEvent({ entityType: "di-template", unique: template.key }));
     }
   }
 
