@@ -1,3 +1,5 @@
+using Umbraco.Community.DynamicImages.Core.Services;
+
 namespace Umbraco.Community.DynamicImages.Core.Models;
 
 /// <summary>
@@ -5,7 +7,7 @@ namespace Umbraco.Community.DynamicImages.Core.Models;
 /// publish handler never looks at folders, so moving a template between them changes nothing
 /// about which documents it applies to.
 /// </summary>
-public class TemplateFolder
+public class TemplateFolder : ITreeEntity
 {
     public Guid Key { get; set; } = Guid.NewGuid();
 
@@ -14,7 +16,7 @@ public class TemplateFolder
     /// <summary>Null is the Templates root.</summary>
     public Guid? ParentKey { get; set; }
 
-    /// <summary>Stored for a future sort action; the tree orders by name today.</summary>
+    /// <summary>Its place among its siblings, folders and templates together. Ties order by name.</summary>
     public int SortOrder { get; set; }
 
     public DateTime CreatedUtc { get; set; }

@@ -20,6 +20,10 @@ namespace Umbraco.Community.DynamicImages.uSync.Serializers;
 /// root provider resolves the collection.
 /// </para>
 /// <para>
+/// <c>FamilyKey</c> names the <see cref="FontFamily"/> the font is a variant of, whose own file the
+/// family handler writes and imports first.
+/// </para>
+/// <para>
 /// <c>CreatedUtc</c> and <c>UpdatedUtc</c> are deliberately absent from the file. uSync detects
 /// change by hashing the serialised XML, so a timestamp in it would make every font report as
 /// changed the moment it was imported, forever.
@@ -76,6 +80,8 @@ public class DynamicImagesFontSerializer(
 
         node.Add(new XElement("Info",
             new XElement("FamilyName", item.FamilyName),
+            new XElement("FamilyKey", item.FamilyKey?.ToString() ?? string.Empty),
+            new XElement("SortOrder", item.SortOrder.ToString(CultureInfo.InvariantCulture)),
             new XElement("Weight", item.Weight),
             new XElement("IsItalic", item.IsItalic)));
 
@@ -135,6 +141,11 @@ public class DynamicImagesFontSerializer(
         var font = await FindItemAsync(key) ?? new FontDefinition();
         font.Key = key;
         font.FamilyName = info?.Element("FamilyName")?.Value ?? font.FamilyName;
+
+        // A file from before families has no FamilyKey: the service finds or makes the family by
+        // FamilyName, which is also what happens when the named family did not come across.
+        font.FamilyKey = Guid.TryParse(info?.Element("FamilyKey")?.Value, out var familyKey) ? familyKey : null;
+        font.SortOrder = ReadInt(info?.Element("SortOrder")?.Value, 0);
         font.Weight = ReadInt(info?.Element("Weight")?.Value, font.Weight);
         font.IsItalic = ReadBool(info?.Element("IsItalic")?.Value, font.IsItalic);
 

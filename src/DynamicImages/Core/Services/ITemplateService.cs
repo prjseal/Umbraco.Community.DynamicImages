@@ -15,7 +15,21 @@ public enum SaveOutcome
     NotFound,
 
     /// <summary>Another template already uses the alias.</summary>
-    AliasInUse
+    AliasInUse,
+
+    /// <summary>The folder a duplicate was asked to go into does not exist.</summary>
+    TargetNotFound
+}
+
+/// <summary>What <see cref="ITemplateService.SetEnabledAsync"/> did.</summary>
+public enum EnableOutcome
+{
+    Changed,
+
+    /// <summary>The template was already in the asked-for state; nothing was written.</summary>
+    Unchanged,
+
+    NotFound
 }
 
 public sealed record SaveResult(SaveOutcome Outcome, Template? Template, ValidationResult Validation)
@@ -50,8 +64,27 @@ public interface ITemplateService
     /// </summary>
     Task<TreeOperationOutcome> MoveAsync(Guid key, Guid? targetKey, CancellationToken cancellationToken = default);
 
-    /// <summary>Copies a template under a new key, alias and name.</summary>
-    Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Copies a template under a new key, alias and name into <paramref name="targetKey"/>: a
+    /// folder, or the Templates root when null. A target that is not an existing folder is
+    /// <see cref="SaveOutcome.TargetNotFound"/>, not a silent move to the root.
+    /// </summary>
+    Task<SaveResult> DuplicateAsync(Guid key, Guid? targetKey, Guid? userKey, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Turns a template on or off without a full save. Bumps its <c>updatedUtc</c>, so a designer
+    /// that has it open gets a 412 on its next save rather than silently flipping it back.
+    /// </summary>
+    Task<EnableOutcome> SetEnabledAsync(Guid key, bool isEnabled, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reorders what is directly under <paramref name="parentKey"/> (null is the root), folders and
+    /// templates together, from what the backoffice's sort modal sends: the dragged children, each
+    /// with its final index. See <see cref="FolderTree{TFolder,TLeaf}.ApplySort"/>. A parent folder
+    /// that does not exist is <see cref="TreeOperationOutcome.NotFound"/>.
+    /// </summary>
+    Task<TreeOperationOutcome> SortChildrenAsync(
+        Guid? parentKey, IReadOnlyList<(Guid Key, int SortOrder)> sorting, CancellationToken cancellationToken = default);
 
     /// <summary>An alias derived from a name that no existing template is using.</summary>
     string SuggestAlias(string name, Guid? exceptKey = null);

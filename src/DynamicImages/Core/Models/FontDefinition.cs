@@ -13,12 +13,25 @@ public class FontStyleDefinition
     public string FontStyle { get; set; } = "Regular";
 }
 
-/// <summary>A font available to templates: one family from one file, plus its named styles.</summary>
+/// <summary>
+/// A font available to templates: one weight and slant of a family, from one file, plus its named
+/// styles. In the Fonts tree it is a variant under its <see cref="FontFamily"/>.
+/// </summary>
 public class FontDefinition
 {
     public Guid Key { get; set; } = Guid.NewGuid();
 
+    /// <summary>The same as the family's name; see <see cref="FontFamily"/>.</summary>
     public string FamilyName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The <see cref="FontFamily"/> it belongs to. Null only for a row written before families
+    /// existed and not yet given one - the service finds or creates one by name.
+    /// </summary>
+    public Guid? FamilyKey { get; set; }
+
+    /// <summary>Its place among the family's variants. Ties order by weight, then upright first.</summary>
+    public int SortOrder { get; set; }
 
     /// <summary>
     /// Only <see cref="ImageSourceKind.Media"/>, <see cref="ImageSourceKind.Path"/> and

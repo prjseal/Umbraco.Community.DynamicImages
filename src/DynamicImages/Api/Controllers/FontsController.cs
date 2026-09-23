@@ -17,11 +17,21 @@ public class FontsController(IFontService fontService) : DynamicImagesController
             .Select(font => FontResponse.From(font, fontService.TemplatesUsing(font.Key).Count))
             .ToList());
 
+    /// <summary>One variant, for its workspace.</summary>
+    [HttpGet("fonts/{key:guid}")]
+    [ProducesResponseType(typeof(FontResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public IActionResult Get(Guid key)
+        => fontService.Get(key) is { } font
+            ? Ok(FontResponse.From(font, fontService.TemplatesUsing(key).Count))
+            : FontNotFound(key);
+
     [HttpPost("fonts")]
     [RequestSizeLimit(MaxUploadBytes)]
     [ProducesResponseType(typeof(FontResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> Upload(IFormFile file, CancellationToken cancellationToken)
+    public async Task<IActionResult> Upload(
+        IFormFile file, [FromForm] Guid? familyKey, [FromForm] Guid? parentKey, CancellationToken cancellationToken)
     {
         if (file is null || file.Length == 0)
         {
@@ -30,7 +40,7 @@ public class FontsController(IFontService fontService) : DynamicImagesController
         }
 
         await using var stream = file.OpenReadStream();
-        var result = await fontService.UploadAsync(stream, file.FileName, cancellationToken);
+        var result = await fontService.UploadAsync(stream, file.FileName, new FontPlacement(familyKey, parentKey), cancellationToken);
 
         return result.Font is null
             ? Problem(title: "That font could not be added", detail: result.Error, statusCode: StatusCodes.Status400BadRequest)
@@ -42,7 +52,8 @@ public class FontsController(IFontService fontService) : DynamicImagesController
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RegisterPath([FromBody] RegisterFontPathRequest request, CancellationToken cancellationToken)
     {
-        var result = await fontService.RegisterPathAsync(request.Path, cancellationToken);
+        var result = await fontService.RegisterPathAsync(
+            request.Path, new FontPlacement(request.FamilyKey, request.ParentKey), cancellationToken);
 
         return result.Font is null
             ? Problem(title: "That font could not be registered", detail: result.Error, statusCode: StatusCodes.Status400BadRequest)
@@ -60,6 +71,7 @@ public class FontsController(IFontService fontService) : DynamicImagesController
     {
         var result = await fontService.RegisterWebFontAsync(
             new WebFontRegistration(request.Provider, request.Family, request.Weights, request.IncludeItalic, request.Url),
+            new FontPlacement(request.FamilyKey, request.ParentKey),
             cancellationToken);
 
         if (result.Fonts.Count == 0)

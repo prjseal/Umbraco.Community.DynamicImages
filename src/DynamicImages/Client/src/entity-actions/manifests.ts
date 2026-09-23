@@ -1,5 +1,7 @@
 import {
   DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS, DI_MOVE_FOLDER_REPOSITORY_ALIAS, DI_MOVE_TEMPLATE_REPOSITORY_ALIAS,
+  DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS, DI_BULK_MOVE_TEMPLATE_REPOSITORY_ALIAS,
+  DI_BULK_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS, DI_TEMPLATE_COLLECTION_ALIAS,
   DI_TEMPLATE_DETAIL_REPOSITORY_ALIAS, DI_TEMPLATE_DETAIL_STORE_ALIAS, DI_TEMPLATE_ENTITY_TYPE,
   DI_TEMPLATE_FOLDER_ENTITY_TYPE, DI_TEMPLATE_FOLDER_REPOSITORY_ALIAS, DI_TEMPLATE_ITEM_REPOSITORY_ALIAS,
   DI_TEMPLATE_ITEM_STORE_ALIAS, DI_TEMPLATE_ROOT_ENTITY_TYPE, DI_TEMPLATE_TREE_ALIAS, DI_TEMPLATE_TREE_REPOSITORY_ALIAS,
@@ -8,10 +10,11 @@ import { DiTemplateItemStore } from "./delete/template-item.repository.js";
 import { DiTemplateDetailStore } from "./delete/template-detail.repository.js";
 
 const CONTAINERS = [DI_TEMPLATE_ROOT_ENTITY_TYPE, DI_TEMPLATE_FOLDER_ENTITY_TYPE];
+const IN_COLLECTION = [{ alias: "Umb.Condition.CollectionAlias", match: DI_TEMPLATE_COLLECTION_ALIAS }];
 
 /**
  * Every ⋯ action in the Templates tree and collection. Core kinds wherever one exists; `default`
- * only for the three that are this package's own (import, export, regenerate).
+ * only for the ones that are this package's own (import, export, regenerate, enable, disable).
  */
 export const manifests: Array<UmbExtensionManifest> = [
   // ---------------------------------------------------------------- repositories
@@ -55,7 +58,25 @@ export const manifests: Array<UmbExtensionManifest> = [
     type: "repository",
     alias: DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
     name: "Dynamic Images Duplicate Template Repository",
-    api: () => import("./duplicate-template.repository.js"),
+    api: () => import("./duplicate-to-template.repository.js"),
+  },
+  {
+    type: "repository",
+    alias: DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS,
+    name: "Dynamic Images Sort Template Children Repository",
+    api: () => import("./sort/sort-template-children.repository.js"),
+  },
+  {
+    type: "repository",
+    alias: DI_BULK_MOVE_TEMPLATE_REPOSITORY_ALIAS,
+    name: "Dynamic Images Bulk Move Templates Repository",
+    api: () => import("./bulk/bulk-move-templates.repository.js"),
+  },
+  {
+    type: "repository",
+    alias: DI_BULK_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
+    name: "Dynamic Images Bulk Duplicate Templates Repository",
+    api: () => import("./bulk/bulk-duplicate-templates.repository.js"),
   },
 
   // ---------------------------------------------------------------- create
@@ -116,16 +137,36 @@ export const manifests: Array<UmbExtensionManifest> = [
   },
   {
     type: "entityAction",
-    kind: "duplicate",
-    alias: "DynamicImages.EntityAction.Template.Duplicate",
-    name: "Duplicate Dynamic Images Template",
+    kind: "duplicateTo",
+    alias: "DynamicImages.EntityAction.Template.DuplicateTo",
+    name: "Duplicate Dynamic Images Template To",
     forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
     meta: {
-      icon: "icon-documents",
-      label: "Duplicate",
       duplicateRepositoryAlias: DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
       treeRepositoryAlias: DI_TEMPLATE_TREE_REPOSITORY_ALIAS,
+      treeAlias: DI_TEMPLATE_TREE_ALIAS,
+      foldersOnly: true,
     },
+  },
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Enable",
+    name: "Enable Dynamic Images Template",
+    api: () => import("./enable-template.action.js"),
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
+    weight: 560,
+    meta: { icon: "icon-check", label: "Enable", additionalOptions: true },
+  },
+  {
+    type: "entityAction",
+    kind: "default",
+    alias: "DynamicImages.EntityAction.Template.Disable",
+    name: "Disable Dynamic Images Template",
+    api: () => import("./disable-template.action.js"),
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
+    weight: 550,
+    meta: { icon: "icon-block", label: "Disable", additionalOptions: true },
   },
   {
     type: "entityAction",
@@ -193,10 +234,62 @@ export const manifests: Array<UmbExtensionManifest> = [
   },
   {
     type: "entityAction",
+    kind: "sortChildrenOf",
+    alias: "DynamicImages.EntityAction.Template.SortChildren",
+    name: "Sort Dynamic Images Templates",
+    forEntityTypes: CONTAINERS,
+    meta: {
+      sortChildrenOfRepositoryAlias: DI_SORT_TEMPLATE_CHILDREN_REPOSITORY_ALIAS,
+      treeRepositoryAlias: DI_TEMPLATE_TREE_REPOSITORY_ALIAS,
+    },
+  },
+  {
+    type: "entityAction",
     kind: "reloadTreeItemChildren",
     alias: "DynamicImages.EntityAction.Template.ReloadChildren",
     name: "Reload Dynamic Images Templates",
     forEntityTypes: CONTAINERS,
+  },
+
+  // ---------------------------------------------------------------- collection selection
+  // Any of these applying is what turns on the collection's checkboxes.
+  {
+    type: "entityBulkAction",
+    kind: "moveTo",
+    alias: "DynamicImages.EntityBulkAction.Template.MoveTo",
+    name: "Move Dynamic Images Templates",
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE, DI_TEMPLATE_FOLDER_ENTITY_TYPE],
+    meta: {
+      bulkMoveRepositoryAlias: DI_BULK_MOVE_TEMPLATE_REPOSITORY_ALIAS,
+      treeAlias: DI_TEMPLATE_TREE_ALIAS,
+      foldersOnly: true,
+    },
+    conditions: IN_COLLECTION,
+  },
+  {
+    type: "entityBulkAction",
+    kind: "duplicateTo",
+    alias: "DynamicImages.EntityBulkAction.Template.DuplicateTo",
+    name: "Duplicate Dynamic Images Templates To",
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE, DI_TEMPLATE_FOLDER_ENTITY_TYPE],
+    meta: {
+      bulkDuplicateRepositoryAlias: DI_BULK_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS,
+      treeAlias: DI_TEMPLATE_TREE_ALIAS,
+      foldersOnly: true,
+    },
+    conditions: IN_COLLECTION,
+  },
+  {
+    type: "entityBulkAction",
+    kind: "delete",
+    alias: "DynamicImages.EntityBulkAction.Template.Delete",
+    name: "Delete Dynamic Images Templates",
+    forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE, DI_TEMPLATE_FOLDER_ENTITY_TYPE],
+    meta: {
+      itemRepositoryAlias: DI_TEMPLATE_ITEM_REPOSITORY_ALIAS,
+      detailRepositoryAlias: DI_TEMPLATE_DETAIL_REPOSITORY_ALIAS,
+    },
+    conditions: IN_COLLECTION,
   },
   {
     type: "modal",

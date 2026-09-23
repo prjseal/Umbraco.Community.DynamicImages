@@ -6,7 +6,7 @@ namespace Umbraco.Community.DynamicImages.Core.Notifications;
 
 // Umbraco's SavedNotification<T>/DeletedNotification<T> are abstract with protected constructors,
 // and the event aggregator dispatches on the *published* type - so a subscriber can only ever see
-// a concrete subclass. These four are that subclass. They are inert with no subscriber: publishing
+// a concrete subclass. These are that subclass. They are inert with no subscriber: publishing
 // one costs a dictionary lookup.
 //
 // They exist so uSync's SyncHandlerRoot, which already subscribes to SavedNotification<T> and
@@ -37,3 +37,19 @@ public sealed class DynamicImagesTemplateFolderSavedNotification(TemplateFolder 
 /// <summary>Published after a template folder is deleted. The target is the row as it was before.</summary>
 public sealed class DynamicImagesTemplateFolderDeletedNotification(TemplateFolder target, EventMessages messages)
     : DeletedNotification<TemplateFolder>(target, messages);
+
+/// <summary>Published after a font folder is created, renamed, moved or sorted.</summary>
+public sealed class DynamicImagesFontFolderSavedNotification(FontFolder target, EventMessages messages)
+    : SavedNotification<FontFolder>(target, messages);
+
+/// <summary>Published after a font folder is deleted. The target is the row as it was before.</summary>
+public sealed class DynamicImagesFontFolderDeletedNotification(FontFolder target, EventMessages messages)
+    : DeletedNotification<FontFolder>(target, messages);
+
+/// <summary>Published after a font family is created, renamed, moved or sorted.</summary>
+public sealed class DynamicImagesFontFamilySavedNotification(FontFamily target, EventMessages messages)
+    : SavedNotification<FontFamily>(target, messages);
+
+/// <summary>Published after a font family is deleted, after its variants. The target is the row as it was before.</summary>
+public sealed class DynamicImagesFontFamilyDeletedNotification(FontFamily target, EventMessages messages)
+    : DeletedNotification<FontFamily>(target, messages);

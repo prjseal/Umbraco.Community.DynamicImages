@@ -13,4 +13,7 @@ public interface IFontRepository
     FontDefinition? Update(FontDefinition font);
 
     bool Delete(Guid key);
+
+    /// <summary>Writes a family's name onto every variant in it: what a family rename does.</summary>
+    void SetFamily(Guid familyKey, string familyName);
 }

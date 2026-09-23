@@ -56,7 +56,7 @@ actions actually read:
 |---|---|---|
 | `duplicateTo` (`core/tree/entity-actions/duplicate-to`) | `duplicateRepositoryAlias`, `treeRepositoryAlias`, `treeAlias`, `foldersOnly?` | `UmbDuplicateToRepository.requestDuplicateTo({ unique, destination: { unique } })` |
 | `moveTo` | `treeRepositoryAlias`, `moveRepositoryAlias`, `treeAlias`, `foldersOnly?` | already implemented (`move/move.repositories.ts`) |
-| `sortChildrenOf` | `sortChildrenOfRepositoryAlias`, `treeRepositoryAlias` (the action file reads these; the kind's default meta lists `itemRepositoryAlias`/`sortRepositoryAlias`, which are stale) | `UmbSortChildrenOfRepository.sortChildrenOf({ unique, sorting: [{ unique, sortOrder }] })` |
+| `sortChildrenOf` | `sortChildrenOfRepositoryAlias`, `treeRepositoryAlias` (the action file reads these; the kind's default meta lists `itemRepositoryAlias`/`sortRepositoryAlias`, which are stale) | `UmbSortChildrenOfRepository.sortChildrenOf({ unique, sorting: [{ unique, sortOrder }] })`. **`sorting` holds only the rows that were dragged**, each with its final index - not the whole list |
 | `deleteWithRelation` (`relations/relations/entity-actions/delete`) | `itemRepositoryAlias`, `detailRepositoryAlias`, `referenceRepositoryAlias` | `UmbEntityReferenceRepository`: `requestReferencedBy(unique, skip, take)`, `requestAreReferenced(uniques, …)`, optional `requestDescendantsWithReferences` |
 | `folderUpdate`, `folderDelete`, `folder` (create option) | `folderRepositoryAlias` | already implemented |
 | `reloadTreeItemChildren`, `create`, `default` | — | already used |
@@ -79,6 +79,16 @@ actions actually read:
     none of which apply here
 - **Data types** (a settings tree with folders, the closest analogue) get Create, Folder,
   Duplicate to, Move to and `deleteWithRelation`. Their folders get no duplicate.
+- Also found while building (17.5.3 unless it says otherwise):
+  - `Umb.Condition.CollectionAlias` reads `match` only; there is no `oneOf`.
+  - The `folder` create option and the `entityItemRef` manifest types are declared in files no
+    public entry point imports, so their manifests need a cast.
+  - A detail workspace's Save writes without a notification.
+  - Core draws the active tree item's icon without its colour suffix, so a disabled template's
+    grey icon shows only when it is not the selected item.
+  - The Clean test site runs **17.7.0**, whose `duplicateTo` opens the shared tree picker modal
+    (the 17.5 `umb-duplicate-to-modal` is deprecated); the repository contract is the same. Its
+    sort modal's Name-column ordering does nothing (the comparator is handed lit templates).
 
 ## Design
 
@@ -109,8 +119,9 @@ Root (`di-template-root`): Create, Import, **Sort children** (new) and Reload.
   `DuplicateRequest(Guid? TargetKey)`. With no body it keeps the old same-folder behaviour, so
   existing callers don't break.
 - `ITemplateService.DuplicateAsync(key, targetKey, userKey)` checks the target:
-  - a `TargetKey` that is not a folder returns `TreeOperationOutcome.TargetNotFound`, which the
-    controller maps to 400 ProblemDetails
+  - a `TargetKey` that is not a folder returns `SaveOutcome.TargetNotFound` (DuplicateAsync returns
+    a `SaveResult`, so a new `SaveOutcome` rather than `TreeOperationOutcome`), which the controller
+    maps to 400 ProblemDetails
   - otherwise the copy gets `ParentKey = targetKey`
 - The name/alias/layer-key regeneration stays.
 - Client: `DiDuplicateTemplateRepository` implements `UmbDuplicateToRepository`.
@@ -131,11 +142,16 @@ Root (`di-template-root`): Create, Import, **Sort children** (new) and Reload.
 
 **Sort children.**
 - `PUT tree/sort` with body `{ parentKey, sorting: [{ key, sortOrder }] }` writes `sortOrder` to
-  whichever table each key lives in, folder or template.
+  whichever table each key lives in, folder or template. Because the modal sends only the dragged
+  rows, `FolderTree.ApplySort` rebuilds the whole level - dragged rows at their indexes, the rest
+  filling the gaps in their current order - and renumbers every child 0..n-1.
 - `TemplateTree.ChildrenOf` orders by `SortOrder`, then folders first, then name. Every existing
   row has `sortOrder = 0`, so today's folders-first alphabetical order holds until someone sorts.
 - Create, duplicate, import and move all append: `sortOrder = max(siblings) + 1`.
-- `TemplateRepository.Update` has a hand-written SET list, so `sortOrder` goes into it.
+- `Template.SortOrder` is `[JsonIgnore]`: the column is the only copy, so an export carries none
+  and a designer save cannot undo a sort. `TemplateRepository.Update` keeps the row's order, and
+  the order is written by `Move(key, parentKey, sortOrder)` and `SetSortOrders` instead of going
+  into Update's SET list.
 - Client: `sort-children.repository.ts` implements `UmbSortChildrenOfRepository` over a new
   `sortTreeChildren` API function.
 
@@ -154,7 +170,8 @@ destination.
 ### B. Fonts tree
 
 **Menu.** Remove the Fonts *link* item from `umbraco-package.json` and add a `menuItem` of kind
-`tree`: "Fonts", weight 100, so it keeps its place above Templates, which is at 200. Retire
+`tree`: "Fonts", weight 100, so it keeps its place between Templates (200, which sorts first) and
+Health (90). Retire
 `di-fonts-dashboard.element.ts`, since its list becomes the collection and its editor becomes the
 workspaces. Keep the dashboard route alias alive as a redirect to the Fonts root workspace, in
 case anyone has bookmarked it.
@@ -179,7 +196,10 @@ on `AddTemplateFolders.cs`):
    per group at the root, and set `familyKey` on the rows.
 
 `FontDefinition.FamilyName` stays, because the renderer and FontFace loader use it. Renaming a
-family rewrites `FamilyName` on its variants in the same transaction.
+family rewrites `FamilyName` on its variants in the same transaction. The backfilled families all
+get sort order 0, so they read alphabetically; each variant's `familyName` becomes its family's.
+The model is named `FontFamily`, which clashes with `SixLabors.Fonts.FontFamily`: the files that
+import both alias the one they mean.
 
 **Server.**
 - Models: `FontFolder` and `FontFamily`, plus `FamilyKey` and `SortOrder` on `FontDefinition`.
@@ -224,12 +244,15 @@ family rewrites `FamilyName` on its variants in the same transaction.
   - `folder/*`, copying the template folder files with font aliases
 - **Workspaces:**
   - Root and folder workspaces: a `collection` view of folders and families, in a table
-    (name, variants, used by) and cards.
+    (name, variants, used by) and cards with a specimen (collection rows carry a `sampleFontKey`:
+    a family's regular upright). The family's Variants view is a second collection over the same
+    repository and endpoint.
   - **Family** workspace (`di-font-family-workspace`, routable):
     - editable name (header), saved through `PUT fonts/families/{key}`
     - a "Variants" collection view (preview sample, weight, style, source, used-by count)
   - **Variant** workspace (`di-font-workspace`, routable):
-    - the style editor, lifted from the dashboard's `#renderStyleEditor`
+    - the style editor, lifted from the dashboard's `#renderStyleEditor`; it edits the workspace's
+      data and the workspace's Save persists it, rather than saving on every click
     - weight, italic, source details, a live sample through `designer/fonts/font-face-loader.ts`
     - a "Used by" info list, from the references repository
 - **Create options** (`entityCreateOptionAction`), all reusing `DI_FONT_UPLOAD_MODAL`. The modal
@@ -245,7 +268,7 @@ family rewrites `FamilyName` on its variants in the same transaction.
 | Entity | Actions |
 |---|---|
 | Family | Create (Add variant), Move to (`moveTo`, `foldersOnly: true`), Rename (open the workspace; core has no generic rename kind for non-folders), **Delete** (`deleteWithRelation`, listing the templates), Reload |
-| Variant | Refresh (`default`, web fonts only; not shown for others through a condition on a `isUrlFont` tree-item flag, or hidden with a no-op notification), **Delete** (`deleteWithRelation`) |
+| Variant | Refresh (`default`, web fonts only, through a `DynamicImages.Condition.IsWebFont` condition that reads the entity context and the item's `isUrlFont`), **Delete** (`deleteWithRelation`) |
 | Folder | Create, Rename, Move to, **Sort children**, Delete (if empty), Reload |
 | Root | Create, **Sort children**, Reload |
 
@@ -254,7 +277,8 @@ family rewrites `FamilyName` on its variants in the same transaction.
 - **References.** Add an `entityItemRef` for `di-template` (`uui-ref-node` with name, icon, and
   an href to the template workspace) so the delete modal's list renders properly.
 - **Bulk actions** on the fonts collection: Move to (folders and families) and Delete
-  (`deleteWithRelation`). There is no bulk duplicate.
+  (`deleteWithRelation`, whose detail repository deletes a folder, family or variant by what the
+  key is). There is no bulk duplicate.
 
 **uSync** (`src/DynamicImages.uSync/`):
 - New handlers and serializers:
@@ -370,7 +394,8 @@ Each step builds and passes tests on its own and can be a separate commit.
     **Delete**
   - Duplicate to a folder puts the copy under that folder
   - Disable greys the icon
-  - Sort on the root reorders the tree
+  - Sort reorders the tree - on the E2E folder rather than the root, whose fixture templates would
+    otherwise keep the order the test gave them; the root's null parent is covered by unit tests
   - selecting two templates in the collection shows bulk Move to, Duplicate to and Delete, and
     Move to works
 - **New `fonts-tree.spec.ts`:**
@@ -380,6 +405,8 @@ Each step builds and passes tests on its own and can be a separate commit.
   - Delete on a font used by "Article OG image" opens the references modal listing that template
     and is refused
   - Delete on an unused family removes it
+  - (the family is this run's own: a font registered from a wwwroot path, renamed from its
+    workspace and moved into the folder, so nothing in the fixture moves)
   - the variant workspace's style editor saves, which replaces the old
     `fonts-and-title.spec.ts` dashboard steps; update that spec
 - **By hand in the backoffice:**

@@ -47,9 +47,9 @@ public class TemplateTreeController(
     }
 
     /// <summary>
-    /// What the Templates root and a folder show as a collection: everything directly inside,
-    /// folders first. <paramref name="filter"/> matches names; <paramref name="orderBy"/> is
-    /// <c>name</c> (the default) or <c>updated</c>, newest first, and orders templates only.
+    /// What the Templates root and a folder show as a collection: everything directly inside, in
+    /// the tree's order. <paramref name="filter"/> matches names; <paramref name="orderBy"/>
+    /// <c>updated</c> puts the folders first and then the templates newest first.
     /// </summary>
     [HttpGet("collection/templates")]
     [ProducesResponseType(typeof(TemplateCollectionResponse), StatusCodes.Status200OK)]
@@ -67,14 +67,12 @@ public class TemplateTreeController(
             .Where(n => string.IsNullOrWhiteSpace(filter) || n.Name.Contains(filter.Trim(), StringComparison.OrdinalIgnoreCase))
             .ToList();
 
-        var folders = children.Where(n => n.IsFolder);
-        var templates = children.Where(n => !n.IsFolder);
-        if (string.Equals(orderBy, "updated", StringComparison.OrdinalIgnoreCase))
-        {
-            templates = templates.OrderByDescending(n => byKey.TryGetValue(n.Key, out var t) ? t.UpdatedUtc : DateTime.MinValue);
-        }
-
-        var ordered = folders.Concat(templates).ToList();
+        var ordered = string.Equals(orderBy, "updated", StringComparison.OrdinalIgnoreCase)
+            ? children.Where(n => n.IsFolder)
+                .Concat(children.Where(n => !n.IsFolder)
+                    .OrderByDescending(n => byKey.TryGetValue(n.Key, out var t) ? t.UpdatedUtc : DateTime.MinValue))
+                .ToList()
+            : children;
 
         var items = ordered
             .Skip(Math.Max(0, skip))
@@ -102,6 +100,64 @@ public class TemplateTreeController(
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public IActionResult MoveFolder(Guid key, [FromBody] MoveRequest request)
         => MoveResult(folderService.Move(key, request.TargetKey).Outcome, "folder", key);
+
+    /// <summary>
+    /// The collection's bulk Move to: each key, folder or template, goes through the same move as
+    /// its own ⋯ action, cycle check included. The ones that could not move come back as a
+    /// ValidationProblemDetails keyed by item; the rest have moved.
+    /// </summary>
+    [HttpPut("tree/bulk-move")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkMove([FromBody] BulkRequest request, CancellationToken cancellationToken)
+    {
+        var tree = folderService.GetTree();
+        if (request.TargetKey is { } target && !tree.FolderExists(target))
+            return MoveResult(TreeOperationOutcome.TargetNotFound, "folder", target);
+
+        var failures = new Dictionary<string, string[]>();
+        foreach (var key in (request.Keys ?? []).Distinct())
+        {
+            var node = tree.Find(key);
+            var outcome = node switch
+            {
+                null => TreeOperationOutcome.NotFound,
+                { IsFolder: true } => folderService.Move(key, request.TargetKey).Outcome,
+                _ => await templateService.MoveAsync(key, request.TargetKey, cancellationToken)
+            };
+
+            if (outcome != TreeOperationOutcome.Success)
+                failures[key.ToString()] = [$"{node?.Name ?? key.ToString()}: {MoveFailure(outcome)}"];
+        }
+
+        if (failures.Count == 0) return Ok();
+
+        return ValidationProblem(new ValidationProblemDetails(failures)
+        {
+            Title = failures.Count == 1 ? "One item could not be moved" : $"{failures.Count} items could not be moved",
+            Detail = string.Join(" ", failures.Values.SelectMany(v => v)),
+            Status = StatusCodes.Status400BadRequest
+        });
+    }
+
+    private static string MoveFailure(TreeOperationOutcome outcome) => outcome switch
+    {
+        TreeOperationOutcome.NotFound => "it no longer exists.",
+        TreeOperationOutcome.WouldCreateCycle => "a folder cannot move into itself.",
+        _ => "the move failed."
+    };
+
+    /// <summary>The Sort action on the root and on folders.</summary>
+    [HttpPut("tree/sort")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Sort([FromBody] SortRequest request, CancellationToken cancellationToken)
+    {
+        var outcome = await templateService.SortChildrenAsync(
+            request.ParentKey, (request.Sorting ?? []).Select(s => (s.Key, s.SortOrder)).ToList(), cancellationToken);
+
+        return MoveResult(outcome, "folder", request.ParentKey ?? Guid.Empty);
+    }
 
     private IActionResult MoveResult(TreeOperationOutcome outcome, string what, Guid key) => outcome switch
     {

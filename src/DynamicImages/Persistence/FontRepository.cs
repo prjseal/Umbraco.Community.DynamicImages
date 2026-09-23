@@ -74,10 +74,21 @@ public sealed class FontRepository(IScopeProvider scopeProvider) : IFontReposito
         return deleted > 0;
     }
 
-    private static FontDto ToDto(FontDefinition font) => new()
+    public void SetFamily(Guid familyKey, string familyName)
+    {
+        using var scope = scopeProvider.CreateScope();
+        scope.Database.Execute(
+            $"UPDATE {DynamicImagesConstants.FontTableName} SET familyName = @0, updatedUtc = @1 WHERE familyKey = @2",
+            familyName, DateTime.UtcNow, familyKey);
+        scope.Complete();
+    }
+
+    internal static FontDto ToDto(FontDefinition font) => new()
     {
         Key = font.Key,
         FamilyName = font.FamilyName,
+        FamilyKey = font.FamilyKey,
+        SortOrder = font.SortOrder,
         SourceKind = font.SourceKind switch
         {
             ImageSourceKind.Path => "path",
@@ -97,10 +108,12 @@ public sealed class FontRepository(IScopeProvider scopeProvider) : IFontReposito
         UpdatedUtc = font.UpdatedUtc
     };
 
-    private static FontDefinition Map(FontDto dto) => new()
+    internal static FontDefinition Map(FontDto dto) => new()
     {
         Key = dto.Key,
         FamilyName = dto.FamilyName,
+        FamilyKey = dto.FamilyKey,
+        SortOrder = dto.SortOrder,
         SourceKind = dto.SourceKind?.ToLowerInvariant() switch
         {
             "path" => ImageSourceKind.Path,

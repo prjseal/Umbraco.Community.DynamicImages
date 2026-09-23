@@ -3,7 +3,7 @@ import { UmbModalBaseElement } from "@umbraco-cms/backoffice/modal";
 import { UMB_AUTH_CONTEXT } from "@umbraco-cms/backoffice/auth";
 import { registerFontPath, registerWebFont, uploadFont, type TokenGetter } from "../api/dynamic-images-api.js";
 import type { DiWebFontProvider } from "../api/types.js";
-import type { FontUploadValue } from "./tokens.js";
+import type { FontUploadData, FontUploadValue } from "./tokens.js";
 // uui-file-dropzone is less universally already-registered than uui-button, so say so
 // explicitly. The whole @umbraco namespace is external to the build, so this costs no bundle.
 import "@umbraco-cms/backoffice/external/uui";
@@ -20,9 +20,12 @@ const PROVIDERS: { value: DiWebFontProvider; name: string }[] = [
  * Three ways to add a font: upload a file (which becomes a media item, so it is blob-backed on
  * Cloud and travels with Deploy), point at one already committed under wwwroot, or name a web
  * font - fetched from its provider the first time a server needs it and cached on that server.
+ * <p>
+ * Opened from the Fonts tree's Create…, each option opens on its own way in (`data.mode`) and the
+ * new variants go where the create was started: into a family, or a same-named family in a folder.
  */
 @customElement("di-font-upload-modal")
-export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUploadValue> {
+export class DiFontUploadModalElement extends UmbModalBaseElement<FontUploadData, FontUploadValue> {
   #authContext?: typeof UMB_AUTH_CONTEXT.TYPE;
 
   @state()
@@ -59,6 +62,20 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
 
   #getToken: TokenGetter = () => this.#authContext?.getLatestToken();
 
+  get #placement() {
+    return { familyKey: this.data?.familyKey ?? null, parentKey: this.data?.parentKey ?? null };
+  }
+
+  #shows(mode: "upload" | "web" | "path"): boolean {
+    return !this.data?.mode || this.data.mode === mode;
+  }
+
+  override connectedCallback() {
+    super.connectedCallback();
+    // A variant for a web font family is most likely the same provider family.
+    if (this.data?.familyName) this._family = this.data.familyName;
+  }
+
   #onDropzoneFiles(event: Event) {
     const files = (event as CustomEvent<{ files: File[] }>).detail?.files ?? [];
     void this.#upload(files);
@@ -72,7 +89,7 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
 
     try {
       for (const file of files) {
-        await uploadFont(file, this.#getToken);
+        await uploadFont(file, this.#getToken, this.#placement);
       }
 
       this.value = { uploaded: true };
@@ -91,7 +108,7 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
     this._error = undefined;
 
     try {
-      await registerFontPath(this._path.trim(), this.#getToken);
+      await registerFontPath(this._path.trim(), this.#getToken, this.#placement);
 
       this.value = { uploaded: true };
       this._submitModal();
@@ -125,6 +142,7 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
               includeItalic: this._italic,
             },
         this.#getToken,
+        this.#placement,
       );
 
       // At least one row exists (a 400 throws), so close; the dashboard reports what was skipped.
@@ -150,10 +168,42 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
     this._weights = next;
   }
 
+  #headline(): string {
+    const target = this.data?.familyName ? ` to ${this.data.familyName}` : "";
+    switch (this.data?.mode) {
+      case "upload":
+        return `Upload a font file${target}`;
+      case "web":
+        return `Add a web font${target}`;
+      case "path":
+        return `Register a font in wwwroot${target}`;
+      default:
+        return this.data?.familyName ? `Add a variant to ${this.data.familyName}` : "Add a font";
+    }
+  }
+
   render() {
+    const several = !this.data?.mode;
+
     return html`
-      <umb-body-layout headline="Add a font">
-        <uui-box headline="Upload a file">
+      <umb-body-layout headline=${this.#headline()}>
+        ${this.#shows("upload") ? this.#renderUpload(several) : nothing}
+        ${this.#shows("path") ? this.#renderPath(several) : nothing}
+        ${this.#shows("web") ? this.#renderWeb(several) : nothing}
+
+        ${this._error ? html`<p class="error" role="alert">${this._error}</p>` : nothing}
+        ${this._busy ? html`<uui-loader-bar></uui-loader-bar>` : nothing}
+
+        <div slot="actions">
+          <uui-button look="secondary" label="Cancel" @click=${() => this._rejectModal()}>Cancel</uui-button>
+        </div>
+      </umb-body-layout>
+    `;
+  }
+
+  #renderUpload(several: boolean) {
+    return html`
+        <uui-box headline=${several ? "Upload a file" : "File"}>
           <!-- uui-file-dropzone rather than a raw <input type="file">: the native
                "Choose files | No file chosen" control looked out of place beside the uui-styled
                inputs in the same dialog. It is what umb-input-dropzone is built on in core, so
@@ -170,8 +220,12 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
             media library, so they work on Umbraco Cloud and transfer with Deploy.
           </p>
         </uui-box>
+    `;
+  }
 
-        <uui-box headline="Or register a path in wwwroot">
+  #renderPath(several: boolean) {
+    return html`
+        <uui-box headline=${several ? "Or register a path in wwwroot" : "Path in wwwroot"}>
           <uui-input
             label="Path"
             placeholder="/assets/fonts/Inter-Regular.ttf"
@@ -189,8 +243,12 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
             Register
           </uui-button>
         </uui-box>
+    `;
+  }
 
-        <uui-box headline="Or use a web font">
+  #renderWeb(several: boolean) {
+    return html`
+        <uui-box headline=${several ? "Or use a web font" : "Web font"}>
           <uui-select
             label="Provider"
             .value=${this._provider}
@@ -215,14 +273,6 @@ export class DiFontUploadModalElement extends UmbModalBaseElement<object, FontUp
             Add web font
           </uui-button>
         </uui-box>
-
-        ${this._error ? html`<p class="error" role="alert">${this._error}</p>` : nothing}
-        ${this._busy ? html`<uui-loader-bar></uui-loader-bar>` : nothing}
-
-        <div slot="actions">
-          <uui-button look="secondary" label="Cancel" @click=${() => this._rejectModal()}>Cancel</uui-button>
-        </div>
-      </umb-body-layout>
     `;
   }
 

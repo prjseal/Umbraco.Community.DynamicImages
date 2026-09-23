@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Umbraco.Cms.Core.Security;
 using Umbraco.Community.DynamicImages.Api.Models;
 using Umbraco.Community.DynamicImages.Core.Json;
@@ -11,6 +12,7 @@ namespace Umbraco.Community.DynamicImages.Api.Controllers;
 
 public class TemplatesController(
     ITemplateService templateService,
+    ITemplateFolderService folderService,
     ITemplateJsonMigrator migrator,
     IBackOfficeSecurityAccessor backOfficeSecurityAccessor) : DynamicImagesControllerBase
 {
@@ -93,20 +95,100 @@ public class TemplatesController(
     public IActionResult Delete(Guid key)
         => templateService.Delete(key) ? Ok() : TemplateNotFound(key);
 
+    /// <summary>
+    /// Copies a template into the folder <see cref="DuplicateRequest.TargetKey"/> names, or the
+    /// root when it is null. No body at all keeps the copy beside the original, which is what
+    /// this endpoint did before Duplicate to existed.
+    /// </summary>
     [HttpPost("templates/{key:guid}/duplicate")]
     [ProducesResponseType(typeof(TemplateSaveResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> Duplicate(Guid key, CancellationToken cancellationToken)
+    public async Task<IActionResult> Duplicate(
+        Guid key,
+        [FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] DuplicateRequest? request,
+        CancellationToken cancellationToken)
     {
-        var result = await templateService.DuplicateAsync(key, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
+        var source = templateService.Get(key);
+        if (source is null) return TemplateNotFound(key);
 
-        return result.Outcome switch
-        {
-            SaveOutcome.Saved => Created($"templates/{result.Template!.Key}", new TemplateSaveResponse(result.Template, Warnings(result))),
-            SaveOutcome.NotFound => TemplateNotFound(key),
-            _ => ValidationProblemFor(result)
-        };
+        var targetKey = request is null ? source.ParentKey : request.TargetKey;
+        var result = await templateService.DuplicateAsync(key, targetKey, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
+
+        return DuplicateResult(result, key);
     }
+
+    /// <summary>
+    /// The collection's bulk Duplicate to. Templates are copied into the target; folders in the
+    /// selection are skipped and named, since folders are not duplicated (core's data types do not
+    /// duplicate folders either).
+    /// </summary>
+    [HttpPost("templates/bulk-duplicate")]
+    [ProducesResponseType(typeof(BulkDuplicateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkDuplicate([FromBody] BulkRequest request, CancellationToken cancellationToken)
+    {
+        var tree = folderService.GetTree();
+        if (request.TargetKey is { } target && !tree.FolderExists(target))
+            return DuplicateResult(SaveResult.Failed(SaveOutcome.TargetNotFound), target);
+
+        var created = new List<TemplateSummary>();
+        var skipped = new List<string>();
+        var errors = new List<string>();
+
+        foreach (var key in (request.Keys ?? []).Distinct())
+        {
+            var node = tree.Find(key);
+            if (node is null)
+            {
+                errors.Add($"{key}: it no longer exists.");
+                continue;
+            }
+
+            if (node.IsFolder)
+            {
+                skipped.Add(node.Name);
+                continue;
+            }
+
+            var result = await templateService.DuplicateAsync(
+                key, request.TargetKey, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
+
+            if (result.Outcome == SaveOutcome.Saved)
+            {
+                created.Add(Summarise(result.Template!));
+                continue;
+            }
+
+            var why = string.Join(" ", result.Validation.Errors.Select(e => e.Message));
+            errors.Add($"{node.Name}: {(why.Length > 0 ? why : "it could not be copied.")}");
+        }
+
+        return Ok(new BulkDuplicateResponse(created, skipped, errors));
+    }
+
+    private IActionResult DuplicateResult(SaveResult result, Guid key) => result.Outcome switch
+    {
+        SaveOutcome.Saved => Created($"templates/{result.Template!.Key}", new TemplateSaveResponse(result.Template, Warnings(result))),
+        SaveOutcome.NotFound => TemplateNotFound(key),
+        SaveOutcome.TargetNotFound => Problem(title: "The target folder was not found",
+            detail: "Choose the Templates root or an existing folder.", statusCode: StatusCodes.Status400BadRequest),
+        _ => ValidationProblemFor(result)
+    };
+
+    /// <summary>
+    /// The tree's Enable and Disable actions. Asking for the state a template is already in is not
+    /// an error: it comes back with <c>changed: false</c>, as core's publish on a published node.
+    /// </summary>
+    [HttpPut("templates/{key:guid}/enabled")]
+    [ProducesResponseType(typeof(SetEnabledResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetEnabled(Guid key, [FromBody] SetEnabledRequest request, CancellationToken cancellationToken)
+        => await templateService.SetEnabledAsync(key, request.IsEnabled, cancellationToken) switch
+        {
+            EnableOutcome.NotFound => TemplateNotFound(key),
+            var outcome => Ok(new SetEnabledResponse(request.IsEnabled, outcome == EnableOutcome.Changed))
+        };
 
     [HttpGet("templates/{key:guid}/export")]
     [ProducesResponseType(StatusCodes.Status200OK)]

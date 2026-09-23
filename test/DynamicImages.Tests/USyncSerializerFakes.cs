@@ -80,7 +80,14 @@ internal sealed class FakeTemplateService : ITemplateService
         return Task.FromResult(TreeOperationOutcome.Success);
     }
 
-    public Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default)
+    public Task<SaveResult> DuplicateAsync(Guid key, Guid? targetKey, Guid? userKey, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
+
+    public Task<TreeOperationOutcome> SortChildrenAsync(
+        Guid? parentKey, IReadOnlyList<(Guid Key, int SortOrder)> sorting, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException();
+
+    public Task<EnableOutcome> SetEnabledAsync(Guid key, bool isEnabled, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 
     public string SuggestAlias(string name, Guid? exceptKey = null) => name;
@@ -114,14 +121,47 @@ internal sealed class FakeFontService : IFontService
         return [];
     }
 
-    public Task<FontUploadResult> UploadAsync(Stream fileStream, string fileName, CancellationToken cancellationToken = default)
+    public Task<FontUploadResult> UploadAsync(Stream fileStream, string fileName, FontPlacement? placement = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 
-    public Task<FontUploadResult> RegisterPathAsync(string path, CancellationToken cancellationToken = default)
+    public Task<FontUploadResult> RegisterPathAsync(string path, FontPlacement? placement = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
 
-    public Task<WebFontRegistrationResult> RegisterWebFontAsync(WebFontRegistration request, CancellationToken cancellationToken = default)
+    public Task<WebFontRegistrationResult> RegisterWebFontAsync(WebFontRegistration request, FontPlacement? placement = null, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();
+
+    // ------------------------------------------------------------ families
+
+    private readonly Dictionary<Guid, FontFamily> _families = [];
+
+    public IReadOnlyList<FontFamily> GetFamilies() => _families.Values.ToList();
+
+    public FontFamily? GetFamily(Guid key) => _families.GetValueOrDefault(key);
+
+    public FontFamily UpsertFamily(FontFamily family)
+    {
+        _families[family.Key] = family;
+        return family;
+    }
+
+    public FontFamilyDeleteResult DeleteFamily(Guid key)
+    {
+        if (InUse.Count > 0) return new FontFamilyDeleteResult(TreeOperationOutcome.InUse, InUse);
+
+        return _families.Remove(key)
+            ? new FontFamilyDeleteResult(TreeOperationOutcome.Success, [])
+            : new FontFamilyDeleteResult(TreeOperationOutcome.NotFound, []);
+    }
+
+    public FontFamily? RenameFamily(Guid key, string name, out TreeOperationOutcome outcome)
+        => throw new NotSupportedException();
+
+    public TreeOperationOutcome MoveFamily(Guid key, Guid? folderKey) => throw new NotSupportedException();
+
+    public TreeOperationOutcome SortChildren(Guid? parentKey, IReadOnlyList<(Guid Key, int SortOrder)> sorting)
+        => throw new NotSupportedException();
+
+    public IReadOnlyList<Template> TemplatesUsingFamily(Guid familyKey) => InUse;
 
     public Task<FontUploadResult> RefreshAsync(Guid key, CancellationToken cancellationToken = default)
         => throw new NotSupportedException();

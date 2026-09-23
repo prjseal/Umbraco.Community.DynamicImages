@@ -1,13 +1,13 @@
 import { expect, test } from "@playwright/test";
-import { login, openSection, openTemplate, TEMPLATE_NAME } from "./helpers.js";
+import { expandTreeItem, login, openSection, openTemplate, TEMPLATE_NAME } from "./helpers.js";
 
 /**
  * C1 - "Add a style" persisted a placeholder row *and closed the editor*, so the new style had
- * to be reopened to be named.
+ * to be reopened to be named. The editor is a font variant's workspace now, not the retired
+ * dashboard; adding a style there changes only the workspace until Save (which
+ * fonts-tree.spec.ts covers), so this test writes nothing.
  *
  * C4 - the browser tab read "| Design | Umbraco", with a leading empty segment.
- *
- * C1 writes to the database, so that test puts the font back the way it found it.
  */
 
 test("the workspace tab title carries the template name", async ({ page }) => {
@@ -25,18 +25,12 @@ test("adding a named style keeps the editor open and focuses the new row", async
   await login(page);
   await openSection(page);
 
-  await page.locator("uui-menu-item[label='Fonts']").click();
+  await expandTreeItem(page, "Fonts");
+  const family = await expandTreeItem(page, "HankenBody");
+  await family.locator("umb-tree-item uui-menu-item[label='Regular 400'] #label-button").first().click();
 
-  const dashboard = page.locator("di-fonts-dashboard");
-  await expect(dashboard).toBeVisible({ timeout: 60_000 });
-
-  // Whichever font is listed first; the behaviour is not specific to any of them.
-  const namedStyles = dashboard.locator("uui-button:has-text('Named styles')").first();
-  await expect(namedStyles).toBeVisible({ timeout: 60_000 });
-  await namedStyles.click();
-
-  const editor = dashboard.locator(".editor").first();
-  await expect(editor).toBeVisible();
+  const editor = page.locator("di-font-workspace-view");
+  await expect(editor).toBeVisible({ timeout: 60_000 });
 
   const rowsBefore = await editor.locator("uui-table-row").count();
 
@@ -67,8 +61,4 @@ test("adding a named style keeps the editor open and focuses the new row", async
       { timeout: 15_000 },
     )
     .toBe(true);
-
-  // Restore: this one writes to the database, so put the row back.
-  await editor.locator("uui-table-row").nth(rowsBefore).locator("uui-button[label^='Remove']").click();
-  await expect(editor.locator("uui-table-row")).toHaveCount(rowsBefore);
 });

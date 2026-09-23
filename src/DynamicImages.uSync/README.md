@@ -3,10 +3,10 @@
 Moves [Dynamic Images](https://www.nuget.org/packages/Umbraco.Community.DynamicImages) templates
 and fonts between environments with [uSync](https://usync.org).
 
-Dynamic Images keeps its own data in two tables it creates itself, `DynamicImages_Template` and
-`DynamicImages_Font`. Nothing in Umbraco knows they exist, so uSync on its own moves your document
-types and data types and leaves the designs behind. This package adds the two handlers that were
-missing.
+Dynamic Images keeps its own data in tables it creates itself - templates, fonts, and the
+folders and font families that organise them. Nothing in Umbraco knows they exist, so uSync on its
+own moves your document types and data types and leaves the designs behind. This package adds the
+handlers that were missing.
 
 ## Installing
 
@@ -19,21 +19,27 @@ handler is enabled by default, so they appear in the uSync dashboard on the next
 
 ## What it does
 
-| | Templates | Fonts |
-|---|---|---|
-| Folder | `uSync/{version}/DynamicImagesTemplates` | `uSync/{version}/DynamicImagesFonts` |
-| Handler alias | `dynamicImagesTemplateHandler` | `dynamicImagesFontHandler` |
-| Group | Settings | Settings |
-| Priority | 2020 | 2010 |
+| | Folder | Handler alias | Priority |
+|---|---|---|---|
+| Font folders | `uSync/{version}/DynamicImagesFontFolders` | `dynamicImagesFontFolderHandler` | 2006 |
+| Font families | `uSync/{version}/DynamicImagesFontFamilies` | `dynamicImagesFontFamilyHandler` | 2008 |
+| Fonts | `uSync/{version}/DynamicImagesFonts` | `dynamicImagesFontHandler` | 2010 |
+| Template folders | `uSync/{version}/DynamicImagesTemplateFolders` | `dynamicImagesTemplateFolderHandler` | 2015 |
+| Templates | `uSync/{version}/DynamicImagesTemplates` | `dynamicImagesTemplateHandler` | 2020 |
+
+All five are in the Settings group.
 
 One `.config` file per row, named after the item's alias. A template's alias is its own; a font
 has no alias column, so it gets a slug of its family, weight and slant — `inter-700`,
-`inter-400-italic`.
+`inter-400-italic`; a folder or a family is named by its key.
 
-**Fonts import before templates.** A text layer names its font by key, and a template whose font
-has not arrived yet fails validation on the way in.
+**Containers import first.** Each folder before what is in it, a family before its fonts, and
+fonts before templates: a text layer names its font by key, and a template whose font has not
+arrived yet fails validation on the way in. A folder or family whose parent is missing lands at
+the root, and a font whose family is missing - or a file exported before families existed, which
+names none - joins the family of its name, or a new one.
 
-**Export on save.** Saving a template in the designer, or a font on the Fonts dashboard, writes
+**Export on save.** Saving a template in the designer, or a font, family or folder in the Fonts tree, writes
 its file straight away — the same `ExportOnSave` behaviour uSync gives a document type. It honours
 `uSync:Settings:ExportOnSave`, and is suppressed while an import is running, so an import does not
 trigger an export of what it just read.
@@ -47,7 +53,8 @@ trigger an export of what it just read.
 
 A template whose import fails validation — usually a missing font — is reported as a failed action
 with the validator's own message, rather than being written in a state that cannot publish.
-Deleting a font that a template still uses is refused the same way, naming the templates.
+Deleting a font, or a family, that a template still uses is refused the same way, naming the
+templates; so is deleting a folder that is not empty.
 
 ## Versions
 
@@ -79,6 +86,8 @@ uSync major, so a uSync 18 site needs an 18.x build of this package.
 <DynamicImagesFont Key="1c9e2a3b-4c5d-6e7f-8091-a2b3c4d5e6f7" Alias="inter-700" Level="0">
   <Info>
     <FamilyName>Inter</FamilyName>
+    <FamilyKey>5b0e7f2a-9c1d-4e3b-8a6f-0d2c4e6a8b1f</FamilyKey>
+    <SortOrder>0</SortOrder>
     <Weight>700</Weight>
     <IsItalic>false</IsItalic>
   </Info>

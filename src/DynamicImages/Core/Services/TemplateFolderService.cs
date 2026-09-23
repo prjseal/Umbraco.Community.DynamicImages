@@ -30,7 +30,8 @@ public sealed class TemplateFolderService(
         {
             Key = key is { } k && k != Guid.Empty ? k : Guid.NewGuid(),
             Name = trimmed,
-            ParentKey = parentKey
+            ParentKey = parentKey,
+            SortOrder = GetTree().NextSortOrder(parentKey)
         });
 
         Saved(folder);
@@ -63,6 +64,7 @@ public sealed class TemplateFolderService(
         if (outcome != TreeOperationOutcome.Success) return new FolderResult(outcome);
 
         folder.ParentKey = targetKey;
+        folder.SortOrder = tree.NextSortOrder(targetKey);
         var saved = repository.Update(folder);
         if (saved is null) return new FolderResult(TreeOperationOutcome.NotFound);
 

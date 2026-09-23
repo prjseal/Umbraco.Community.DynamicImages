@@ -337,6 +337,8 @@ export type DiWebFontProvider = "google" | "bunny" | "direct";
 export interface DiFont {
   key: string;
   familyName: string;
+  /** The family it is a variant of, in the Fonts tree. */
+  familyKey?: string | null;
   sourceKind: "media" | "path" | "url";
   mediaKey?: string | null;
   path?: string | null;
@@ -366,6 +368,58 @@ export interface DiRegisterWebFontRequest {
 export interface DiRegisterWebFontResponse {
   fonts: DiFont[];
   errors: string[];
+}
+
+/**
+ * Where a new variant goes: into `familyKey`, or else the same-named family in `parentKey` (a
+ * folder, or the root when null), which the server creates if there is none.
+ */
+export interface DiFontPlacement {
+  familyKey?: string | null;
+  parentKey?: string | null;
+}
+
+/** A row of the Fonts tree. `isUrlFont` is what the Refresh action's condition reads. */
+export interface DiFontTreeItem {
+  key: string;
+  name: string;
+  entityType: "folder" | "family" | "font";
+  parentKey: string | null;
+  hasChildren: boolean;
+  isUrlFont: boolean;
+  variantCount: number;
+}
+
+/** A row of `fonts/collection`: a folder or family, or a family's variant. */
+export interface DiFontCollectionItem {
+  key: string;
+  entityType: "folder" | "family" | "font";
+  name: string;
+  parentKey: string | null;
+  variantCount: number | null;
+  usedByTemplateCount: number | null;
+  familyName: string | null;
+  weight: number | null;
+  isItalic: boolean | null;
+  sourceKind: "media" | "path" | "url" | null;
+  provider: DiWebFontProvider | null;
+  /** The variant a card draws its specimen in. */
+  sampleFontKey: string | null;
+}
+
+export interface DiFontFamily {
+  key: string;
+  name: string;
+  parentKey: string | null;
+  variantCount: number;
+  usedByTemplateCount: number;
+}
+
+/** A template using a font, as the delete modal's reference list names it. */
+export interface DiFontReference {
+  key: string;
+  name: string;
+  isEnabled: boolean;
 }
 
 // ---------------------------------------------------------------- document types

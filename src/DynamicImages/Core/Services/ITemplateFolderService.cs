@@ -18,7 +18,10 @@ public enum TreeOperationOutcome
     NotEmpty,
 
     /// <summary>A folder needs a name.</summary>
-    InvalidName
+    InvalidName,
+
+    /// <summary>Templates still use it - a font family one of whose variants is on a layer.</summary>
+    InUse
 }
 
 public sealed record FolderResult(TreeOperationOutcome Outcome, TemplateFolder? Folder = null);

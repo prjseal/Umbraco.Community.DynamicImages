@@ -28,9 +28,10 @@ sees the section until you do, including administrators.
 
 ## Getting started
 
-1. **Add a font.** Dynamic Images → Fonts → *Add a font*. Upload a `.ttf`, `.otf` or `.woff2`,
-   register a path to one already in `wwwroot`, or name a [web font](#web-fonts) from Google Fonts
-   or Bunny Fonts. Text layers cannot render without one.
+1. **Add a font.** In the Dynamic Images section, open the **Fonts** tree's ⋯ (or its **+**) →
+   *Create…* → **Upload font file**, **Web font** or **Font from path**: a `.ttf`, `.otf` or
+   `.woff2`, a [web font](#web-fonts) from Google Fonts or Bunny Fonts, or a path to one already in
+   `wwwroot`. Text layers cannot render without one.
 2. **Create a template.** In the Dynamic Images section, open the **Templates** tree's ⋯ (or its
    **+**) → *Create…* → **Template**. Start it from a folder and it is saved in that folder.
 3. **In Settings**, choose the document types it applies to and the media picker property the
@@ -45,17 +46,40 @@ sees the section until you do, including administrators.
 ## Organising templates
 
 The **Templates** tree in the section's sidebar works like Settings → Document Types. The ⋯ on the
-Templates root and on a folder offers *Create…* (Template or Folder), **Import JSON…** and
-*Reload*; on a folder also *Rename*, *Move to…* and *Delete* (refused while the folder holds
-anything); on a template *Move to…*, *Duplicate*, **Export JSON**, **Regenerate all** and *Delete*.
+Templates root and on a folder offers *Create…* (Template or Folder), **Import JSON…**, *Sort
+children* and *Reload*; on a folder also *Rename*, *Move to…* and *Delete* (refused while the
+folder holds anything); on a template *Duplicate to…*, *Move to…*, **Enable** and **Disable**,
+**Export JSON**, **Regenerate all** and *Delete*. A disabled template's icon is greyed.
 
 Selecting the root or a folder shows everything directly inside it as a **collection**: a list
 with each template's document types, target property, canvas size, layer count, whether it is
 enabled and when it was last saved, or a grid of cards showing each template rendered against
 sample data. The collection has its own filter and *Create…*, and each row or card has the same ⋯.
+Tick rows or cards to *Move to…*, *Duplicate to…* or *Delete* several at once.
 
 Folders only organise: which documents a template applies to is decided by its document types,
-never by where it sits. Templates that existed before folders are directly under the root.
+never by where it sits. Templates that existed before folders are directly under the root, in
+alphabetical order until someone sorts them; anything added after goes last.
+
+## Organising fonts
+
+The **Fonts** tree works the same way. Each font **family** - "Inter" - is a node whose children
+are its **variants**, one per weight and slant: "Regular 400", "Bold 700 Italic". A web font
+variant has a cloud icon. Registering a Google family with five weights gives one family with five
+variants; adding a font to a folder puts it in that folder's family of the same name, or a new one.
+
+- The root and folders offer *Create…* (Upload font file, Web font, Font from path, Folder),
+  *Sort children* and *Reload*; folders also *Rename*, *Move to…* and *Delete*.
+- A family offers *Create…* (**Add variant**), *Move to…*, *Rename* (its workspace, where the
+  name is the header - renaming a family renames it on every variant) and *Delete*.
+- A variant offers *Delete*, and a web font variant **Refresh** too.
+
+*Delete* on a family or variant lists the templates using it, and is refused while any do.
+Selecting a family shows its variants; selecting a variant opens it, with a sample in the real
+typeface, its weight and slant, its named styles and the templates using it. The root's and
+folders' collections have the same bulk *Move to…* and *Delete* as templates.
+
+Templates still name a variant, so moving and renaming change nothing a render sees.
 
 ## How a template works
 
@@ -285,7 +309,7 @@ every code path goes through, not only in the registration screen.
 
 ### A font's weight, and a named style's *style*
 
-These are two different things, and the Fonts dashboard shows both, which is easy to misread.
+These are two different things, and a font variant's workspace shows both, which is easy to misread.
 
 - A font row's **weight** is a number (100–900) describing the *family*. It is detected by reading
   the weight out of the font file's own names — the typographic subfamily, the full font name, the

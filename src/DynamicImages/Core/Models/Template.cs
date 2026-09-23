@@ -1,4 +1,6 @@
+using System.Text.Json.Serialization;
 using Umbraco.Community.DynamicImages.Core.Models.Layers;
+using Umbraco.Community.DynamicImages.Core.Services;
 
 namespace Umbraco.Community.DynamicImages.Core.Models;
 
@@ -6,7 +8,7 @@ namespace Umbraco.Community.DynamicImages.Core.Models;
 /// One generated-image design: which document types it applies to, where the result goes, the
 /// canvas and its stack of layers. Persisted as a JSON document in DynamicImages_Template.
 /// </summary>
-public class Template
+public class Template : ITreeEntity
 {
     public int SchemaVersion { get; set; } = DynamicImagesConstants.CurrentSchemaVersion;
 
@@ -25,6 +27,14 @@ public class Template
     /// only changes through a move, never through an ordinary save.
     /// </summary>
     public Guid? ParentKey { get; set; }
+
+    /// <summary>
+    /// Its place among its siblings in the tree. Only in the <c>sortOrder</c> column, never in the
+    /// JSON: an exported file has no siblings to be ordered against, and the designer, which saves
+    /// the JSON, must not be able to undo a sort.
+    /// </summary>
+    [JsonIgnore]
+    public int SortOrder { get; set; }
 
     public List<string> DocTypeAliases { get; set; } = [];
 

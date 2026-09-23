@@ -121,6 +121,122 @@ public class TemplateTreeTests
         Assert.Equal(TreeOperationOutcome.TargetNotFound, TemplateFolderService.CheckMove(tree, Social, Guid.NewGuid()));
     }
 
+    // ------------------------------------------------------------ sort order
+
+    private static TemplateFolder Folder(Guid key, string name, int sortOrder, Guid? parent = null)
+        => new() { Key = key, Name = name, ParentKey = parent, SortOrder = sortOrder };
+
+    private static Template Tpl(string name, int sortOrder)
+    {
+        var template = Tpl(name);
+        template.SortOrder = sortOrder;
+        return template;
+    }
+
+    [Fact]
+    public void Sort_order_comes_first_and_ties_go_folders_first_then_by_name()
+    {
+        var tree = new TemplateTree(
+            [Folder(Social, "Social", 1), Folder(Blog, "Blog", 0), Folder(Archive, "Archive", 1)],
+            [Tpl("Zebra", 0), Tpl("Apple", 0), Tpl("First", -1), Tpl("Mango", 1)]);
+
+        Assert.Equal(
+            ["First", "Blog", "Apple", "Zebra", "Archive", "Social", "Mango"],
+            tree.ChildrenOf(null).Select(n => n.Name));
+    }
+
+    [Fact]
+    public void The_next_sort_order_is_one_past_the_highest_sibling()
+    {
+        var tree = new TemplateTree([Folder(Social, "Social", 4), Folder(Blog, "Blog", 0, Social)], [Tpl("Card", 7)]);
+
+        Assert.Equal(8, tree.NextSortOrder(null));
+        Assert.Equal(1, tree.NextSortOrder(Social));
+        Assert.Equal(0, tree.NextSortOrder(Blog));
+    }
+
+    /// <summary>
+    /// The sort modal sends only what was dragged, at its final index. Here the list was
+    /// Social, Apple, Zebra (all zeros) and Zebra was dragged to the top.
+    /// </summary>
+    [Fact]
+    public void Sorting_places_the_dragged_children_and_the_rest_keep_their_order()
+    {
+        var apple = Tpl("Apple");
+        var zebra = Tpl("Zebra");
+        var tree = new TemplateTree([Folder(Social, "Social")], [apple, zebra]);
+
+        var changes = tree.ApplySort(null, [(zebra.Key, 0)]);
+
+        Assert.Equal([zebra.Key, Social, apple.Key], changes.OrderBy(c => c.SortOrder).Select(c => c.Key));
+        Assert.Equal([0, 1, 2], changes.Select(c => c.SortOrder));
+        Assert.True(changes.Single(c => c.Key == Social).IsFolder);
+    }
+
+    [Fact]
+    public void Sorting_ignores_keys_that_are_not_children_and_clamps_stale_indexes()
+    {
+        var apple = Tpl("Apple");
+        var zebra = Tpl("Zebra");
+        var tree = new TemplateTree([], [apple, zebra]);
+
+        var changes = tree.ApplySort(null, [(Guid.NewGuid(), 0), (apple.Key, 9)]);
+
+        Assert.Equal([zebra.Key, apple.Key], changes.OrderBy(c => c.SortOrder).Select(c => c.Key));
+    }
+
+    [Fact]
+    public async Task Sorting_through_the_service_writes_folders_and_templates_and_the_tree_follows()
+    {
+        var templateRows = new InMemoryTemplateRepository();
+        var folderRows = new InMemoryTemplateFolderRepository();
+        var templates = ServiceFakes.TemplateService(templateRows, folderRows);
+        var folders = new TemplateFolderService(folderRows, new RepositoryTemplateCache(templateRows), new NullEventAggregator());
+
+        var social = folders.Create("Social", null).Folder!;
+        var card = (await templates.CreateAsync(new Template { Name = "Card" }, null)).Template!;
+        var banner = (await templates.CreateAsync(new Template { Name = "Banner" }, null)).Template!;
+
+        // Appended in creation order: Social 0, Card 1, Banner 2.
+        Assert.Equal(["Social", "Card", "Banner"], folders.GetTree().ChildrenOf(null).Select(n => n.Name));
+
+        Assert.Equal(TreeOperationOutcome.Success, await templates.SortChildrenAsync(null, [(banner.Key, 0), (social.Key, 2)]));
+
+        Assert.Equal(["Banner", "Card", "Social"], folders.GetTree().ChildrenOf(null).Select(n => n.Name));
+        Assert.Equal(2, folderRows.Get(social.Key)!.SortOrder);
+        Assert.Equal(TreeOperationOutcome.NotFound, await templates.SortChildrenAsync(Guid.NewGuid(), []));
+    }
+
+    [Fact]
+    public async Task A_moved_template_goes_last_in_its_new_folder()
+    {
+        var templateRows = new InMemoryTemplateRepository();
+        var folderRows = new InMemoryTemplateFolderRepository();
+        var templates = ServiceFakes.TemplateService(templateRows, folderRows);
+        var folders = new TemplateFolderService(folderRows, new RepositoryTemplateCache(templateRows), new NullEventAggregator());
+
+        var social = folders.Create("Social", null).Folder!;
+        await templates.CreateAsync(new Template { Name = "Zebra", ParentKey = social.Key }, null);
+        var apple = (await templates.CreateAsync(new Template { Name = "Apple" }, null)).Template!;
+
+        await templates.MoveAsync(apple.Key, social.Key);
+
+        Assert.Equal(["Zebra", "Apple"], folders.GetTree().ChildrenOf(social.Key).Select(n => n.Name));
+    }
+
+    [Fact]
+    public void The_sort_order_is_a_column_and_not_in_the_json()
+    {
+        var repository = new TemplateRepository(null!, new TemplateJsonMigrator(), NullLogger<TemplateRepository>.Instance);
+        var template = Tpl("Card", 5);
+
+        var dto = TemplateRepository.ToDto(template, null);
+
+        Assert.Equal(5, dto.SortOrder);
+        Assert.DoesNotContain("sortOrder", dto.Json, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(5, repository.Map(dto)!.SortOrder);
+    }
+
     // ------------------------------------------------------------ the service
 
     private static (TemplateFolderService Service, FakeTemplateService Templates, InMemoryTemplateFolderRepository Folders) Service()

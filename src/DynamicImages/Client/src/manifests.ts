@@ -3,6 +3,7 @@ import { TEMPLATE_ENTITY_TYPE } from "./api/dynamic-images-api.js";
 import { manifests as treeManifests } from "./tree/manifests.js";
 import { manifests as entityActionManifests } from "./entity-actions/manifests.js";
 import { manifests as collectionManifests } from "./collection/manifests.js";
+import { manifests as fontManifests } from "./fonts/manifests.js";
 
 /**
  * Every extension that references an element or the workspace context is registered here rather
@@ -10,23 +11,24 @@ import { manifests as collectionManifests } from "./collection/manifests.js";
  * instead of a blank panel at runtime.
  *
  * The extensions that reference neither - the section, the sidebar app, the menu, and the
- * Fonts/Health link items - are in umbraco-package.json instead, because Umbraco reads that file
+ * Health link item - are in umbraco-package.json instead, because Umbraco reads that file
  * before this bundle loads and they can therefore paint straight away.
  */
 export const manifests: Array<UmbExtensionManifest> = [
   ...treeManifests,
   ...entityActionManifests,
   ...collectionManifests,
+  ...fontManifests,
 
   // ---------------------------------------------------------------- sidebar
   //
-  // The sidebar app, the menu and the Fonts/Health link items are NOT here - they live in
+  // The sidebar app, the menu and the Health link item are NOT here - they live in
   // wwwroot/App_Plugins/DynamicImages/umbraco-package.json, which Umbraco reads before this
   // bundle loads, so the section chrome paints immediately rather than after the entry point
   // has downloaded. None of them needs an element, so nothing is lost by moving them.
   //
-  // The Templates tree's menu item is in tree/manifests.ts: a `tree` kind menu item, which needs
-  // the tree registered first.
+  // The Templates and Fonts trees' menu items are in tree/manifests.ts and fonts/tree/manifests.ts:
+  // `tree` kind menu items, which need their trees registered first.
 
   // ---------------------------------------------------------------- dashboards
   {
@@ -39,10 +41,12 @@ export const manifests: Array<UmbExtensionManifest> = [
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }],
   },
   {
+    // Fonts are the Fonts tree now. The dashboard's route stays, as a redirect to the tree's root
+    // workspace, so a bookmarked dashboard/fonts still lands somewhere.
     type: "dashboard",
     alias: "DynamicImages.Dashboard.Fonts",
     name: "Dynamic Images Fonts",
-    element: () => import("./dashboards/di-fonts-dashboard.element.js"),
+    element: () => import("./dashboards/di-fonts-redirect.element.js"),
     weight: 90,
     meta: { label: "Fonts", pathname: "fonts" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }],

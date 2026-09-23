@@ -4,12 +4,12 @@ import type { UmbApi } from "@umbraco-cms/backoffice/extension-api";
 import { UmbDetailRepositoryBase, type UmbDetailDataSource } from "@umbraco-cms/backoffice/repository";
 import { UmbDetailStoreBase } from "@umbraco-cms/backoffice/store";
 import type { UmbEntityModel } from "@umbraco-cms/backoffice/entity";
-import { deleteTemplate, fetchTemplate } from "../../api/dynamic-images-api.js";
+import { deleteFolder, deleteTemplate, fetchTemplate, fetchTreeItems } from "../../api/dynamic-images-api.js";
 import { diExecute } from "../../api/di-execute.js";
 import { DI_TEMPLATE_ENTITY_TYPE } from "../../tree/constants.js";
 
 /**
- * The slice of a template the `delete` entity action kind needs. Creating and editing a template
+ * The slice of a template the `delete` entity action and bulk action kinds need. Creating and editing a template
  * is the template workspace's job, through its own context, so those halves are refused here
  * rather than duplicated.
  */
@@ -46,8 +46,16 @@ class DiTemplateDetailServerDataSource implements UmbDetailDataSource<DiTemplate
     return { data: { entityType: DI_TEMPLATE_ENTITY_TYPE, unique: data.key, name: data.name } };
   }
 
+  /**
+   * A template, or a folder: the collection's bulk Delete sends every selected key here, and a
+   * selection can hold both. A folder that is not empty is refused by the server with a 409, which
+   * core's bulk action shows as that item's error.
+   */
   delete(unique: string) {
-    return diExecute(this.#host, (token) => deleteTemplate(unique, token));
+    return diExecute(this.#host, async (token) => {
+      const [item] = await fetchTreeItems([unique], token);
+      return item?.entityType === "folder" ? deleteFolder(unique, token) : deleteTemplate(unique, token);
+    });
   }
 }
 
