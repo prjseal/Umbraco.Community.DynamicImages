@@ -235,6 +235,7 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     try {
       const template = await fetchTemplate(key, this.getToken);
       this.#setTemplate(template, { resetHistory: true, persist: true });
+      this.#restoreSampleContentKey();
       this.setIsNew(false);
       await this.#loadSupportingData(template);
     } catch (error) {
@@ -516,7 +517,40 @@ export class DiTemplateWorkspaceContext extends UmbSubmittableWorkspaceContextBa
     this.#issues.setValue(issues);
   }
 
+  /**
+   * The page previews render against, or undefined for sample data. One value for the whole
+   * workspace, so the Preview & test picker and the designer strip's picker always agree - and
+   * remembered per template, so coming back to it does not mean choosing again.
+   */
   setSampleContentKey(key: string | undefined): void {
+    this.#sampleContentKey.setValue(key);
+    this.#useSampleData.setValue(!key);
+    this.#rememberSampleContentKey(key);
+  }
+
+  #sampleStorageKey(): string {
+    return `di:sample-node:${this._data.getCurrent()?.key ?? "new"}`;
+  }
+
+  #rememberSampleContentKey(key: string | undefined): void {
+    try {
+      if (key) localStorage.setItem(this.#sampleStorageKey(), JSON.stringify({ key }));
+      else localStorage.removeItem(this.#sampleStorageKey());
+    } catch {
+      // Private mode, blocked storage - not being able to remember the choice is not worth telling anyone about.
+    }
+  }
+
+  /** Accepts the older remembered shape too, which stored the whole picked item. */
+  #restoreSampleContentKey(): void {
+    let key: string | undefined;
+    try {
+      const raw = localStorage.getItem(this.#sampleStorageKey());
+      key = raw ? (JSON.parse(raw) as { key?: string }).key : undefined;
+    } catch {
+      key = undefined;
+    }
+
     this.#sampleContentKey.setValue(key);
     this.#useSampleData.setValue(!key);
   }

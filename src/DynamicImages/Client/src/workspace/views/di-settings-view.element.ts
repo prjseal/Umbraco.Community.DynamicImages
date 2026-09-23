@@ -1,11 +1,13 @@
-import { css, customElement, html, nothing, repeat, state } from "@umbraco-cms/backoffice/external/lit";
+import { css, customElement, html, nothing, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
-import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
-import { UMB_DOCUMENT_TYPE_PICKER_MODAL } from "@umbraco-cms/backoffice/document-type";
-import { UMB_MEDIA_PICKER_MODAL } from "@umbraco-cms/backoffice/media";
+// Side-effect imports: they register <umb-input-document-type> and <umb-input-media>. The whole
+// @umbraco-cms namespace is external to the build, so they cost nothing in the bundle.
+import "@umbraco-cms/backoffice/document-type";
+import "@umbraco-cms/backoffice/media";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
-import type { DiProperty, DiTemplate } from "../../api/types.js";
+import { fetchDocumentTypes } from "../../api/dynamic-images-api.js";
+import type { DiDocumentType, DiProperty, DiTemplate } from "../../api/types.js";
 
 /**
  * Everything about a template that is not its design: what it applies to, where the result goes
@@ -17,7 +19,6 @@ export class DiSettingsViewElement extends UmbLitElement {
   manifest?: ManifestWorkspaceView;
 
   #context?: DiTemplateWorkspaceContext;
-  #modalContext?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
 
   @state()
   private _template?: DiTemplate;
@@ -28,16 +29,23 @@ export class DiSettingsViewElement extends UmbLitElement {
   @state()
   private _showAdvanced = false;
 
+  /**
+   * Every document type, for the alias ↔ key mapping. The picker works in keys; the template
+   * stores aliases, because that is what the publish handler matches a node's document type on.
+   */
+  @state()
+  private _documentTypes?: DiDocumentType[];
+
   constructor() {
     super();
-
-    this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (context) => {
-      this.#modalContext = context;
-    });
 
     this.consumeContext(DI_TEMPLATE_WORKSPACE_CONTEXT, (context) => {
       this.#context = context;
       if (!context) return;
+
+      void fetchDocumentTypes(context.getToken)
+        .then((types) => (this._documentTypes = types))
+        .catch(() => (this._documentTypes = []));
 
       this.observe(context.template, (template) => {
         this._template = template;
@@ -53,63 +61,37 @@ export class DiSettingsViewElement extends UmbLitElement {
     return this._properties.filter((property) => property.classification === "media");
   }
 
-  async #pickDocumentTypes() {
-    if (!this.#modalContext || !this._template) return;
+  /** The picker's selection: the key of every stored alias that names a document type. */
+  get #selectedDocumentTypeKeys(): string[] {
+    const byAlias = new Map((this._documentTypes ?? []).map((type) => [type.alias, type.key] as const));
+    return (this._template?.docTypeAliases ?? [])
+      .map((alias) => byAlias.get(alias))
+      .filter((key): key is string => !!key);
+  }
 
-    const modal = this.#modalContext.open(this, UMB_DOCUMENT_TYPE_PICKER_MODAL, {
-      data: {
-        multiple: true,
-        // Element types are never published on their own, so nothing would trigger the template.
-        pickableFilter: (item) => !item.isElement,
-      },
-    });
+  /** Stored aliases that no document type has (renamed or deleted since), kept rather than lost. */
+  get #unknownAliases(): string[] {
+    if (!this._documentTypes) return [];
+    const known = new Set(this._documentTypes.map((type) => type.alias));
+    return (this._template?.docTypeAliases ?? []).filter((alias) => !known.has(alias));
+  }
 
-    const result = await modal?.onSubmit().catch(() => undefined);
-    if (!result) return;
+  async #onDocumentTypesChange(event: Event) {
+    const keys = (event.target as HTMLElement & { selection: string[] }).selection;
+    const byKey = new Map((this._documentTypes ?? []).map((type) => [type.key, type.alias] as const));
 
-    // The picker returns unique ids (keys); the template stores aliases, which is what the
-    // publish handler matches on, so they are resolved through the document type list.
-    const aliases = await this.#aliasesForKeys(result.selection.filter((key): key is string => !!key));
+    const aliases = [
+      ...keys.map((key) => byKey.get(key)).filter((alias): alias is string => !!alias),
+      ...this.#unknownAliases,
+    ].filter((alias, index, list) => list.indexOf(alias) === index);
 
     this.#context?.updateTemplateFields({ docTypeAliases: aliases });
     await this.#context?.reloadProperties();
   }
 
-  /**
-   * The backoffice pickers work in keys; templates store aliases, because that is what the
-   * publish handler matches a node's document type on. The list endpoint carries both.
-   */
-  async #aliasesForKeys(keys: string[]): Promise<string[]> {
-    const { fetchDocumentTypes } = await import("../../api/dynamic-images-api.js");
-    const all = await fetchDocumentTypes(this.#context!.getToken).catch(() => []);
-    const byKey = new Map(all.map((type) => [type.key, type.alias] as const));
-
-    return keys
-      .map((key) => byKey.get(key))
-      .filter((alias): alias is string => !!alias)
-      .filter((alias, index, list) => list.indexOf(alias) === index);
-  }
-
-  #removeDocType(alias: string) {
-    const aliases = (this._template?.docTypeAliases ?? []).filter((item) => item !== alias);
-    this.#context?.updateTemplateFields({ docTypeAliases: aliases });
-    void this.#context?.reloadProperties();
-  }
-
-  async #pickOutputFolder() {
-    if (!this.#modalContext) return;
-
-    const modal = this.#modalContext.open(this, UMB_MEDIA_PICKER_MODAL, {
-      // Not filtered to folders here: the media tree item carries its media type as a key, not
-      // an alias, so there is nothing reliable to match on. The server checks the chosen item is
-      // a folder and the validator warns when it is not.
-      data: { multiple: false },
-    });
-
-    const result = await modal?.onSubmit().catch(() => undefined);
-    if (!result) return;
-
-    this.#context?.updateOutput({ mediaFolderKey: result.selection[0] ?? null });
+  #onMediaFolderChange(event: Event) {
+    const selection = (event.target as HTMLElement & { selection: string[] }).selection;
+    this.#context?.updateOutput({ mediaFolderKey: selection[0] ?? null });
   }
 
   render() {
@@ -129,28 +111,17 @@ export class DiSettingsViewElement extends UmbLitElement {
       <uui-box headline="Applies to">
         <umb-property-layout label="Document types" description="Publishing one of these generates the image.">
           <div slot="editor">
-            ${template.docTypeAliases.length === 0
-              ? html`<p class="empty">No document types yet - nothing will trigger this template.</p>`
-              : html`<div class="tags">
-                  ${repeat(
-                    template.docTypeAliases,
-                    (alias) => alias,
-                    (alias) => html`
-                      <uui-tag look="secondary">
-                        ${alias}
-                        <uui-button
-                          compact
-                          label="Remove ${alias}"
-                          @click=${() => this.#removeDocType(alias)}>
-                          <uui-icon name="icon-trash"></uui-icon>
-                        </uui-button>
-                      </uui-tag>
-                    `,
-                  )}
-                </div>`}
-            <uui-button look="secondary" label="Choose document types" @click=${this.#pickDocumentTypes}>
-              Choose document types
-            </uui-button>
+            ${this._documentTypes
+              ? html`<umb-input-document-type
+                  .documentTypesOnly=${true}
+                  .selection=${this.#selectedDocumentTypeKeys}
+                  @change=${this.#onDocumentTypesChange}></umb-input-document-type>`
+              : html`<uui-loader-bar></uui-loader-bar>`}
+            ${this.#unknownAliases.length > 0
+              ? html`<p class="note">
+                  Also targets ${this.#unknownAliases.join(", ")}, which no document type has any more.
+                </p>`
+              : nothing}
           </div>
         </umb-property-layout>
 
@@ -159,6 +130,8 @@ export class DiSettingsViewElement extends UmbLitElement {
           description="The media picker the generated image is written to.">
           <uui-select
             slot="editor"
+            class="full"
+            label="Target property"
             .value=${template.targetPropertyAlias}
             .options=${[
               { name: "- none -", value: "" },
@@ -192,19 +165,15 @@ export class DiSettingsViewElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Output">
-        <umb-property-layout label="Media folder" description="Where generated images are saved.">
-          <div slot="editor" class="row">
-            <uui-input readonly .value=${template.output.mediaFolderKey ?? "Media root"}></uui-input>
-            <uui-button look="secondary" label="Choose folder" @click=${this.#pickOutputFolder}>Choose</uui-button>
-            ${template.output.mediaFolderKey
-              ? html`<uui-button
-                  look="secondary"
-                  label="Use the media root"
-                  @click=${() => this.#context?.updateOutput({ mediaFolderKey: null })}>
-                  Clear
-                </uui-button>`
-              : nothing}
-          </div>
+        <umb-property-layout
+          label="Media folder"
+          description="Where generated images are saved. Empty = the media root.">
+          <umb-input-media
+            slot="editor"
+            max="1"
+            folder-filter="foldersOnly"
+            .selection=${template.output.mediaFolderKey ? [template.output.mediaFolderKey] : []}
+            @change=${this.#onMediaFolderChange}></umb-input-media>
         </umb-property-layout>
 
         <umb-property-layout label="File name" description="Tokens: {name}, {template}.">
@@ -323,22 +292,12 @@ export class DiSettingsViewElement extends UmbLitElement {
       max-width: 1100px;
     }
 
-    .row {
-      display: flex;
-      gap: var(--uui-size-space-3);
-      align-items: center;
-      flex-wrap: wrap;
+    uui-select.full {
+      width: 100%;
     }
 
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: var(--uui-size-space-2);
-      margin-bottom: var(--uui-size-space-3);
-    }
-
-    .empty {
-      margin: 0 0 var(--uui-size-space-3);
+    .note {
+      margin: var(--uui-size-space-3) 0 0;
       color: var(--uui-color-text-alt);
     }
 

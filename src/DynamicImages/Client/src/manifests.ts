@@ -151,12 +151,6 @@ export const manifests: Array<UmbExtensionManifest> = [
   // ---------------------------------------------------------------- modals
   {
     type: "modal",
-    alias: "DynamicImages.Modal.SampleNodePicker",
-    name: "Dynamic Images Sample Node Picker",
-    element: () => import("./modals/di-sample-node-picker-modal.element.js"),
-  },
-  {
-    type: "modal",
     alias: "DynamicImages.Modal.FontUpload",
     name: "Dynamic Images Font Upload",
     element: () => import("./modals/di-font-upload-modal.element.js"),

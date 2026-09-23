@@ -2,12 +2,11 @@ import { css, customElement, html, nothing, repeat, state } from "@umbraco-cms/b
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { checkerboard } from "../../designer/checkerboard.js";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
-import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
-import { DI_SAMPLE_NODE_PICKER_MODAL } from "../../modals/tokens.js";
+import "./di-preview-content-picker.element.js";
 import { fetchLayout, fetchPreview, regenerateDocument } from "../../api/dynamic-images-api.js";
-import type { DiLayer, DiLayerBounds, DiLayerSkip, DiSampleContentItem, DiTemplate } from "../../api/types.js";
+import type { DiLayer, DiLayerBounds, DiLayerSkip, DiTemplate } from "../../api/types.js";
 
 /** The full-size server render, what each layer resolved to, and the way to regenerate one node. */
 @customElement("di-preview-view")
@@ -16,7 +15,6 @@ export class DiPreviewViewElement extends UmbLitElement {
   manifest?: ManifestWorkspaceView;
 
   #context?: DiTemplateWorkspaceContext;
-  #modalContext?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
   #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
   #abort?: AbortController;
   #objectUrl?: string;
@@ -24,8 +22,9 @@ export class DiPreviewViewElement extends UmbLitElement {
   @state()
   private _template?: DiTemplate;
 
+  /** The page chosen in the Preview content picker, or undefined for sample data. */
   @state()
-  private _sampleNode?: DiSampleContentItem;
+  private _contentKey?: string;
 
   @state()
   private _bounds: DiLayerBounds[] = [];
@@ -49,9 +48,6 @@ export class DiPreviewViewElement extends UmbLitElement {
   constructor() {
     super();
 
-    this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (context) => {
-      this.#modalContext = context;
-    });
     this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => {
       this.#notificationContext = context;
     });
@@ -60,31 +56,15 @@ export class DiPreviewViewElement extends UmbLitElement {
       if (!context) return;
 
       this.observe(context.template, (template) => {
-        const isFirst = !this._template;
         this._template = template;
-
-        // The remembered node is keyed by the template, so it can only be restored once the
-        // template is known - which is here, not in connectedCallback.
-        if (template && isFirst) void this.#restoreRememberedNode();
+      });
+      // Chosen here or in the designer's strip - either way this view re-renders against it.
+      this.observe(context.sampleContentKey, (key) => {
+        if (key === this._contentKey) return;
+        this._contentKey = key;
+        void this.#render();
       });
     });
-  }
-
-  /**
-   * Re-selects whichever node was last previewed for this template, so returning to the tab does
-   * not mean picking it again - and, crucially, tells the workspace context as well. Without
-   * that last part the restored node reached only this view: after a full page load the
-   * designer's preview strip went on showing sample data while the picker here already read the
-   * right node's name.
-   */
-  async #restoreRememberedNode(): Promise<void> {
-    const remembered = this.#rememberedNode();
-    if (!remembered) return;
-
-    this._sampleNode = remembered;
-    this.#context?.setSampleContentKey(remembered.key);
-
-    await this.#render();
   }
 
   override connectedCallback() {
@@ -99,51 +79,11 @@ export class DiPreviewViewElement extends UmbLitElement {
     this.#revoke();
   }
 
-  #storageKey(): string {
-    return `di:sample-node:${this._template?.key ?? "new"}`;
-  }
-
-  #rememberedNode(): DiSampleContentItem | undefined {
-    try {
-      const raw = localStorage.getItem(this.#storageKey());
-      return raw ? (JSON.parse(raw) as DiSampleContentItem) : undefined;
-    } catch {
-      // Private mode, blocked storage - the picker just starts empty.
-      return undefined;
-    }
-  }
-
-  #remember(item?: DiSampleContentItem) {
-    try {
-      if (item) localStorage.setItem(this.#storageKey(), JSON.stringify(item));
-      else localStorage.removeItem(this.#storageKey());
-    } catch {
-      // Not being able to remember the choice is not worth telling anyone about.
-    }
-  }
-
   #revoke() {
     if (this.#objectUrl) {
       URL.revokeObjectURL(this.#objectUrl);
       this.#objectUrl = undefined;
     }
-  }
-
-  async #pickNode() {
-    if (!this.#modalContext || !this._template) return;
-
-    const modal = this.#modalContext.open(this, DI_SAMPLE_NODE_PICKER_MODAL, {
-      data: { docTypeAliases: this._template.docTypeAliases, selectedKey: this._sampleNode?.key },
-    });
-
-    const result = await modal?.onSubmit().catch(() => undefined);
-    if (!result) return;
-
-    this._sampleNode = result.item;
-    this.#remember(result.item);
-    this.#context?.setSampleContentKey(result.item?.key);
-
-    await this.#render();
   }
 
   async #render() {
@@ -158,8 +98,8 @@ export class DiPreviewViewElement extends UmbLitElement {
 
     const options = {
       signal: this.#abort.signal,
-      contentKey: this._sampleNode?.key,
-      useSampleData: !this._sampleNode,
+      contentKey: this._contentKey,
+      useSampleData: !this._contentKey,
       // Full size here - this view is where fidelity matters.
       scale: 1,
     };
@@ -188,17 +128,17 @@ export class DiPreviewViewElement extends UmbLitElement {
   }
 
   async #regenerateThisNode() {
-    if (!this._sampleNode || !this.#context) return;
+    if (!this._contentKey || !this.#context) return;
 
     this._regenerating = true;
 
     try {
-      const result = await regenerateDocument(this._sampleNode.key, this.#context.getToken);
+      const result = await regenerateDocument(this._contentKey, this.#context.getToken);
 
       const generated = result.outcome === "generated" || result.outcome === "generateddraft";
 
       this.#notificationContext?.peek(generated ? "positive" : "warning", {
-        data: { message: result.message ?? `'${this._sampleNode.name}': ${result.outcome}` },
+        data: { message: result.message ?? result.outcome },
       });
     } catch (error) {
       this.#notificationContext?.peek("danger", {
@@ -226,11 +166,12 @@ export class DiPreviewViewElement extends UmbLitElement {
 
     return html`
       <div class="grid">
+        <uui-box>
+          <di-preview-content-picker></di-preview-content-picker>
+        </uui-box>
+
         <uui-box headline="Preview">
           <div slot="header-actions" class="actions">
-            <uui-button look="secondary" label="Choose content to preview against" @click=${this.#pickNode}>
-              ${this._sampleNode ? this._sampleNode.name : "Sample data"}
-            </uui-button>
             <uui-button look="secondary" label="Re-render" ?disabled=${this._loading} @click=${() => this.#render()}>
               Re-render
             </uui-button>
@@ -245,10 +186,6 @@ export class DiPreviewViewElement extends UmbLitElement {
             : this._url
               ? html`<img class="render" src=${this._url} alt="Rendered preview of this template" />`
               : nothing}
-
-          <p class="hint">
-            Choose a content item above to preview this template against a real title and image.
-          </p>
         </uui-box>
 
         <uui-box headline="Resolved values">
@@ -272,17 +209,17 @@ export class DiPreviewViewElement extends UmbLitElement {
               </uui-table>`}
         </uui-box>
 
-        ${this._sampleNode
-          ? html`<uui-box headline="This node">
+        ${this._contentKey
+          ? html`<uui-box headline="This page">
               <p>
                 Regenerating writes a new image into
-                <code>${this._template.targetPropertyAlias || "the target property"}</code> on
-                <strong>${this._sampleNode.name}</strong>, replacing the existing media file in place.
+                <code>${this._template.targetPropertyAlias || "the target property"}</code> on the page
+                chosen above, replacing the existing media file in place.
               </p>
               <uui-button
                 look="primary"
                 color="positive"
-                label="Regenerate the image for ${this._sampleNode.name}"
+                label="Regenerate the image for this page"
                 ?disabled=${this._regenerating}
                 @click=${this.#regenerateThisNode}>
                 Regenerate this node
@@ -349,12 +286,6 @@ export class DiPreviewViewElement extends UmbLitElement {
       box-shadow: var(--uui-shadow-depth-2);
       /* Behind the image, so a transparent render reads as transparent rather than as white. */
       ${checkerboard}
-    }
-
-    .hint {
-      margin: var(--uui-size-space-4) 0 0;
-      font-size: 12px;
-      color: var(--uui-color-text-alt);
     }
 
     .error {
