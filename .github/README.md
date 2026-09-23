@@ -29,8 +29,9 @@ sees the section until you do, including administrators.
 
 ## Getting started
 
-1. **Add a font.** Dynamic Images → Fonts → *Add a font*. Text layers cannot render without one.
-2. **Create a template.** Dynamic Images → Templates → *Create template*.
+1. **Add a font.** Dynamic Images → the **Fonts** tree's ⋯ → *Create…*. Text layers cannot render
+   without one.
+2. **Create a template.** Dynamic Images → the **Templates** tree's ⋯ → *Create…* → **Template**.
 3. **In Settings**, choose the document types it applies to and the media picker property the
    generated image should be written to.
 4. **In Design**, pick a base image, then drag properties from the left onto the canvas.

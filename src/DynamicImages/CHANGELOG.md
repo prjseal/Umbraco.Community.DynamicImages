@@ -4,6 +4,17 @@
 
 ### Added
 
+- **Native actions on templates**: *Duplicate to…* (into any folder, replacing the same-folder
+  *Duplicate*), **Enable** and **Disable** (a disabled template's icon is greyed), *Sort children*
+  on the root and folders, and bulk *Move to…*, *Duplicate to…* and *Delete* on ticked rows or cards
+  in the collection - all Umbraco's own entity actions, modals and pickers.
+- **A Fonts tree**, in place of the Fonts dashboard: families, each with its variants (one per
+  weight and slant), in folders you can create, rename, move, sort and delete. *Create…* adds a font
+  by upload, web font or path; a family's *Add variant* adds another weight to it. Each family and
+  variant has its own workspace, and *Delete* lists the templates that use a font and refuses while
+  any do. A migration puts every existing font into a family of its name at the root; templates
+  are unaffected. uSync carries font folders and families, and old font exports still import.
+  `dashboard/fonts` now redirects to the tree.
 - **A native Templates tree with folders.** The section's hand-built template menu is now a real
   tree, like Settings → Document Types: folders, *Create…*, *Move to…*, *Duplicate*, *Delete*,
   **Import JSON** into a folder and **Export JSON**, all from each node's ⋯. A migration adds the

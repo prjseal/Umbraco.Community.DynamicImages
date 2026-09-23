@@ -63,6 +63,43 @@ export async function expandTemplatesTree(page: Page): Promise<void> {
   }
 }
 
+/** Expands a tree node if it is not open already, and returns it. */
+export async function expandTreeItem(page: Page, name: string): Promise<Locator> {
+  const item = treeItem(page, name);
+  await expect(item).toBeVisible({ timeout: 60_000 });
+
+  if ((await item.getAttribute("show-children")) === null) await item.locator("#caret-button").first().click();
+  return item;
+}
+
+/**
+ * Picks a folder in an open tree picker modal. Pickers open their root collapsed or expanded
+ * depending on the action, so the root is expanded by its own state, never by whether the target
+ * happens to be showing yet - that races the expansion and can collapse it again.
+ */
+export async function pickInTree(page: Page, root: string, target: string): Promise<void> {
+  const picker = page.locator("umb-tree-picker-modal");
+  await expect(picker).toBeVisible();
+
+  const rootItem = picker.locator(`uui-menu-item[label='${root}']`).first();
+  await expect(rootItem).toBeVisible();
+  if ((await rootItem.getAttribute("show-children")) === null) await rootItem.locator("#caret-button").first().click();
+
+  await picker.locator(`uui-menu-item[label='${target}'] #label-button`).first().click();
+}
+
+/** Opens a tree node's ⋯ menu. The button only shows on hover, so hover first. */
+export async function openActions(page: Page, name: string): Promise<void> {
+  const item = treeItem(page, name);
+  await item.locator("#label-button").first().hover();
+  await item.locator("#action-modal").first().click();
+}
+
+/** Clicks an entry in whichever ⋯ menu is open. */
+export async function chooseAction(page: Page, label: string): Promise<void> {
+  await page.locator("umb-entity-action-list uui-menu-item").filter({ hasText: label }).first().click();
+}
+
 /** Opens a template's workspace from the Templates tree in the sidebar. */
 export async function openTemplate(page: Page, name = TEMPLATE_NAME): Promise<void> {
   await expandTemplatesTree(page);
