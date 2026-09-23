@@ -49,6 +49,8 @@ public static class DynamicImagesConstants
     public const string TemplateTableName = "DynamicImages_Template";
     public const string FontTableName = "DynamicImages_Font";
     public const string TemplateFolderTableName = "DynamicImages_TemplateFolder";
+    public const string FontFolderTableName = "DynamicImages_FontFolder";
+    public const string FontFamilyTableName = "DynamicImages_FontFamily";
 
     /// <summary>Current template JSON schema version.</summary>
     public const int CurrentSchemaVersion = 2;

@@ -378,5 +378,9 @@ public class TemplateValidatorTests
         public FontDefinition? Update(FontDefinition font) => null;
 
         public bool Delete(Guid key) => false;
+
+        public void SetFamily(Guid familyKey, string familyName)
+        {
+        }
     }
 }

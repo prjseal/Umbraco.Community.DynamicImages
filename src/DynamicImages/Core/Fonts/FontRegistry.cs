@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using SixLabors.Fonts;
+using FontFamily = SixLabors.Fonts.FontFamily;
 using Umbraco.Community.DynamicImages.Core.Models;
 using Umbraco.Community.DynamicImages.Persistence;
 

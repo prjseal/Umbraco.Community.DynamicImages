@@ -56,6 +56,19 @@ public class FontDto
     [NullSetting(NullSetting = NullSettings.Null)]
     public string? ProviderFamily { get; set; }
 
+    /// <summary>
+    /// The DynamicImages_FontFamily row. Nullable because AddColumn&lt;T&gt; copies this definition
+    /// onto a table that already has rows; the migration adding it backfills every row.
+    /// </summary>
+    [Column("familyKey")]
+    [NullSetting(NullSetting = NullSettings.Null)]
+    [Index(IndexTypes.NonClustered, Name = "IX_DynamicImages_Font_familyKey")]
+    public Guid? FamilyKey { get; set; }
+
+    [Column("sortOrder")]
+    [Constraint(Default = "0")]
+    public int SortOrder { get; set; }
+
     [Column("weight")]
     public int Weight { get; set; } = 400;
 

@@ -60,6 +60,8 @@ public class DynamicImagesComposer : IComposer
         builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
         builder.Services.AddScoped<IFontRepository, FontRepository>();
         builder.Services.AddScoped<ITemplateFolderRepository, TemplateFolderRepository>();
+        builder.Services.AddScoped<IFontFolderRepository, FontFolderRepository>();
+        builder.Services.AddScoped<IFontFamilyRepository, FontFamilyRepository>();
         builder.Services.AddSingleton<ITemplateJsonMigrator, TemplateJsonMigrator>();
     }
 

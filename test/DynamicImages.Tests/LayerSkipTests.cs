@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.Fonts;
+using FontFamily = SixLabors.Fonts.FontFamily;
 using SixLabors.ImageSharp;
 using Umbraco.Community.DynamicImages.Core.Fonts;
 using Umbraco.Community.DynamicImages.Core.Media;

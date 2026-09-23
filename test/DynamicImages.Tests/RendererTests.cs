@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging.Abstractions;
 using SixLabors.Fonts;
+using FontFamily = SixLabors.Fonts.FontFamily;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Umbraco.Community.DynamicImages.Core.Fonts;
