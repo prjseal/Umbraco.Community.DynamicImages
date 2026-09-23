@@ -6,7 +6,22 @@ export interface FontUploadValue {
   warnings?: string[];
 }
 
-export const DI_FONT_UPLOAD_MODAL = new UmbModalToken<object, FontUploadValue>(
+/** Which of the three ways in the modal opens on; omitted shows all three. */
+export type FontUploadMode = "upload" | "web" | "path";
+
+/**
+ * Where the new variants go and which way in to show. `familyKey` locks them to a family (the
+ * family's "Add variant"); otherwise `parentKey` is the folder the create was started from.
+ */
+export interface FontUploadData {
+  mode?: FontUploadMode;
+  familyKey?: string | null;
+  /** The locked family's name, for the headline and to prefill the web font family. */
+  familyName?: string;
+  parentKey?: string | null;
+}
+
+export const DI_FONT_UPLOAD_MODAL = new UmbModalToken<FontUploadData, FontUploadValue>(
   "DynamicImages.Modal.FontUpload",
   { modal: { type: "dialog", size: "small" } },
 );

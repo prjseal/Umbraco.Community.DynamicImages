@@ -21,11 +21,15 @@ const SRC = fileURLToPath(new URL(".", import.meta.url));
  * automatically by reading `@customElement(...)`; these are the ones that are neither.
  */
 const NOT_EVENTS = new Set([
-  // Entity types: the template workspace's (as returned by getEntityType()), and the Templates
-  // tree's root and folders.
+  // Entity types: the template workspace's (as returned by getEntityType()), the Templates
+  // tree's root and folders, and the Fonts tree's root, folders, families and variants.
   "di-template",
   "di-template-root",
   "di-template-folder",
+  "di-font-root",
+  "di-font-folder",
+  "di-font-family",
+  "di-font",
 ]);
 
 function sourceFiles(directory: string): string[] {

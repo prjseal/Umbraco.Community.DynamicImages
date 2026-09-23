@@ -213,7 +213,8 @@ public sealed record FontTreeResponse(int Total, IReadOnlyList<FontTreeItemRespo
 
 /// <summary>
 /// One row of a Fonts collection: a folder or a family under the root or a folder, or a variant
-/// under a family. The fields that do not apply are null.
+/// under a family. The fields that do not apply are null. <c>SampleFontKey</c> is the variant a
+/// card draws its specimen in: a variant's own key, or a family's regular upright.
 /// </summary>
 public sealed record FontCollectionItemResponse(
     Guid Key,
@@ -226,7 +227,8 @@ public sealed record FontCollectionItemResponse(
     int? Weight,
     bool? IsItalic,
     string? SourceKind,
-    string? Provider);
+    string? Provider,
+    Guid? SampleFontKey = null);
 
 public sealed record FontCollectionResponse(int Total, IReadOnlyList<FontCollectionItemResponse> Items);
 

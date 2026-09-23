@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "allowTelemetry": false,
 
-  "//": "Umbraco reads this file before the bundle loads, so everything here paints immediately. That is why the section chrome - the sidebar app, the menu and the two link-kind menu items, none of which needs an element - lives here rather than in manifests.ts: a cold load of the section used to show an entirely empty screen, no sidebar and no spinner, while the 240 KB entry point downloaded. Anything that references an element or the workspace context stays in manifests.ts, where a renamed export is a build error instead of a blank panel at runtime.",
+  "//": "Umbraco reads this file before the bundle loads, so everything here paints immediately. That is why the section chrome - the sidebar app, the menu and the Health link-kind menu item, none of which needs an element - lives here rather than in manifests.ts (the Templates and Fonts trees are tree-kind menu items, which need their trees registered first, so they are in the bundle): a cold load of the section used to show an entirely empty screen, no sidebar and no spinner, while the 240 KB entry point downloaded. Anything that references an element or the workspace context stays in manifests.ts, where a renamed export is a build error instead of a blank panel at runtime.",
 
   "extensions": [
     {
@@ -32,19 +32,6 @@
       "type": "menu",
       "alias": "DynamicImages.Menu",
       "name": "Dynamic Images Menu"
-    },
-    {
-      "type": "menuItem",
-      "kind": "link",
-      "alias": "DynamicImages.MenuItem.Fonts",
-      "name": "Dynamic Images Fonts Menu Item",
-      "weight": 100,
-      "meta": {
-        "label": "Fonts",
-        "icon": "icon-font",
-        "menus": ["DynamicImages.Menu"],
-        "href": "section/dynamic-images/dashboard/fonts"
-      }
     },
     {
       "type": "menuItem",

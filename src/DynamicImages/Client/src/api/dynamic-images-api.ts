@@ -1,7 +1,7 @@
 import type {
   DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiJob, DiLayout, DiLinkedProperties,
   DiProperty, DiRegisterWebFontRequest, DiRegisterWebFontResponse, DiSampleContentItem,
-  DiCollectionItem, DiSyncStatus, DiTemplate, DiTemplateFolder, DiTemplateSaveResponse, DiTemplateSummary, DiTreeItem, DiUsage,
+  DiCollectionItem, DiFontCollectionItem, DiFontFamily, DiFontPlacement, DiFontReference, DiFontTreeItem, DiSyncStatus, DiTemplate, DiTemplateFolder, DiTemplateSaveResponse, DiTemplateSummary, DiTreeItem, DiUsage,
 } from "./types.js";
 
 export type TokenGetter = () => Promise<string | undefined> | undefined;
@@ -214,22 +214,28 @@ export async function sortTreeChildren(
 export const fetchFonts = async (getToken: TokenGetter): Promise<DiFont[]> =>
   json(await request("/fonts", getToken));
 
-export async function uploadFont(file: File, getToken: TokenGetter): Promise<DiFont> {
+/** One variant, for its workspace. */
+export const fetchFont = async (key: string, getToken: TokenGetter): Promise<DiFont> =>
+  json(await request(`/fonts/${key}`, getToken));
+
+export async function uploadFont(file: File, getToken: TokenGetter, placement: DiFontPlacement = {}): Promise<DiFont> {
   const form = new FormData();
   form.append("file", file);
+  if (placement.familyKey) form.append("familyKey", placement.familyKey);
+  if (placement.parentKey) form.append("parentKey", placement.parentKey);
 
   // No Content-Type header: the browser has to set the multipart boundary itself.
   return json(await request("/fonts", getToken, { method: "POST", body: form }));
 }
 
-export const registerFontPath = async (path: string, getToken: TokenGetter): Promise<DiFont> =>
-  json(await request("/fonts/register-path", getToken, { method: "POST", json: { path } }));
+export const registerFontPath = async (path: string, getToken: TokenGetter, placement: DiFontPlacement = {}): Promise<DiFont> =>
+  json(await request("/fonts/register-path", getToken, { method: "POST", json: { path, ...placement } }));
 
 /** 200 with rows plus per-variant errors when at least one row was created; a 400 (thrown) when none was. */
 export const registerWebFont = async (
-  request_: DiRegisterWebFontRequest, getToken: TokenGetter,
+  request_: DiRegisterWebFontRequest, getToken: TokenGetter, placement: DiFontPlacement = {},
 ): Promise<DiRegisterWebFontResponse> =>
-  json(await request("/fonts/register-web", getToken, { method: "POST", json: request_ }));
+  json(await request("/fonts/register-web", getToken, { method: "POST", json: { ...request_, ...placement } }));
 
 /** Re-resolves and re-downloads a web font; the returned row carries its new hash. */
 export const refreshFont = async (key: string, getToken: TokenGetter): Promise<DiFont> =>
@@ -254,6 +260,100 @@ export async function deleteFont(key: string, getToken: TokenGetter): Promise<vo
 
 export async function fetchFontFile(key: string, getToken: TokenGetter): Promise<ArrayBuffer> {
   return (await request(`/fonts/${key}/file`, getToken)).arrayBuffer();
+}
+
+// ---------------------------------------------------------------- fonts tree
+
+export const fetchFontTreeRoot = async (
+  skip: number, take: number, foldersOnly: boolean, getToken: TokenGetter,
+): Promise<DiPaged<DiFontTreeItem>> => json(await request(`/fonts/tree/root?${treeQuery(skip, take, foldersOnly)}`, getToken));
+
+/** A folder's folders and families, or a family's variants. */
+export const fetchFontTreeChildren = async (
+  parentKey: string, skip: number, take: number, foldersOnly: boolean, getToken: TokenGetter,
+): Promise<DiPaged<DiFontTreeItem>> =>
+  json(await request(`/fonts/tree/children?${treeQuery(skip, take, foldersOnly, parentKey)}`, getToken));
+
+export const fetchFontTreeAncestors = async (key: string, getToken: TokenGetter): Promise<DiFontTreeItem[]> =>
+  json(await request(`/fonts/tree/ancestors?descendantKey=${encodeURIComponent(key)}`, getToken));
+
+export async function fetchFontTreeItems(keys: string[], getToken: TokenGetter): Promise<DiFontTreeItem[]> {
+  if (keys.length === 0) return [];
+  const search = new URLSearchParams();
+  for (const key of keys) search.append("key", key);
+  return json(await request(`/fonts/item?${search}`, getToken));
+}
+
+/** A level's folders and families, or - with a family's key - its variants. */
+export async function fetchFontCollection(
+  query: { parentKey: string | null; filter?: string; skip?: number; take?: number }, getToken: TokenGetter,
+): Promise<DiPaged<DiFontCollectionItem>> {
+  const search = new URLSearchParams({ skip: String(query.skip ?? 0), take: String(query.take ?? 100) });
+  if (query.parentKey) search.set("parentKey", query.parentKey);
+  if (query.filter) search.set("filter", query.filter);
+  return json(await request(`/fonts/collection?${search}`, getToken));
+}
+
+/** The templates using a variant, or any variant of a family. */
+export const fetchFontReferences = async (
+  key: string, skip: number, take: number, getToken: TokenGetter,
+): Promise<DiPaged<DiFontReference>> =>
+  json(await request(`/fonts/${key}/references?skip=${skip}&take=${take}`, getToken));
+
+/** Which of `keys` any template uses. */
+export async function fetchFontsAreReferenced(
+  keys: string[], skip: number, take: number, getToken: TokenGetter,
+): Promise<DiPaged<DiFontTreeItem>> {
+  const search = new URLSearchParams({ skip: String(skip), take: String(take) });
+  for (const key of keys) search.append("key", key);
+  return json(await request(`/fonts/are-referenced?${search}`, getToken));
+}
+
+export const createFontFolder = async (
+  folder: { key?: string; name: string; parentKey: string | null }, getToken: TokenGetter,
+): Promise<DiTemplateFolder> => json(await request("/fonts/folders", getToken, { method: "POST", json: folder }));
+
+export const fetchFontFolder = async (key: string, getToken: TokenGetter): Promise<DiTemplateFolder> =>
+  json(await request(`/fonts/folders/${key}`, getToken));
+
+export const updateFontFolder = async (key: string, name: string, getToken: TokenGetter): Promise<DiTemplateFolder> =>
+  json(await request(`/fonts/folders/${key}`, getToken, { method: "PUT", json: { name } }));
+
+/** Refused with a 409 while the folder holds anything. */
+export async function deleteFontFolder(key: string, getToken: TokenGetter): Promise<void> {
+  await request(`/fonts/folders/${key}`, getToken, { method: "DELETE" });
+}
+
+export const fetchFontFamily = async (key: string, getToken: TokenGetter): Promise<DiFontFamily> =>
+  json(await request(`/fonts/families/${key}`, getToken));
+
+/** Renames the family and, with it, every variant's family name. */
+export const renameFontFamily = async (key: string, name: string, getToken: TokenGetter): Promise<DiFontFamily> =>
+  json(await request(`/fonts/families/${key}`, getToken, { method: "PUT", json: { name } }));
+
+/** The family and all its variants; a 409 naming the templates while any variant is in use. */
+export async function deleteFontFamily(key: string, getToken: TokenGetter): Promise<void> {
+  await request(`/fonts/families/${key}`, getToken, { method: "DELETE" });
+}
+
+/** `targetKey` null is the Fonts root. */
+export async function moveFontFamily(key: string, targetKey: string | null, getToken: TokenGetter): Promise<void> {
+  await request(`/fonts/families/${key}/move`, getToken, { method: "PUT", json: { targetKey } });
+}
+
+export async function moveFontFolder(key: string, targetKey: string | null, getToken: TokenGetter): Promise<void> {
+  await request(`/fonts/folders/${key}/move`, getToken, { method: "PUT", json: { targetKey } });
+}
+
+export async function sortFontTreeChildren(
+  parentKey: string | null, sorting: Array<{ key: string; sortOrder: number }>, getToken: TokenGetter,
+): Promise<void> {
+  await request("/fonts/tree/sort", getToken, { method: "PUT", json: { parentKey, sorting } });
+}
+
+/** Folders and families together; a 400 names each one that could not move. */
+export async function bulkMoveFonts(keys: string[], targetKey: string | null, getToken: TokenGetter): Promise<void> {
+  await request("/fonts/tree/bulk-move", getToken, { method: "PUT", json: { keys, targetKey } });
 }
 
 // ---------------------------------------------------------------- document types

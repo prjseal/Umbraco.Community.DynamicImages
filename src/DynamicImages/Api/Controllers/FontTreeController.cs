@@ -74,11 +74,11 @@ public class FontTreeController(IFontFolderService folderService, IFontService f
                 FontTreeEntityType.Family => new FontCollectionItemResponse(
                     n.Key, "family", n.Name, n.ParentKey, n.VariantCount,
                     tree.VariantsOf(n.Key).SelectMany(v => usedBy.GetValueOrDefault(v.Key, [])).Distinct().Count(),
-                    n.Name, null, null, null, null),
+                    n.Name, null, null, null, null, SampleOf(tree.VariantsOf(n.Key))),
 
                 _ => new FontCollectionItemResponse(
                     n.Key, "font", n.Name, n.ParentKey, null, usedBy.GetValueOrDefault(n.Key, []).Count,
-                    n.Font!.FamilyName, n.Font.Weight, n.Font.IsItalic, SourceKindOf(n.Font), n.Font.Provider)
+                    n.Font!.FamilyName, n.Font.Weight, n.Font.IsItalic, SourceKindOf(n.Font), n.Font.Provider, n.Key)
             })
             .ToList();
 
@@ -196,6 +196,10 @@ public class FontTreeController(IFontFolderService folderService, IFontService f
         => tree.Families
             .SelectMany(f => tree.VariantsOf(f.Key))
             .ToDictionary(v => v.Key, v => fontService.TemplatesUsing(v.Key).Select(t => t.Key).ToList());
+
+    /// <summary>The upright variant nearest to regular weight, for a family's specimen.</summary>
+    private static Guid? SampleOf(IReadOnlyList<FontDefinition> variants)
+        => variants.OrderBy(v => v.IsItalic).ThenBy(v => Math.Abs(v.Weight - 400)).FirstOrDefault()?.Key;
 
     private static string SourceKindOf(FontDefinition font) => font.SourceKind switch
     {
