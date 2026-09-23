@@ -23,6 +23,13 @@ export class DiNumberFieldElement extends UmbLitElement {
   @property({ type: Number })
   max?: number;
 
+  /**
+   * The small inline label, for a toolbar. Without it the label is core's property layout, like
+   * every other inspector field.
+   */
+  @property({ type: Boolean, reflect: true })
+  compact = false;
+
   /** Shown when the value is null - "as big as the content needs", which is a real setting. */
   @property({ type: String })
   placeholder = "Auto";
@@ -53,23 +60,28 @@ export class DiNumberFieldElement extends UmbLitElement {
   }
 
   render() {
-    return html`
-      <label class="field">
-        ${this.label ? html`<span class="label">${this.label}</span>` : nothing}
-        <span class="input">
-          <input
-            type="number"
-            aria-label=${this.label}
-            .value=${this.value === null || this.value === undefined ? "" : String(this.value)}
-            placeholder=${this.placeholder}
-            step=${this.step}
-            min=${this.min ?? nothing}
-            max=${this.max ?? nothing}
-            @change=${this.#onChange} />
-          ${this.suffix ? html`<span class="suffix">${this.suffix}</span>` : nothing}
-        </span>
-      </label>
+    const input = html`
+      <span class="input" slot="editor">
+        <input
+          type="number"
+          aria-label=${this.label}
+          .value=${this.value === null || this.value === undefined ? "" : String(this.value)}
+          placeholder=${this.placeholder}
+          step=${this.step}
+          min=${this.min ?? nothing}
+          max=${this.max ?? nothing}
+          @change=${this.#onChange} />
+        ${this.suffix ? html`<span class="suffix">${this.suffix}</span>` : nothing}
+      </span>
     `;
+
+    // The label through core's property layout, like every other inspector field, so a number
+    // reads the same as the select above it.
+    if (!this.label) return input;
+
+    return this.compact
+      ? html`<label class="compact-field"><span class="compact-label">${this.label}</span>${input}</label>`
+      : html`<umb-property-layout orientation="vertical" label=${this.label}>${input}</umb-property-layout>`;
   }
 
   static styles = css`
@@ -77,14 +89,24 @@ export class DiNumberFieldElement extends UmbLitElement {
       display: block;
     }
 
-    .field {
+    /* Core's layout pads for a full-width workspace; the inspector's fields use this. */
+    umb-property-layout {
+      padding: var(--uui-size-space-3) 0;
+    }
+
+    .compact-field {
       display: grid;
       gap: 2px;
     }
 
-    .label {
+    .compact-label {
       font-size: 11px;
       color: var(--uui-color-text-alt);
+    }
+
+    :host([compact]) input {
+      min-height: 0;
+      padding: 4px 6px;
     }
 
     .input {
@@ -103,7 +125,9 @@ export class DiNumberFieldElement extends UmbLitElement {
       background: transparent;
       color: inherit;
       font: inherit;
-      padding: 4px 6px;
+      /* The height of a uui-input or uui-select beside it. */
+      min-height: calc(var(--uui-size-11, 36px) - 2px);
+      padding: 0 var(--uui-size-space-3, 9px);
       font-variant-numeric: tabular-nums;
     }
 
@@ -116,7 +140,7 @@ export class DiNumberFieldElement extends UmbLitElement {
     }
 
     .suffix {
-      padding-right: 6px;
+      padding-right: var(--uui-size-space-3, 9px);
       font-size: 11px;
       color: var(--uui-color-text-alt);
     }

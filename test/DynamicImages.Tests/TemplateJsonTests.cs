@@ -403,4 +403,38 @@ public class TemplateJsonTests
         Assert.Null(back.Canvas.BackgroundGradient);
         Assert.Equal("#0B0F19", back.Canvas.Background);
     }
+
+    [Fact]
+    public void A_gradient_with_only_from_and_to_reads_as_two_stops()
+    {
+        const string json = """{"kind":"radial","from":"#FF0000","to":"#0000FF","angle":180,"centreX":0.5,"centreY":0.5}""";
+
+        var gradient = JsonSerializer.Deserialize<Gradient>(json, DynamicImagesJsonOptions.Default)!;
+
+        Assert.Null(gradient.Stops);
+        Assert.Equal(GradientExtent.FarthestCorner, gradient.Extent);
+        Assert.Equal(GradientShape.Ellipse, gradient.Shape);
+        Assert.Equal([("#FF0000", 0f), ("#0000FF", 1f)], Umbraco.Community.DynamicImages.Core.Rendering.GradientGeometry.EffectiveStops(gradient));
+    }
+
+    [Fact]
+    public void The_new_gradient_options_round_trip_as_camel_case()
+    {
+        var gradient = new Gradient
+        {
+            Kind = GradientKind.Angular,
+            Shape = GradientShape.Circle,
+            Extent = GradientExtent.ClosestSide,
+            Stops = [new GradientStop { Colour = "#FF0000", Position = 0 }, new GradientStop { Colour = "#0000FF", Position = 0.75f }],
+        };
+
+        var json = JsonSerializer.Serialize(gradient, DynamicImagesJsonOptions.Default);
+        var back = JsonSerializer.Deserialize<Gradient>(json, DynamicImagesJsonOptions.Default)!;
+
+        Assert.Contains("\"kind\":\"angular\"", json);
+        Assert.Contains("\"extent\":\"closestSide\"", json);
+        Assert.Contains("\"shape\":\"circle\"", json);
+        Assert.Equal(0.75f, back.Stops![1].Position);
+        Assert.Equal(GradientKind.Angular, back.Kind);
+    }
 }

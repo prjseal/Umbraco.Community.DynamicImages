@@ -166,7 +166,19 @@ export interface DiBadgesLayer extends DiLayerBase {
 
 export type ShapeKind = "rectangle" | "ellipse" | "polygon" | "star";
 
-export type GradientKind = "linear" | "radial";
+export type GradientKind = "linear" | "radial" | "angular" | "diamond" | "reflected";
+
+/** How far a radial gradient's last stop reaches - CSS's size keywords, in camel case. */
+export type GradientExtent = "farthestCorner" | "farthestSide" | "closestCorner" | "closestSide";
+
+/** A radial gradient's ending shape. */
+export type GradientShape = "ellipse" | "circle";
+
+export interface DiGradientStop {
+  colour: string;
+  /** 0..1 along the gradient. */
+  position: number;
+}
 
 /**
  * A two-stop gradient, on a shape layer or as the canvas's fill. The server writes every field,
@@ -175,13 +187,24 @@ export type GradientKind = "linear" | "radial";
  */
 export interface DiGradient {
   kind: GradientKind;
+  /** The first colour. With `stops`, kept equal to the first stop so an older package draws something close. */
   from: string;
+  /** The last colour. With `stops`, kept equal to the last stop. */
   to: string;
-  /** Linear only. Degrees clockwise from "top to bottom" = 180, as in CSS. */
+  /**
+   * Linear and reflected: degrees clockwise from "top to bottom" = 180, as in CSS. Angular: where
+   * the sweep starts, degrees clockwise from straight up, as in `conic-gradient(from …)`.
+   */
   angle: number;
-  /** Radial only. The centre as a fraction of the box, 0..1. */
+  /** Radial, angular and diamond. The centre as a fraction of the box, 0..1. */
   centreX: number;
   centreY: number;
+  /** Two or more stops; absent or fewer means `from` at 0 and `to` at 1. */
+  stops?: DiGradientStop[] | null;
+  /** Radial only. Absent means farthest-corner. */
+  extent?: GradientExtent;
+  /** Radial only. Absent means ellipse. */
+  shape?: GradientShape;
 }
 
 /**

@@ -1006,6 +1006,87 @@ public class RendererTests
     /// CountNonBackgroundOutside and HasNonBackgroundPixels both hard-code opaque black as "the
     /// background", which on a gradient would silently mean something else.
     /// </summary>
+    private static async Task<Image<Rgba32>> RenderGradient(Gradient gradient)
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = gradient;
+
+        using var result = await Renderer().RenderAsync(template, Values());
+        return result.Image.CloneAs<Rgba32>();
+    }
+
+    private static List<GradientStop> RedGreenBlue() =>
+    [
+        new() { Colour = "#FF0000", Position = 0f },
+        new() { Colour = "#00FF00", Position = 0.5f },
+        new() { Colour = "#0000FF", Position = 1f },
+    ];
+
+    [Fact]
+    public async Task RenderAsync_DrawsEveryStopOfAThreeStopLinearGradient()
+    {
+        // A two-stop red-to-blue would be purple in the middle; the third stop makes it green.
+        using var image = await RenderGradient(new Gradient { Angle = 180f, From = "#FF0000", To = "#0000FF", Stops = RedGreenBlue() });
+
+        AssertNear(new Rgba32(0, 255, 0, 255), image[200, 100], tolerance: 24);
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 1], tolerance: 24);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 198], tolerance: 24);
+    }
+
+    [Fact]
+    public async Task RenderAsync_SweepsAnAngularGradientClockwiseFromItsStartAngle()
+    {
+        using var image = await RenderGradient(new Gradient
+        {
+            Kind = GradientKind.Angular, Angle = 0f, Stops = RedGreenBlue(),
+        });
+
+        // Just clockwise of straight up is the start; straight down is half way round; just
+        // anticlockwise of straight up is the end.
+        AssertNear(new Rgba32(255, 0, 0, 255), image[203, 5], tolerance: 40);
+        AssertNear(new Rgba32(0, 255, 0, 255), image[200, 195], tolerance: 24);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[196, 5], tolerance: 40);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsADiamondGradientOutToTheSides()
+    {
+        using var image = await RenderGradient(new Gradient { Kind = GradientKind.Diamond, From = "#FF0000", To = "#0000FF" });
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 100], tolerance: 24);
+        // Half way to the right side and half way to the bottom is on the last stop's diamond.
+        AssertNear(new Rgba32(0, 0, 255, 255), image[300, 150], tolerance: 24);
+        // A quarter of the way to the side is a quarter of the way along.
+        var quarter = image[250, 100];
+        Assert.InRange(quarter.R, 170, 210);
+        Assert.InRange(quarter.B, 45, 85);
+    }
+
+    [Fact]
+    public async Task RenderAsync_DrawsACircularRadialGradientTheSameDistanceEveryWay()
+    {
+        using var image = await RenderGradient(new Gradient
+        {
+            Kind = GradientKind.Radial, Shape = GradientShape.Circle, From = "#FF0000", To = "#0000FF",
+        });
+
+        // 90px right and 90px down are the same distance from the centre, so the same colour; an
+        // ellipse on this 2:1 box would be twice as far along going down.
+        var across = image[290, 100];
+        var down = image[200, 190];
+        AssertNear(across, down, tolerance: 12);
+    }
+
+    [Fact]
+    public async Task RenderAsync_ReflectsAReflectedGradientAboutTheMiddle()
+    {
+        using var image = await RenderGradient(new Gradient { Kind = GradientKind.Reflected, Angle = 180f, From = "#FF0000", To = "#0000FF" });
+
+        AssertNear(new Rgba32(255, 0, 0, 255), image[200, 100], tolerance: 24);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 1], tolerance: 24);
+        AssertNear(new Rgba32(0, 0, 255, 255), image[200, 198], tolerance: 24);
+    }
+
     private static void AssertNear(Rgba32 expected, Rgba32 actual, int tolerance = 12)
     {
         var off = Math.Abs(expected.R - actual.R) + Math.Abs(expected.G - actual.G)

@@ -117,7 +117,7 @@ public sealed partial class TemplateValidator(
     {
         // The gradient is the fill when it is set, as on a shape layer, so the colour beneath it
         // says nothing about what is drawn.
-        if (canvas.BackgroundGradient is { } gradient) return HasAlpha(gradient.From) || HasAlpha(gradient.To);
+        if (canvas.BackgroundGradient is { } gradient) return GradientGeometry.EffectiveStops(gradient).Any(stop => HasAlpha(stop.Colour));
 
         // An empty background is the quiet path to transparency: ParseOrDefault falls back to
         // Color.Transparent and the validator deliberately skips empty colours.
@@ -131,10 +131,30 @@ public sealed partial class TemplateValidator(
     /// A gradient's stops and, for a radial one, its centre - shared by the canvas and by a shape
     /// layer, so the two report the same problems in the same words.
     /// </summary>
+    /// <summary>More stops than this is a mistake, or a paste from somewhere else.</summary>
+    internal const int MaxGradientStops = 16;
+
     private static void ValidateGradient(Gradient gradient, string what, Guid? layerKey, List<ValidationIssue> issues)
     {
         RequireColour(gradient.From, what, layerKey, issues);
         RequireColour(gradient.To, what, layerKey, issues);
+
+        if (gradient.Stops is { } stops)
+        {
+            if (stops.Count > MaxGradientStops)
+            {
+                issues.Add(new ValidationIssue(ValidationSeverity.Warning, "GradientTooManyStops",
+                    $"{what} has {stops.Count} colour stops; more than {MaxGradientStops} is more than anyone can tell apart.", layerKey));
+            }
+
+            // A warning, not an error: an unreadable stop is drawn as black or transparent, as an
+            // unreadable From/To always has been, rather than failing the render.
+            foreach (var stop in stops.Where(stop => !ColourParser.TryParse(stop.Colour, out _)))
+            {
+                issues.Add(new ValidationIssue(ValidationSeverity.Warning, "GradientStopColourInvalid",
+                    $"{what} has a stop with the colour '{stop.Colour}', which is not #RRGGBB or #RRGGBBAA.", layerKey));
+            }
+        }
 
         if (gradient.Kind != GradientKind.Radial) return;
 

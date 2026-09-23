@@ -7,6 +7,7 @@ import type {
 import { reanchor } from "../models/anchor.js";
 import { canvasFill, withAlpha, type CanvasFill } from "../models/canvas-fill.js";
 import { createGradient } from "../models/layer-factories.js";
+import { addStop, effectiveStops, gradientCss, removeStop, reverseStops, withStops } from "../models/gradient-css.js";
 import { DEFAULT_RELATIVE_GAP, isTracked, referenceOn, type Axis } from "../models/relative-layout.js";
 import { MAX_HOPS, pathPrefix, pathSegments } from "../models/property-path.js";
 import { propertyOptions } from "../models/property-options.js";
@@ -87,7 +88,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Canvas">
-        <div class="pair">
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.width.min}
             .max=${INSPECTOR_BOUNDS.width.max}
@@ -106,29 +107,31 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
         ${this.#renderCanvasFill(canvas)}
 
-        <label class="field">
-          <span>Base image</span>
-          <div class="row">
-            <uui-select
-              .value=${canvas.baseImage.kind}
-              .options=${sourceKindOptions(canvas.baseImage.kind)}
-              @change=${(event: Event) =>
-                this.#canvas({
-                  baseImage: { ...canvas.baseImage, kind: (event.target as HTMLSelectElement).value as never },
-                })}>
-            </uui-select>
-            <uui-button
-              look="secondary"
-              label="Choose a base image from the media library"
-              @click=${() => this.dispatchEvent(new CustomEvent("di-pick-base-image", { bubbles: true, composed: true }))}>
-              Choose
-            </uui-button>
-          </div>
-        </label>
+        <umb-property-layout orientation="vertical" label="Base image">
+
+          <div slot="editor" class="editor">
+          <uui-select
+            label="Base image source"
+            .value=${canvas.baseImage.kind}
+            .options=${sourceKindOptions(canvas.baseImage.kind)}
+            @change=${(event: Event) =>
+              this.#canvas({
+                baseImage: { ...canvas.baseImage, kind: (event.target as HTMLSelectElement).value as never },
+              })}>
+          </uui-select>
+        </div>
+
+        </umb-property-layout>
+
+        ${canvas.baseImage.kind === "media"
+          ? this.#field("Media item", this.#mediaInput(canvas.baseImage.mediaKey, (mediaKey) =>
+              this.#canvas({ baseImage: { ...canvas.baseImage, kind: "media", mediaKey } })))
+          : nothing}
 
         ${canvas.baseImage.kind === "path"
-          ? html`<label class="field">
-              <span>Path</span>
+          ? html`<umb-property-layout orientation="vertical" label="Path">
+
+              <div slot="editor" class="editor">
               <uui-input
                 .value=${canvas.baseImage.path ?? ""}
                 placeholder="/assets/og-background.png"
@@ -137,27 +140,35 @@ export class DiLayerInspectorElement extends UmbLitElement {
                     baseImage: { ...canvas.baseImage, path: (event.target as HTMLInputElement).value },
                   })}>
               </uui-input>
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
 
         ${canvas.baseImage.kind === "property"
-          ? html`<label class="field">
-              <span>From property</span>
+          ? html`<umb-property-layout orientation="vertical" label="From property">
+
+              <div slot="editor" class="editor">
               ${this.#propertyPathSelect(canvas.baseImage.propertyAlias ?? "", (alias) =>
                 this.#canvas({ baseImage: { ...canvas.baseImage, propertyAlias: alias } }),
                 { root: ["media", "content"], tail: "media" })}
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
 
-        <label class="field">
-          <span>Fit</span>
+        <umb-property-layout orientation="vertical" label="Fit">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${canvas.baseImageFit}
             .options=${optionsFrom(["cover", "contain", "stretch"], canvas.baseImageFit)}
             @change=${(event: Event) =>
               this.#canvas({ baseImageFit: (event.target as HTMLSelectElement).value as never })}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         <uui-button
           look="secondary"
@@ -180,24 +191,30 @@ export class DiLayerInspectorElement extends UmbLitElement {
     const mode = canvasFill(canvas);
 
     return html`
-      <label class="field">
-        <span>Fill</span>
+      <umb-property-layout orientation="vertical" label="Fill">
+
+        <div slot="editor" class="editor">
         <uui-select
           .value=${mode}
           .options=${optionsFrom(["colour", "gradient", "transparent"], mode)}
           @change=${(event: Event) => this.#setCanvasFill(canvas, (event.target as HTMLSelectElement).value as CanvasFill)}>
         </uui-select>
-      </label>
+      </div>
+
+      </umb-property-layout>
 
       ${mode === "colour"
-        ? html`<label class="field">
-            <span>Colour</span>
+        ? html`<umb-property-layout orientation="vertical" label="Colour">
+
+            <div slot="editor" class="editor">
             <di-colour-input
               label="Canvas background"
               .value=${canvas.background}
               @change=${(event: CustomEvent) => this.#canvas({ background: event.detail.value })}>
             </di-colour-input>
-          </label>`
+          </div>
+
+          </umb-property-layout>`
         : nothing}
 
       ${mode === "gradient" && canvas.backgroundGradient
@@ -233,46 +250,156 @@ export class DiLayerInspectorElement extends UmbLitElement {
    * The gradient editor, shared by the canvas panel and the shape panel. `patch` takes the whole
    * replacement gradient, because the two panels write through different paths (`#canvas` vs
    * `#patch`) and neither should have to know about the other's.
+   *
+   * Stacked top to bottom as an art program's gradient panel is: the type, a strip showing the
+   * gradient, the type's own geometry (angle, or centre and size), then the stops.
    */
   #renderGradientFields(gradient: DiGradient, patch: (next: DiGradient) => void) {
+    const kind = gradient.kind ?? "linear";
+    const hasAngle = kind === "linear" || kind === "reflected" || kind === "angular";
+    const hasCentre = kind === "radial" || kind === "angular" || kind === "diamond";
+
     return html`
-      <label class="field">
-        <span>Type</span>
+      ${this.#field("Gradient type", html`
         <uui-select
-          .value=${gradient.kind}
-          .options=${optionsFrom(["linear", "radial"], gradient.kind)}
+          label="Gradient type"
+          .value=${kind}
+          .options=${optionsFrom(["linear", "radial", "angular", "diamond", "reflected"], kind, GRADIENT_KIND_LABELS)}
           @change=${(event: Event) =>
             patch({ ...gradient, kind: (event.target as HTMLSelectElement).value as DiGradient["kind"] })}>
         </uui-select>
-      </label>
+      `)}
 
-      <div class="pair">
-        <di-colour-input
-          label="From"
-          .value=${gradient.from}
-          @change=${(event: CustomEvent) => patch({ ...gradient, from: event.detail.value })}>
-        </di-colour-input>
-        <di-colour-input
-          label="To"
-          .value=${gradient.to}
-          @change=${(event: CustomEvent) => patch({ ...gradient, to: event.detail.value })}>
-        </di-colour-input>
-      </div>
+      <div class="gradient-preview" role="img" aria-label="The gradient" style="background: ${gradientCss(gradient)}"></div>
 
-      ${gradient.kind === "radial"
-        ? html`<div class="pair">
+      ${hasAngle ? this.#renderGradientAngle(gradient, patch) : nothing}
+      ${kind === "radial" ? this.#renderRadialShape(gradient, patch) : nothing}
+      ${hasCentre
+        ? html`
             ${this.#renderCentreField("Centre X", gradient.centreX, (value) => patch({ ...gradient, centreX: value }))}
             ${this.#renderCentreField("Centre Y", gradient.centreY, (value) => patch({ ...gradient, centreY: value }))}
-          </div>`
-        : html`<di-number-field
-            .min=${INSPECTOR_BOUNDS.gradientAngle.min}
-            .max=${INSPECTOR_BOUNDS.gradientAngle.max}
-            label="Angle"
-            suffix="°"
-            .value=${gradient.angle}
-            @change=${(event: CustomEvent) => patch({ ...gradient, angle: event.detail.value ?? 180 })}>
-          </di-number-field>`}
+          `
+        : nothing}
+
+      ${this.#renderGradientStops(gradient, patch)}
     `;
+  }
+
+  /** Angle as a slider and a number, plus the four directions as one-click presets. */
+  #renderGradientAngle(gradient: DiGradient, patch: (next: DiGradient) => void) {
+    const angle = Math.round(gradient.angle ?? 180) % 360;
+    const set = (value: number) => patch({ ...gradient, angle: ((Math.round(value) % 360) + 360) % 360 });
+
+    return this.#field(gradient.kind === "angular" ? "Start angle" : "Angle", html`
+      <div class="angle">
+        <uui-slider
+          label="Angle"
+          hide-step-values
+          min="0"
+          max="359"
+          step="1"
+          .value=${String(angle)}
+          @change=${(event: Event) => set(Number((event.target as HTMLInputElement).value))}>
+        </uui-slider>
+        <di-number-field
+          label="Degrees"
+          suffix="°"
+          .min=${INSPECTOR_BOUNDS.gradientAngle.min}
+          .max=${INSPECTOR_BOUNDS.gradientAngle.max}
+          .value=${angle}
+          @change=${(event: CustomEvent) => set(event.detail.value ?? 180)}>
+        </di-number-field>
+        <uui-button-group>
+          ${ANGLE_PRESETS.map(([label, value, name]) => html`
+            <uui-button
+              compact
+              look=${angle === value ? "primary" : "secondary"}
+              label=${name}
+              title=${name}
+              @click=${() => set(value)}>${label}</uui-button>
+          `)}
+        </uui-button-group>
+      </div>
+    `);
+  }
+
+  /** A radial gradient's shape - ellipse or circle - and how far its last stop reaches. */
+  #renderRadialShape(gradient: DiGradient, patch: (next: DiGradient) => void) {
+    const shape = gradient.shape ?? "ellipse";
+    const extent = gradient.extent ?? "farthestCorner";
+
+    return html`
+      ${this.#field("Shape", html`
+        <uui-select
+          label="Radial shape"
+          .value=${shape}
+          .options=${optionsFrom(["ellipse", "circle"], shape)}
+          @change=${(event: Event) =>
+            patch({ ...gradient, shape: (event.target as HTMLSelectElement).value as DiGradient["shape"] })}>
+        </uui-select>
+      `)}
+      ${this.#field("Size", html`
+        <uui-select
+          label="Radial size"
+          .value=${extent}
+          .options=${optionsFrom(["farthestCorner", "farthestSide", "closestCorner", "closestSide"], extent, EXTENT_LABELS)}
+          @change=${(event: Event) =>
+            patch({ ...gradient, extent: (event.target as HTMLSelectElement).value as DiGradient["extent"] })}>
+        </uui-select>
+      `, "Where the last colour lands.")}
+    `;
+  }
+
+  /**
+   * One block per stop - its colour (with opacity) and its position - then Add stop, which puts a
+   * stop in the middle of the widest gap in the colour already there, and Reverse.
+   */
+  #renderGradientStops(gradient: DiGradient, patch: (next: DiGradient) => void) {
+    const stops = effectiveStops(gradient);
+
+    return this.#field("Colour stops", html`
+      <div class="stops">
+        ${stops.map((stop, index) => html`
+          <div class="stop">
+            <di-colour-input
+              label="Stop ${index + 1} colour"
+              .value=${stop.colour}
+              @change=${(event: CustomEvent) =>
+                patch(withStops(gradient, stops.map((candidate, i) => i === index ? { ...candidate, colour: event.detail.value } : candidate)))}>
+            </di-colour-input>
+            <div class="stop-position">
+              <di-number-field
+                label="Position"
+                suffix="%"
+                .min=${0}
+                .max=${100}
+                .value=${Math.round(stop.position * 100)}
+                @change=${(event: CustomEvent) =>
+                  patch(withStops(gradient, stops.map((candidate, i) =>
+                    i === index ? { ...candidate, position: (event.detail.value ?? 0) / 100 } : candidate)))}>
+              </di-number-field>
+              <uui-button
+                compact
+                look="secondary"
+                color="danger"
+                label="Remove stop ${index + 1}"
+                ?disabled=${stops.length <= 2}
+                @click=${() => patch(removeStop(gradient, index))}>
+                <uui-icon name="icon-trash"></uui-icon>
+              </uui-button>
+            </div>
+          </div>
+        `)}
+        <div class="stop-actions">
+          <uui-button look="secondary" label="Add stop" @click=${() => patch(addStop(gradient))}>
+            <uui-icon name="icon-add"></uui-icon> Add stop
+          </uui-button>
+          <uui-button look="secondary" label="Reverse the gradient" @click=${() => patch(reverseStops(gradient))}>
+            <uui-icon name="icon-sync"></uui-icon> Reverse
+          </uui-button>
+        </div>
+      </div>
+    `);
   }
 
   /** Percent in, fraction stored - the x100 / divide-by-100 the zoom toolbar already does. */
@@ -314,8 +441,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Content">
-        <label class="field">
-          <span>Source</span>
+        <umb-property-layout orientation="vertical" label="Source">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${binding.kind}
             .options=${optionsFrom(
@@ -335,7 +463,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 binding: { ...binding, kind: (event.target as HTMLSelectElement).value as never },
               } as Partial<DiLayer>)}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${binding.kind === "property" || binding.kind === "date" || binding.kind === "readingTime"
           ? this.#field("Property", this.#propertyPathSelect(binding.propertyAlias ?? "", (alias) =>
@@ -343,8 +473,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
           : nothing}
 
         ${binding.kind === "date"
-          ? html`<label class="field">
-              <span>Date format</span>
+          ? html`<umb-property-layout orientation="vertical" label="Date format">
+
+              <div slot="editor" class="editor">
               <uui-input
                 .value=${binding.format ?? ""}
                 placeholder="d MMMM yyyy"
@@ -353,12 +484,15 @@ export class DiLayerInspectorElement extends UmbLitElement {
                     binding: { ...binding, format: (event.target as HTMLInputElement).value },
                   } as Partial<DiLayer>)}>
               </uui-input>
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
 
         ${binding.kind === "static" || binding.kind === "expression"
-          ? html`<label class="field">
-              <span>${binding.kind === "static" ? "Text" : "Expression"}</span>
+          ? html`<umb-property-layout orientation="vertical" label="${binding.kind === "static" ? "Text" : "Expression"}">
+
+              <div slot="editor" class="editor">
               <uui-textarea
                 rows="2"
                 .value=${binding.text ?? ""}
@@ -373,24 +507,32 @@ export class DiLayerInspectorElement extends UmbLitElement {
                     <code>{date:alias:format}</code>
                   </small>`
                 : nothing}
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
 
-        <div class="pair">
-          <label class="field">
-            <span>Prefix</span>
+        <div class="stack">
+          <umb-property-layout orientation="vertical" label="Prefix">
+
+            <div slot="editor" class="editor">
             <uui-input
               .value=${layer.prefix ?? ""}
               @change=${(event: Event) => this.#patch({ prefix: (event.target as HTMLInputElement).value } as Partial<DiLayer>)}>
             </uui-input>
-          </label>
-          <label class="field">
-            <span>Suffix</span>
+          </div>
+
+          </umb-property-layout>
+          <umb-property-layout orientation="vertical" label="Suffix">
+
+            <div slot="editor" class="editor">
             <uui-input
               .value=${layer.suffix ?? ""}
               @change=${(event: Event) => this.#patch({ suffix: (event.target as HTMLInputElement).value } as Partial<DiLayer>)}>
             </uui-input>
-          </label>
+          </div>
+
+          </umb-property-layout>
         </div>
       </uui-box>
     `;
@@ -403,19 +545,22 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Typography">
-        <label class="field">
-          <span>Font</span>
+        <umb-property-layout orientation="vertical" label="Font">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${style.fontKey}
             .options=${this.#fontOptions(style.fontKey)}
             @change=${(event: Event) => patchStyle({ fontKey: (event.target as HTMLSelectElement).value })}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${this.#namedStyleSelect(style.fontKey, style.styleName ?? "", (name, size, fontStyle) =>
           patchStyle({ styleName: name || null, fontSize: size ?? style.fontSize, fontStyle: fontStyle ?? style.fontStyle }))}
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.fontSize.min}
             .max=${INSPECTOR_BOUNDS.fontSize.max}
@@ -423,35 +568,44 @@ export class DiLayerInspectorElement extends UmbLitElement {
             .value=${style.fontSize}
             @change=${(event: CustomEvent) => patchStyle({ fontSize: event.detail.value ?? style.fontSize })}>
           </di-number-field>
-          <label class="field">
-            <span>Weight</span>
+          <umb-property-layout orientation="vertical" label="Weight">
+
+            <div slot="editor" class="editor">
             <uui-select
               .value=${style.fontStyle}
               .options=${optionsFrom(["Regular", "Bold", "Italic", "BoldItalic"], style.fontStyle)}
               @change=${(event: Event) => patchStyle({ fontStyle: (event.target as HTMLSelectElement).value })}>
             </uui-select>
-          </label>
+          </div>
+
+          </umb-property-layout>
         </div>
 
-        <label class="field">
-          <span>Colour</span>
+        <umb-property-layout orientation="vertical" label="Colour">
+
+          <div slot="editor" class="editor">
           <di-colour-input
             label="Text colour"
             .value=${style.colour}
             @change=${(event: CustomEvent) => patchStyle({ colour: event.detail.value })}>
           </di-colour-input>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Align inside the box</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Align inside the box">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${style.textAlign}
             .options=${optionsFrom(["left", "centre", "right"], style.textAlign)}
             @change=${(event: Event) => patchStyle({ textAlign: (event.target as HTMLSelectElement).value as never })}>
           </uui-select>
-        </label>
+        </div>
 
-        <div class="pair">
+        </umb-property-layout>
+
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.lineSpacing.min}
             .max=${INSPECTOR_BOUNDS.lineSpacing.max}
@@ -470,7 +624,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
           </di-number-field>
         </div>
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.maxLines.min}
             .max=${INSPECTOR_BOUNDS.maxLines.max}
@@ -480,8 +634,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
             .value=${style.maxLines ?? null}
             @change=${(event: CustomEvent) => patchStyle({ maxLines: event.detail.value })}>
           </di-number-field>
-          <label class="field">
-            <span>When it overflows</span>
+          <umb-property-layout orientation="vertical" label="When it overflows">
+
+            <div slot="editor" class="editor">
             <uui-select
               .value=${style.overflow}
               .options=${optionsFrom(["shrink", "ellipsis", "clip"], style.overflow, {
@@ -491,17 +646,22 @@ export class DiLayerInspectorElement extends UmbLitElement {
               })}
               @change=${(event: Event) => patchStyle({ overflow: (event.target as HTMLSelectElement).value as never })}>
             </uui-select>
-          </label>
+          </div>
+
+          </umb-property-layout>
         </div>
 
-        <label class="field">
-          <span>Transform</span>
+        <umb-property-layout orientation="vertical" label="Transform">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${style.textTransform}
             .options=${optionsFrom(["none", "uppercase", "lowercase"], style.textTransform)}
             @change=${(event: Event) => patchStyle({ textTransform: (event.target as HTMLSelectElement).value as never })}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
       </uui-box>
     `;
   }
@@ -511,8 +671,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Image">
-        <label class="field">
-          <span>Source</span>
+        <umb-property-layout orientation="vertical" label="Source">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${source.kind}
             .options=${sourceKindOptions(source.kind)}
@@ -521,7 +682,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 source: { ...source, kind: (event.target as HTMLSelectElement).value as never },
               } as Partial<DiLayer>)}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${source.kind === "property"
           ? this.#field("Property", this.#propertyPathSelect(
@@ -535,8 +698,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
           : nothing}
 
         ${source.kind === "path"
-          ? html`<label class="field">
-              <span>Path</span>
+          ? html`<umb-property-layout orientation="vertical" label="Path">
+
+              <div slot="editor" class="editor">
               <uui-input
                 .value=${source.path ?? ""}
                 placeholder="/assets/logo.png"
@@ -545,29 +709,27 @@ export class DiLayerInspectorElement extends UmbLitElement {
                     source: { ...source, path: (event.target as HTMLInputElement).value },
                   } as Partial<DiLayer>)}>
               </uui-input>
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
 
         ${source.kind === "media"
-          ? html`<uui-button
-              look="secondary"
-              label="Choose an image from the media library"
-              @click=${() =>
-                this.dispatchEvent(
-                  new CustomEvent("di-pick-layer-image", { bubbles: true, composed: true, detail: { key: layer.key } }),
-                )}>
-              Choose image
-            </uui-button>`
+          ? this.#field("Media item", this.#mediaInput(source.mediaKey, (mediaKey) =>
+              this.#patch({ source: { ...source, kind: "media", mediaKey } } as Partial<DiLayer>)))
           : nothing}
 
-        <label class="field">
-          <span>Fit</span>
+        <umb-property-layout orientation="vertical" label="Fit">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${layer.fit}
             .options=${optionsFrom(["cover", "contain", "stretch"], layer.fit)}
             @change=${(event: Event) => this.#patch({ fit: (event.target as HTMLSelectElement).value as never } as Partial<DiLayer>)}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         <di-number-field
           .min=${INSPECTOR_BOUNDS.cornerRadius.min}
@@ -577,9 +739,10 @@ export class DiLayerInspectorElement extends UmbLitElement {
           @change=${(event: CustomEvent) => this.#patch({ cornerRadius: event.detail.value ?? 0 } as Partial<DiLayer>)}>
         </di-number-field>
 
-        <label class="field">
-          <span>Border</span>
-          <div class="row">
+        <umb-property-layout orientation="vertical" label="Border">
+
+          <div slot="editor" class="editor">
+          <div class="stack">
             <di-number-field
               .min=${INSPECTOR_BOUNDS.borderWidth.min}
               .max=${INSPECTOR_BOUNDS.borderWidth.max}
@@ -601,7 +764,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 </di-colour-input>`
               : nothing}
           </div>
-        </label>
+        </div>
+
+        </umb-property-layout>
       </uui-box>
     `;
   }
@@ -616,13 +781,16 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Badges">
-        <label class="field">
-          <span>Items from</span>
+        <umb-property-layout orientation="vertical" label="Items from">
+
+          <div slot="editor" class="editor">
           ${this.#propertyPathSelect(layer.itemsPropertyAlias, (alias) =>
             this.#patch({ itemsPropertyAlias: alias } as Partial<DiLayer>))}
-        </label>
+        </div>
 
-        <div class="pair">
+        </umb-property-layout>
+
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.maxItems.min}
             .max=${INSPECTOR_BOUNDS.maxItems.max}
@@ -640,26 +808,32 @@ export class DiLayerInspectorElement extends UmbLitElement {
           </di-number-field>
         </div>
 
-        <label class="field">
-          <span>Direction</span>
+        <umb-property-layout orientation="vertical" label="Direction">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${layer.direction}
             .options=${optionsFrom(["horizontal", "vertical"], layer.direction)}
             @change=${(event: Event) =>
               this.#patch({ direction: (event.target as HTMLSelectElement).value as never } as Partial<DiLayer>)}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${layer.direction === "horizontal"
           ? html`
-              <label class="field inline">
-                <span>Wrap onto new rows</span>
+              <umb-property-layout orientation="vertical" label="Wrap onto new rows">
+
+                <div slot="editor" class="editor">
                 <uui-toggle
                   ?checked=${layer.wrap}
                   @change=${(event: Event) =>
                     this.#patch({ wrap: (event.target as HTMLInputElement).checked } as Partial<DiLayer>)}>
                 </uui-toggle>
-              </label>
+              </div>
+
+              </umb-property-layout>
 
               ${layer.wrap
                 ? html`
@@ -676,7 +850,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
             `
           : nothing}
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.circleSize.min}
             .max=${INSPECTOR_BOUNDS.circleSize.max}
@@ -693,18 +867,22 @@ export class DiLayerInspectorElement extends UmbLitElement {
           </di-number-field>
         </div>
 
-        <label class="field">
-          <span>Circle fill</span>
+        <umb-property-layout orientation="vertical" label="Circle fill">
+
+          <div slot="editor" class="editor">
           <di-colour-input
             label="Circle fill"
             .value=${layer.badge.fillColour}
             @change=${(event: CustomEvent) => patchBadge({ fillColour: event.detail.value })}>
           </di-colour-input>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Circle border</span>
-          <div class="row">
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Circle border">
+
+          <div slot="editor" class="editor">
+          <div class="stack">
             <di-colour-input
               label="Circle border colour"
               .value=${layer.badge.borderColour}
@@ -719,20 +897,26 @@ export class DiLayerInspectorElement extends UmbLitElement {
               @change=${(event: CustomEvent) => patchBadge({ borderWidth: event.detail.value ?? 1.5 })}>
             </di-number-field>
           </div>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Icon folder</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Icon folder">
+
+          <div slot="editor" class="editor">
           <uui-input
             .value=${layer.icon.basePath}
             placeholder="/assets/og-icons"
             @change=${(event: Event) => patchIcon({ basePath: (event.target as HTMLInputElement).value })}>
           </uui-input>
           <small class="hint">Icons are matched by slugifying the item's name, with default.png as a fallback.</small>
-        </label>
+        </div>
 
-        <label class="field">
-          <span>Label position</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Label position">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${layer.label.position}
             .options=${optionsFrom(["below", "right", "none"], layer.label.position, {
@@ -745,21 +929,26 @@ export class DiLayerInspectorElement extends UmbLitElement {
           ${layer.label.position === "right"
             ? html`<small class="hint">Each badge is as wide as its own label.</small>`
             : nothing}
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${layer.label.position === "none"
           ? nothing
           : html`
-              <label class="field">
-                <span>Label font</span>
+              <umb-property-layout orientation="vertical" label="Label font">
+
+                <div slot="editor" class="editor">
                 <uui-select
                   .value=${layer.label.fontKey}
                   .options=${this.#fontOptions(layer.label.fontKey)}
                   @change=${(event: Event) => patchLabel({ fontKey: (event.target as HTMLSelectElement).value })}>
                 </uui-select>
-              </label>
+              </div>
 
-              <div class="pair">
+              </umb-property-layout>
+
+              <div class="stack">
                 <di-number-field
                   .min=${INSPECTOR_BOUNDS.labelSize.min}
                   .max=${INSPECTOR_BOUNDS.labelSize.max}
@@ -776,24 +965,30 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 </di-number-field>
               </div>
 
-              <label class="field">
-                <span>Label colour</span>
+              <umb-property-layout orientation="vertical" label="Label colour">
+
+                <div slot="editor" class="editor">
                 <di-colour-input
                   label="Label colour"
                   .value=${layer.label.colour}
                   @change=${(event: CustomEvent) => patchLabel({ colour: event.detail.value })}>
                 </di-colour-input>
-              </label>
+              </div>
 
-              <label class="field">
-                <span>Label transform</span>
+              </umb-property-layout>
+
+              <umb-property-layout orientation="vertical" label="Label transform">
+
+                <div slot="editor" class="editor">
                 <uui-select
                   .value=${layer.label.textTransform}
                   .options=${optionsFrom(["none", "uppercase", "lowercase"], layer.label.textTransform)}
                   @change=${(event: Event) =>
                     patchLabel({ textTransform: (event.target as HTMLSelectElement).value as never })}>
                 </uui-select>
-              </label>
+              </div>
+
+              </umb-property-layout>
             `}
       </uui-box>
     `;
@@ -843,28 +1038,34 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <uui-box headline="Shape">
-        <label class="field">
-          <span>Shape</span>
+        <umb-property-layout orientation="vertical" label="Shape">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${shapeChoice(layer)}
             .options=${optionsFrom(["rectangle", "circle", "ellipse", "polygon", "star"], shapeChoice(layer))}
             @change=${(event: Event) => this.#setShape(layer, (event.target as HTMLSelectElement).value)}>
           </uui-select>
-        </label>
+        </div>
 
-        <label class="field inline">
-          <span>Lock aspect ratio</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Lock aspect ratio">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             label="Lock aspect ratio"
             ?checked=${layer.lockAspect === true}
             @change=${(event: Event) =>
               this.#patch({ lockAspect: (event.target as HTMLInputElement).checked } as Partial<DiLayer>)}>
           </uui-toggle>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${shape === "polygon" || shape === "star"
           ? html`
-              <div class="pair">
+              <div class="stack">
                 <di-number-field
                   label=${shape === "star" ? "Points" : "Sides"}
                   suffix=""
@@ -890,28 +1091,35 @@ export class DiLayerInspectorElement extends UmbLitElement {
             `
           : nothing}
 
-        <label class="field inline">
-          <span>Fill</span>
+        <umb-property-layout orientation="vertical" label="Fill">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${hasFill}
             @change=${(event: Event) =>
               this.#patch({ fill: (event.target as HTMLInputElement).checked ? "#000000" : null } as Partial<DiLayer>)}>
           </uui-toggle>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${hasFill
-          ? html`<label class="field">
-              <span>Fill colour</span>
+          ? html`<umb-property-layout orientation="vertical" label="Fill colour">
+
+              <div slot="editor" class="editor">
               <di-colour-input
                 label="Fill colour"
                 .value=${layer.fill ?? "#000000"}
                 @change=${(event: CustomEvent) => this.#patch({ fill: event.detail.value } as Partial<DiLayer>)}>
               </di-colour-input>
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
 
-        <label class="field inline">
-          <span>Gradient</span>
+        <umb-property-layout orientation="vertical" label="Gradient">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${!!layer.gradient}
             @change=${(event: Event) =>
@@ -919,7 +1127,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 gradient: (event.target as HTMLInputElement).checked ? createGradient() : null,
               } as Partial<DiLayer>)}>
           </uui-toggle>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${layer.gradient
           ? this.#renderGradientFields(layer.gradient, (next) => this.#patch({ gradient: next } as Partial<DiLayer>))
@@ -935,9 +1145,10 @@ export class DiLayerInspectorElement extends UmbLitElement {
             </di-number-field>`
           : nothing}
 
-        <label class="field">
-          <span>Border</span>
-          <div class="row">
+        <umb-property-layout orientation="vertical" label="Border">
+
+          <div slot="editor" class="editor">
+          <div class="stack">
             <di-number-field
               .min=${INSPECTOR_BOUNDS.borderWidth.min}
               .max=${INSPECTOR_BOUNDS.borderWidth.max}
@@ -960,7 +1171,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
               : nothing}
           </div>
           <small class="hint">Drawn inside the box. Turn Fill off for an outline only.</small>
-        </label>
+        </div>
+
+        </umb-property-layout>
       </uui-box>
     `;
   }
@@ -974,8 +1187,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
       <uui-box headline="Layout">
         ${this.#renderAxis(layer, "x")} ${this.#renderAxis(layer, "y")}
 
-        <label class="field">
-          <span>Anchor</span>
+        <umb-property-layout orientation="vertical" label="Anchor">
+
+          <div slot="editor" class="editor">
           <di-anchor-picker
             .value=${layer.position.anchor}
             @change=${(event: CustomEvent) => this.#reanchor(layer, event.detail.value)}>
@@ -989,9 +1203,11 @@ export class DiLayerInspectorElement extends UmbLitElement {
               : nothing}
             ${rotation !== 0 ? html`The layer turns around this point.` : nothing}
           </small>
-        </label>
+        </div>
 
-        <div class="field">
+        </umb-property-layout>
+
+        <div class="stack">
           <di-number-field
             label="Rotation"
             suffix="°"
@@ -1004,7 +1220,7 @@ export class DiLayerInspectorElement extends UmbLitElement {
           <small class="hint">Clockwise, around the anchor point. Drag the handle above the selection on the canvas; hold Shift for 15° steps.</small>
         </div>
 
-        <div class="pair">
+        <div class="stack">
           <di-number-field
             .min=${INSPECTOR_BOUNDS.width.min}
             .max=${INSPECTOR_BOUNDS.width.max}
@@ -1039,8 +1255,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     return html`
       <div class="axis">
-        <label class="field">
-          <span>${axis === "x" ? "Horizontal position" : "Vertical position"}</span>
+        <umb-property-layout orientation="vertical" label="${axis === "x" ? "Horizontal position" : "Vertical position"}">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${tracked ? "relative" : "absolute"}
             .options=${[
@@ -1052,13 +1269,16 @@ export class DiLayerInspectorElement extends UmbLitElement {
           ${!tracked && others.length === 0
             ? html`<small class="hint">Add another layer to position this one against it.</small>`
             : nothing}
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${tracked && reference
           ? html`
-              <label class="field">
-                <span>Tracks</span>
-                <div class="row">
+              <umb-property-layout orientation="vertical" label="Tracks">
+
+                <div slot="editor" class="editor">
+                <div class="stack">
                   <uui-select
                     .value=${reference.layerKey}
                     .options=${others.map((candidate) => ({
@@ -1081,7 +1301,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
                       this.#patchReference(layer, axis, { edge: (event.target as HTMLSelectElement).value as never })}>
                   </uui-select>
                 </div>
-              </label>
+              </div>
+
+              </umb-property-layout>
 
               <di-number-field
                 .min=${INSPECTOR_BOUNDS.referenceGap.min}
@@ -1163,23 +1385,29 @@ export class DiLayerInspectorElement extends UmbLitElement {
   #renderBehaviour(layer: DiLayer) {
     return html`
       <uui-box headline="Behaviour">
-        <label class="field inline">
-          <span>Visible</span>
+        <umb-property-layout orientation="vertical" label="Visible">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${layer.isVisible}
             @change=${(event: Event) =>
               this.#patch({ isVisible: (event.target as HTMLInputElement).checked } as Partial<DiLayer>)}>
           </uui-toggle>
-        </label>
+        </div>
 
-        <label class="field inline">
-          <span>Locked</span>
+        </umb-property-layout>
+
+        <umb-property-layout orientation="vertical" label="Locked">
+
+          <div slot="editor" class="editor">
           <uui-toggle
             ?checked=${layer.isLocked}
             @change=${(event: Event) =>
               this.#patch({ isLocked: (event.target as HTMLInputElement).checked } as Partial<DiLayer>)}>
           </uui-toggle>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         <di-number-field
           label="Opacity"
@@ -1191,8 +1419,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
           @change=${(event: CustomEvent) => this.#patch({ opacity: event.detail.value ?? 1 } as Partial<DiLayer>)}>
         </di-number-field>
 
-        <label class="field">
-          <span>Show this layer</span>
+        <umb-property-layout orientation="vertical" label="Show this layer">
+
+          <div slot="editor" class="editor">
           <uui-select
             .value=${layer.visibility.rule}
             .options=${optionsFrom(["always", "whenNotEmpty", "whenPropertyTruthy"], layer.visibility.rule, {
@@ -1205,20 +1434,39 @@ export class DiLayerInspectorElement extends UmbLitElement {
                 visibility: { ...layer.visibility, rule: (event.target as HTMLSelectElement).value as never },
               } as Partial<DiLayer>)}>
           </uui-select>
-        </label>
+        </div>
+
+        </umb-property-layout>
 
         ${layer.visibility.rule === "whenPropertyTruthy"
-          ? html`<label class="field">
-              <span>Controlled by</span>
+          ? html`<umb-property-layout orientation="vertical" label="Controlled by">
+
+              <div slot="editor" class="editor">
               ${this.#propertyPathSelect(layer.visibility.propertyAlias ?? "", (alias) =>
                 this.#patch({ visibility: { ...layer.visibility, propertyAlias: alias } } as Partial<DiLayer>))}
-            </label>`
+            </div>
+
+            </umb-property-layout>`
           : nothing}
       </uui-box>
     `;
   }
 
   // ------------------------------------------------------------------ shared field helpers
+
+  /**
+   * One media item, as core's own picker renders it: a card with the image, open and remove -
+   * the same `umb-input-media max="1"` the template's output folder uses.
+   */
+  #mediaInput(mediaKey: string | null | undefined, onChange: (mediaKey: string | null) => void) {
+    return html`
+      <umb-input-media
+        max="1"
+        .selection=${mediaKey ? [mediaKey] : []}
+        @change=${(event: Event) => onChange((event.target as HTMLElement & { selection: string[] }).selection[0] ?? null)}>
+      </umb-input-media>
+    `;
+  }
 
   /**
    * One inspector field: core's label / description / editor layout, stacked, so every field in
@@ -1326,8 +1574,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
     if (!font || font.styles.length === 0) return nothing;
 
     return html`
-      <label class="field">
-        <span>Named style</span>
+      <umb-property-layout orientation="vertical" label="Named style">
+
+        <div slot="editor" class="editor">
         <uui-select
           .value=${styleName}
           .options=${[
@@ -1344,7 +1593,9 @@ export class DiLayerInspectorElement extends UmbLitElement {
             onChange(name, style?.size, style?.fontStyle);
           }}>
         </uui-select>
-      </label>
+      </div>
+
+      </umb-property-layout>
     `;
   }
 
@@ -1371,24 +1622,6 @@ export class DiLayerInspectorElement extends UmbLitElement {
 
     .head uui-input {
       flex: 1 1 auto;
-    }
-
-    /* The same space above and below every field as the umb-property-layout ones get, so a
-       dropdown never sits tight against the one before or after it. */
-    .field {
-      display: grid;
-      gap: var(--uui-size-space-1);
-      padding: var(--uui-size-space-3) 0;
-    }
-
-    /* The box already pads its top edge. */
-    .field:first-child {
-      padding-top: 0;
-    }
-
-    .field > span {
-      font-size: 11px;
-      color: var(--uui-color-text-alt);
     }
 
     /* Core's property layout, tightened for a 320px panel: its own padding (--uui-size-layout-1
@@ -1427,21 +1660,70 @@ export class DiLayerInspectorElement extends UmbLitElement {
       line-height: 1.3;
     }
 
-    .property-select {
-      width: 100%;
+    .gradient-preview {
+      height: 28px;
+      margin: var(--uui-size-space-3) 0;
+      border: 1px solid var(--uui-color-border);
+      border-radius: var(--uui-border-radius);
+    }
+
+    .angle,
+    .stops {
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-3);
       min-width: 0;
     }
 
-    .field.inline {
-      grid-template-columns: 1fr auto;
-      align-items: center;
+    .stop {
+      display: flex;
+      flex-direction: column;
+      gap: var(--uui-size-space-2);
+      padding: var(--uui-size-space-3);
+      border: 1px solid var(--uui-color-border);
+      border-radius: var(--uui-border-radius);
+      min-width: 0;
     }
 
-    .pair {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
+    .stop-position {
+      display: flex;
+      align-items: flex-end;
       gap: var(--uui-size-space-2);
-      margin-bottom: var(--uui-size-space-3);
+      min-width: 0;
+    }
+
+    .stop-position di-number-field {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .stop-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--uui-size-space-2);
+    }
+
+    /* What used to sit side by side - width and height, from and to, a select and its button -
+       is one field per line: side by side, the second was clipped at the default panel width. */
+    .stack {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .editor {
+      min-width: 0;
+    }
+
+    .editor > uui-select,
+    .editor > uui-input,
+    .editor > di-colour-input {
+      width: 100%;
+    }
+
+    .property-select {
+      width: 100%;
+      min-width: 0;
     }
 
     /* One axis reads as a unit: the mode, then whatever that mode needs. */
@@ -1451,15 +1733,8 @@ export class DiLayerInspectorElement extends UmbLitElement {
       margin-bottom: var(--uui-size-space-3);
     }
 
-    .axis .field:last-child,
-    .axis di-number-field:last-child {
-      margin-bottom: 0;
-    }
-
-    .row {
-      display: flex;
-      gap: var(--uui-size-space-2);
-      align-items: center;
+    .axis umb-property-layout:last-child {
+      padding-bottom: 0;
     }
 
     .hint {
@@ -1483,6 +1758,29 @@ function optionsFrom(values: string[], selected: string, labels: Record<string, 
     selected: value === selected,
   }));
 }
+
+const GRADIENT_KIND_LABELS: Record<string, string> = {
+  linear: "Linear",
+  radial: "Radial",
+  angular: "Angular (conic)",
+  diamond: "Diamond",
+  reflected: "Reflected",
+};
+
+const EXTENT_LABELS: Record<string, string> = {
+  farthestCorner: "Farthest corner",
+  farthestSide: "Farthest side",
+  closestCorner: "Closest corner",
+  closestSide: "Closest side",
+};
+
+/** The four directions an art program's angle control snaps to: arrow, degrees, name. */
+const ANGLE_PRESETS: [string, number, string][] = [
+  ["↑", 0, "Upwards (0°)"],
+  ["→", 90, "To the right (90°)"],
+  ["↓", 180, "Downwards (180°)"],
+  ["←", 270, "To the left (270°)"],
+];
 
 function sourceKindOptions(selected: string) {
   return optionsFrom(["none", "media", "path", "property"], selected, {

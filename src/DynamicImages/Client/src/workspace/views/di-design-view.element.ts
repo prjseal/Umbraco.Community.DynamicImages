@@ -1,9 +1,7 @@
 import { css, customElement, html, nothing, state } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
-import { UMB_MODAL_MANAGER_CONTEXT } from "@umbraco-cms/backoffice/modal";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
-import { UMB_MEDIA_PICKER_MODAL } from "@umbraco-cms/backoffice/media";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import type { DiFont, DiLayer, DiLayerBounds, DiPosition, DiProperty, DiTemplate } from "../../api/types.js";
 import { detach, isTracked, type Axis } from "../../models/relative-layout.js";
@@ -36,7 +34,6 @@ export class DiDesignViewElement extends UmbLitElement {
   manifest?: ManifestWorkspaceView;
 
   #context?: DiTemplateWorkspaceContext;
-  #modalContext?: typeof UMB_MODAL_MANAGER_CONTEXT.TYPE;
   #notificationContext?: typeof UMB_NOTIFICATION_CONTEXT.TYPE;
   #layoutTimer?: number;
   #layoutAbort?: AbortController;
@@ -98,9 +95,6 @@ export class DiDesignViewElement extends UmbLitElement {
   constructor() {
     super();
 
-    this.consumeContext(UMB_MODAL_MANAGER_CONTEXT, (context) => {
-      this.#modalContext = context;
-    });
     this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => {
       this.#notificationContext = context;
     });
@@ -332,29 +326,6 @@ export class DiDesignViewElement extends UmbLitElement {
 
   // ------------------------------------------------------------------ media pickers
 
-  async #pickBaseImage() {
-    const mediaKey = await this.#pickMedia();
-    if (!mediaKey) return;
-
-    this.#context?.updateCanvas({ baseImage: { kind: "media", mediaKey } });
-  }
-
-  async #pickLayerImage(key: string) {
-    const mediaKey = await this.#pickMedia();
-    if (!mediaKey) return;
-
-    this.#context?.updateLayer(key, { source: { kind: "media", mediaKey } } as Partial<DiLayer>);
-  }
-
-  async #pickMedia(): Promise<string | undefined> {
-    if (!this.#modalContext) return undefined;
-
-    const modal = this.#modalContext.open(this, UMB_MEDIA_PICKER_MODAL, { data: { multiple: false } });
-    const result = await modal?.onSubmit().catch(() => undefined);
-
-    return result?.selection[0] ?? undefined;
-  }
-
   /** Sizes the canvas to the base image, which is almost always what is wanted after picking one. */
   async #useImageSize() {
     const baseImage = this._template?.canvas.baseImage;
@@ -461,8 +432,6 @@ export class DiDesignViewElement extends UmbLitElement {
         @di-palette-add=${(event: CustomEvent) => this.#addFromPayload(event.detail.payload)}
         @di-palette-drop=${(event: CustomEvent) =>
           this.#addFromPayload(event.detail.payload, event.detail.x, event.detail.y, event.detail.targetKey)}
-        @di-pick-base-image=${this.#pickBaseImage}
-        @di-pick-layer-image=${(event: CustomEvent) => this.#pickLayerImage(event.detail.key)}
         @di-use-image-size=${this.#useImageSize}
         @di-request-preview=${() => this.#strip?.refresh()}
         @di-preview-state=${(event: CustomEvent) => {

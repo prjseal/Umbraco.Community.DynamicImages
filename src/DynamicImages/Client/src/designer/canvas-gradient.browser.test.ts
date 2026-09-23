@@ -87,3 +87,36 @@ describe("the canvas fill on the artboard", () => {
     expect(getComputedStyle(shape).backgroundImage).toMatch(/^radial-gradient\(/);
   });
 });
+
+describe("the gradient editor's preview bar", () => {
+  it("is painted with the same builder as the artboard, for every kind", async () => {
+    const { gradientCss } = await import("../models/gradient-css.js");
+    await import("./di-layer-inspector.element.js");
+
+    for (const kind of ["linear", "radial", "angular", "diamond", "reflected"] as const) {
+      resetBody();
+      const template = createTemplate("Preview bar fixture");
+      const gradient: DiGradient = {
+        ...createGradient(), kind, stops: [
+          { colour: "#FF0000", position: 0 }, { colour: "#00FF00", position: 0.3 }, { colour: "#0000FF", position: 1 },
+        ],
+      };
+      template.canvas.backgroundGradient = gradient;
+
+      const inspector = document.createElement("di-layer-inspector") as HTMLElement & { template: DiTemplate };
+      inspector.template = template;
+      fixedBox(320, 2000).append(inspector);
+      await settle(inspector, 3);
+
+      const bar = inspector.shadowRoot!.querySelector<HTMLElement>(".gradient-preview")!;
+
+      // The browser's own reading of each, so formatting differences cannot make them disagree.
+      const expected = document.createElement("div");
+      expected.style.background = gradientCss(gradient);
+      document.body.append(expected);
+
+      expect(getComputedStyle(bar).backgroundImage, kind).toBe(getComputedStyle(expected).backgroundImage);
+      expect(getComputedStyle(bar).backgroundImage, kind).not.toBe("none");
+    }
+  });
+});

@@ -13,12 +13,73 @@ public enum GradientKind
 
     /// <summary>Out from <see cref="Gradient.CentreX"/>, <see cref="Gradient.CentreY"/>.</summary>
     [JsonStringEnumMemberName("radial")]
-    Radial
+    Radial,
+
+    /// <summary>
+    /// Around the centre, sweeping clockwise from <see cref="Gradient.Angle"/> - an art program's
+    /// angle gradient, CSS's <c>conic-gradient</c>.
+    /// </summary>
+    [JsonStringEnumMemberName("angular")]
+    Angular,
+
+    /// <summary>Out from the centre in a diamond that touches the box's four sides at the last stop.</summary>
+    [JsonStringEnumMemberName("diamond")]
+    Diamond,
+
+    /// <summary>A linear gradient mirrored about the box's centre line: first stop in the middle, last at both ends.</summary>
+    [JsonStringEnumMemberName("reflected")]
+    Reflected
+}
+
+/// <summary>A radial gradient's ending shape.</summary>
+[JsonConverter(typeof(CamelCaseJsonStringEnumConverter))]
+public enum GradientShape
+{
+    /// <summary>With the box's proportions. What every radial gradient was before this option.</summary>
+    [JsonStringEnumMemberName("ellipse")]
+    Ellipse,
+
+    [JsonStringEnumMemberName("circle")]
+    Circle
+}
+
+/// <summary>How far a radial gradient's last stop reaches - CSS's ending-shape size keywords.</summary>
+[JsonConverter(typeof(CamelCaseJsonStringEnumConverter))]
+public enum GradientExtent
+{
+    /// <summary>The ellipse through the box's corner farthest from the centre. CSS's default.</summary>
+    [JsonStringEnumMemberName("farthestCorner")]
+    FarthestCorner,
+
+    [JsonStringEnumMemberName("farthestSide")]
+    FarthestSide,
+
+    [JsonStringEnumMemberName("closestCorner")]
+    ClosestCorner,
+
+    [JsonStringEnumMemberName("closestSide")]
+    ClosestSide
+}
+
+/// <summary>One colour stop along a gradient.</summary>
+public class GradientStop
+{
+    public string Colour { get; set; } = "#000000";
+
+    /// <summary>Where the stop sits along the gradient, 0..1. The renderer clamps.</summary>
+    public float Position { get; set; }
 }
 
 /// <summary>
-/// A two-stop gradient, on a shape layer or as the canvas's fill. Shared by both, so the two
-/// cannot drift apart.
+/// A gradient, on a shape layer or as the canvas's fill. Shared by both, so the two cannot drift
+/// apart.
+/// <para>
+/// <see cref="Stops"/> is optional. Without at least two, the gradient is <see cref="From"/> at 0
+/// and <see cref="To"/> at 1 - which is every template stored before stops existed, so they render
+/// exactly as they did with no migration. With stops, the stops win, and the designer also writes
+/// the first and last into <see cref="From"/> and <see cref="To"/> so an older package still draws
+/// something close.
+/// </para>
 /// </summary>
 public class Gradient
 {
@@ -29,16 +90,28 @@ public class Gradient
 
     public string To { get; set; } = "#00000000";
 
-    /// <summary><see cref="GradientKind.Linear"/> only. Degrees clockwise from "top to bottom" = 180,
-    /// matching CSS linear-gradient.</summary>
+    /// <summary>
+    /// Linear and reflected: degrees clockwise from "top to bottom" = 180, matching CSS
+    /// linear-gradient. Angular: where the sweep starts, degrees clockwise from straight up,
+    /// matching CSS <c>conic-gradient(from …)</c>.
+    /// </summary>
     public float Angle { get; set; } = 180f;
 
-    /// <summary><see cref="GradientKind.Radial"/> only. The centre as a fraction of the box, as in
-    /// CSS's <c>at 50% 50%</c>. The renderer clamps to 0..1.</summary>
+    /// <summary>Radial, angular and diamond. The centre as a fraction of the box, as in CSS's
+    /// <c>at 50% 50%</c>. The renderer clamps to 0..1.</summary>
     public float CentreX { get; set; } = 0.5f;
 
-    /// <summary><see cref="GradientKind.Radial"/> only. See <see cref="CentreX"/>.</summary>
+    /// <summary>See <see cref="CentreX"/>.</summary>
     public float CentreY { get; set; } = 0.5f;
+
+    /// <summary><see cref="GradientKind.Radial"/> only. Absent means an ellipse, as before.</summary>
+    public GradientShape Shape { get; set; } = GradientShape.Ellipse;
+
+    /// <summary>Two or more stops, or null for <see cref="From"/> to <see cref="To"/>.</summary>
+    public List<GradientStop>? Stops { get; set; }
+
+    /// <summary><see cref="GradientKind.Radial"/> only. Absent means farthest-corner, as before.</summary>
+    public GradientExtent Extent { get; set; } = GradientExtent.FarthestCorner;
 }
 
 /// <summary>What a <see cref="RectLayer"/> draws inside its box.</summary>

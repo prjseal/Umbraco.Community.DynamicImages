@@ -213,6 +213,31 @@ public class TemplateValidatorTests
         Assert.DoesNotContain(await Validate(template), i => i.Code == "LockAspectNotSquare");
     }
 
+    [Fact]
+    public async Task A_gradient_with_more_than_sixteen_stops_is_warned_about()
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = new Gradient
+        {
+            Stops = Enumerable.Range(0, 17).Select(i => new GradientStop { Colour = "#FFFFFF", Position = i / 16f }).ToList()
+        };
+
+        Assert.Contains(await Validate(template), i => i.Code == "GradientTooManyStops");
+    }
+
+    [Fact]
+    public async Task A_stop_colour_that_does_not_parse_is_warned_about()
+    {
+        var template = Template();
+        template.Canvas.BackgroundGradient = new Gradient
+        {
+            Stops = [new GradientStop { Colour = "#FFFFFF" }, new GradientStop { Colour = "teal-ish", Position = 1 }]
+        };
+
+        var issue = Assert.Single(await Validate(template), i => i.Code == "GradientStopColourInvalid");
+        Assert.Equal(ValidationSeverity.Warning, issue.Severity);
+    }
+
     /// <summary>
     /// A stand-in for an Umbraco service these templates never reach into. Hand-writing one of
     /// those interfaces would cost more than the warnings under test are worth, and a member that

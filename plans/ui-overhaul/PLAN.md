@@ -469,50 +469,74 @@ existing `InferTargets`. Test it in `PropertyPathTests`.
 **Current:** a colour swatch and hex field side by side; From/To and Centre X/Y in two-column
 pairs; a two-stop gradient only (`before/09-shape-fill.png`, `before/05-designer-palette-top.png`).
 
-**Target**
+**Scope widened during implementation (with the user).** The brief's gradient item is not only
+multi-stop: it is the set of gradient options an art program (Photoshop, Figma, Illustrator)
+offers. So the editor gained gradient *types*, a radial shape and size, and Reverse, as well as
+stops.
 
-- **Colour input.** `di-colour-input` is rebuilt on **`uui-color-picker`** (`opacity`, hex
-  output including alpha as `#RRGGBBAA`), keeping its tag, `label`, `value` and `change` event.
-  Every colour field in the inspector — canvas fill, shape fill, borders, text colour, badge
-  colours, gradient stops — upgrades at once. Swatches are off unless we add a theme palette
-  later.
-- **Everything stacks.** Delete `.pair` and `.row` from the inspector's styles. Width/Height,
-  From/To, Centre X/Y, and the base image source + *Choose* all become one field per line. The
-  base-image media selection itself becomes an `umb-input-media max="1"`, following section 3.
+**Target (as built)**
+
+- **Colour input.** `di-colour-input` is rebuilt on **`uui-color-picker`** (`opacity`, `uppercase`,
+  hex output including alpha as `#RRGGBBAA`), keeping its tag, `label`, `value` and `change`
+  event. The compact picker shows only a swatch, so an editable hex `uui-input` sits beside it in
+  the same control - a brand colour is typed, not dragged to. Every colour field in the inspector
+  upgraded at once. Swatches are off.
+- **Everything stacks.** `.pair` and `.row` are gone from the inspector's styles. Width/Height,
+  From/To, Centre X/Y and the base image's source are one field per line. The base-image and
+  image-layer media selection is an `umb-input-media max="1"` (the Choose buttons and their
+  `di-pick-*-image` events are gone).
 - **Gradient editor**, stacked in this order:
-  1. **Type:** Linear / Radial.
+  1. **Type:** Linear, Radial, **Angular** (conic), **Diamond**, **Reflected**.
   2. **Preview bar:** a full-width strip painted with `gradientCss()`.
-  3. Linear: **Angle**, as a `uui-slider` (0–359) plus the number field, and a `uui-button-group`
-     of direction presets (↑ 0°, → 90°, ↓ 180°, ← 270°).
-     Radial: **Centre X** and **Centre Y** (%, each on its own line), then **Size**, a select of
-     closest-side / closest-corner / farthest-side / farthest-corner (default farthest-corner,
-     today's behaviour).
-  4. **Stops:** one block per stop, each a colour picker, a **Position** % field and a remove
-     button (disabled at two stops). **Add stop** below inserts at the midpoint of the widest gap,
-     with the interpolated colour.
+  3. Per type:
+     - Linear and Reflected: **Angle**, a `uui-slider` (0–359) plus the number field, and a
+       `uui-button-group` of direction presets (↑ 0°, → 90°, ↓ 180°, ← 270°).
+     - Radial: **Shape** (Ellipse / Circle), **Size** (farthest-corner, farthest-side,
+       closest-corner, closest-side; default farthest-corner, today's behaviour), **Centre X**
+       and **Centre Y** (%).
+     - Angular: **Start angle** (slider, number, presets) and Centre X/Y.
+     - Diamond: Centre X/Y.
+  4. **Colour stops:** one block per stop, each a colour picker, a **Position** % field and a
+     remove button (disabled at two stops). **Add stop** inserts at the midpoint of the widest
+     gap, in the interpolated colour; **Reverse** flips the gradient.
 
 **Server-side impact**
 
-- `Gradient` gains `Stops: List<GradientStop { Colour, Position (0..1) }>?` and
-  `Extent: GradientExtent` (`closestSide|closestCorner|farthestSide|farthestCorner`, default
-  `farthestCorner`).
+- `GradientKind` gains `Angular`, `Diamond` and `Reflected`. `Gradient` gains
+  `Stops: List<GradientStop { Colour, Position (0..1) }>?`, `Extent: GradientExtent`
+  (`farthestCorner` default) and `Shape: GradientShape` (`ellipse` default). `Angle` is the start
+  of the sweep for Angular (degrees clockwise from up, as CSS `conic-gradient(from …)`); the centre
+  is used by Radial, Angular and Diamond.
 - `From`/`To` stay. When `Stops` is null or has fewer than 2 entries, the effective stops are
-  `[From@0, To@1]`, so every stored template renders exactly as before, with no migration. When
-  `Stops` is set, it wins, and the writer also sets `From`/`To` to the first and last stop so an
-  older package still draws something close.
-- `GradientBrushes.Build` passes all effective stops, sorted by position and clamped to 0..1.
-  `GradientGeometry.RadialSemiAxes` takes the extent.
-- The client's `DiGradient`, `createGradient()` and `models/gradient-css.ts` mirror the same
-  rules, so the designer and the render agree.
-- `TemplateValidator`: warn when there are more than 16 stops, or a stop colour does not parse.
+  `[From@0, To@1]` (`GradientGeometry.EffectiveStops`), so every stored template renders exactly as
+  before, with no migration. When `Stops` is set it wins, and the designer also writes the first
+  and last stop into `From`/`To` so an older package still draws something close. An older package
+  cannot read the new kinds at all (a downgrade concern only).
+- `GradientBrushes.Build` passes all effective stops. Radial ellipse: `RadialSemiAxes(…, extent)`;
+  radial circle: `RadialCircleRadius(…, extent)` into a `RadialGradientBrush`. Reflected: a linear
+  brush over `GradientGeometry.ReflectedStops` (first stop at the middle, last at both ends).
+  Angular and Diamond: ImageSharp.Drawing 2.1.5 has no conic brush and its gradient applicator
+  base is internal, so `PositionGradientBrush` (a `Brush` with its own `BrushApplicator`) evaluates
+  `GradientGeometry.AngularPosition` / `DiamondPosition` per pixel, in the box's own coordinates via
+  the inverse layer transform, interpolating stops and blending as ImageSharp's brushes do.
+- The client's `DiGradient`, `models/gradient-css.ts` mirror the same rules: `conic-gradient` for
+  Angular, mirrored stops for Reflected, and for Diamond four `to <corner>` linear gradients, one per
+  quadrant, sized to the quadrant with the stops halved - CSS's "magic corners" put those lines
+  exactly on the diamond `GradientGeometry.DiamondPosition` draws.
+- `TemplateValidator`: warns when there are more than 16 stops, or a stop colour does not parse;
+  the JPEG-transparency check reads every stop.
 
 **Tests**
 
-- `GradientGeometryTests`: each extent against hand-computed axes.
-- `RendererTests`: a three-stop linear gradient, sampling the middle pixel.
-- `TemplateJsonTests`: a v-current document with only `from`/`to` reads as two stops.
-- `gradient-css.test.ts`: multi-stop and extent CSS.
-- `canvas-gradient.browser.test.ts`: the preview bar matches.
+- `GradientGeometryTests`: every extent for ellipse and circle against hand-computed numbers, the
+  half-pixel floor, angular bearings, diamond positions (off-centre), reflected and effective stops.
+- `RendererTests`: a three-stop linear (middle pixel), angular, diamond, circular radial and
+  reflected, sampled.
+- `TemplateJsonTests`: a document with only `from`/`to` reads as two stops; the new options round
+  trip as camel case. `TemplateValidatorTests`: too many stops, an unreadable stop.
+- `gradient-css.test.ts`: multi-stop, every kind, shape/extent, add/remove/reverse, alpha mixing.
+- `canvas-gradient.browser.test.ts`: the preview bar's computed background equals the builder's,
+  for every kind.
 
 ### General layout rules (all of the above)
 
