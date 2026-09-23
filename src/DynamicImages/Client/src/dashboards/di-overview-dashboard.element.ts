@@ -8,6 +8,7 @@ import {
   type TokenGetter,
 } from "../api/dynamic-images-api.js";
 import { DI_TEMPLATE_ROOT_ENTITY_TYPE } from "../tree/constants.js";
+import { DI_FONT_ROOT_ENTITY_TYPE } from "../fonts/constants.js";
 import type { DiFont, DiHealthReport, DiTemplateSummary } from "../api/types.js";
 
 /**
@@ -107,7 +108,7 @@ export class DiOverviewDashboardElement extends UmbLitElement {
     return html`
       <div class="stats">
         ${this.#renderStat("Templates", this._templates.length, "icon-brush", false, hrefForWorkspace(DI_TEMPLATE_ROOT_ENTITY_TYPE))}
-        ${this.#renderStat("Fonts", this._fonts.length, "icon-font")}
+        ${this.#renderStat("Fonts", this._fonts.length, "icon-font", false, hrefForWorkspace(DI_FONT_ROOT_ENTITY_TYPE))}
         ${this.#renderStat("Issues", issues, issues > 0 ? "icon-alert" : "icon-check", issues > 0)}
         ${this.#renderStat(
           "Generation",

@@ -41,10 +41,12 @@ export const manifests: Array<UmbExtensionManifest> = [
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }],
   },
   {
+    // Fonts are the Fonts tree now. The dashboard's route stays, as a redirect to the tree's root
+    // workspace, so a bookmarked dashboard/fonts still lands somewhere.
     type: "dashboard",
     alias: "DynamicImages.Dashboard.Fonts",
     name: "Dynamic Images Fonts",
-    element: () => import("./dashboards/di-fonts-dashboard.element.js"),
+    element: () => import("./dashboards/di-fonts-redirect.element.js"),
     weight: 90,
     meta: { label: "Fonts", pathname: "fonts" },
     conditions: [{ alias: "Umb.Condition.SectionAlias", match: "DynamicImages.Section" }],
