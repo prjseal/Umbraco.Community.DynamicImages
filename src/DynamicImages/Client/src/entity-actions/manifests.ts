@@ -111,6 +111,7 @@ export const manifests: Array<UmbExtensionManifest> = [
       moveRepositoryAlias: DI_MOVE_TEMPLATE_REPOSITORY_ALIAS,
       treeAlias: DI_TEMPLATE_TREE_ALIAS,
       foldersOnly: true,
+      additionalOptions: true,
     },
   },
   {
@@ -134,7 +135,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     api: () => import("./export-template.action.js"),
     forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
     weight: 500,
-    meta: { icon: "icon-download-alt", label: "Export JSON" },
+    meta: { icon: "icon-download-alt", label: "Export JSON", additionalOptions: true },
   },
   {
     type: "entityAction",
@@ -144,7 +145,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     api: () => import("./regenerate-template.action.js"),
     forEntityTypes: [DI_TEMPLATE_ENTITY_TYPE],
     weight: 400,
-    meta: { icon: "icon-sync", label: "Regenerate all" },
+    meta: { icon: "icon-sync", label: "Regenerate all", additionalOptions: true },
   },
   {
     type: "entityAction",
@@ -155,6 +156,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     meta: {
       itemRepositoryAlias: DI_TEMPLATE_ITEM_REPOSITORY_ALIAS,
       detailRepositoryAlias: DI_TEMPLATE_DETAIL_REPOSITORY_ALIAS,
+      additionalOptions: true,
       confirm: {
         headline: "Delete template",
         message: "Delete <strong>{0}</strong>? Images it already generated stay in the media library.",
@@ -174,6 +176,7 @@ export const manifests: Array<UmbExtensionManifest> = [
       moveRepositoryAlias: DI_MOVE_FOLDER_REPOSITORY_ALIAS,
       treeAlias: DI_TEMPLATE_TREE_ALIAS,
       foldersOnly: true,
+      additionalOptions: true,
     },
   },
 
@@ -186,7 +189,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     api: () => import("./import-template.action.js"),
     forEntityTypes: CONTAINERS,
     weight: 300,
-    meta: { icon: "icon-page-up", label: "Import JSON…" },
+    meta: { icon: "icon-page-up", label: "Import JSON…", additionalOptions: true },
   },
   {
     type: "entityAction",

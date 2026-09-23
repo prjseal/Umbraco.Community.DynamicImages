@@ -46,6 +46,49 @@ public class TemplateTreeController(
             .ToList());
     }
 
+    /// <summary>
+    /// What the Templates root and a folder show as a collection: everything directly inside,
+    /// folders first. <paramref name="filter"/> matches names; <paramref name="orderBy"/> is
+    /// <c>name</c> (the default) or <c>updated</c>, newest first, and orders templates only.
+    /// </summary>
+    [HttpGet("collection/templates")]
+    [ProducesResponseType(typeof(TemplateCollectionResponse), StatusCodes.Status200OK)]
+    public IActionResult Collection(
+        [FromQuery] Guid? parentKey,
+        [FromQuery] string? filter = null,
+        [FromQuery] int skip = 0,
+        [FromQuery] int take = 100,
+        [FromQuery] string? orderBy = null)
+    {
+        var tree = folderService.GetTree();
+        var byKey = templateService.GetAll().ToDictionary(t => t.Key);
+
+        var children = tree.ChildrenOf(parentKey)
+            .Where(n => string.IsNullOrWhiteSpace(filter) || n.Name.Contains(filter.Trim(), StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var folders = children.Where(n => n.IsFolder);
+        var templates = children.Where(n => !n.IsFolder);
+        if (string.Equals(orderBy, "updated", StringComparison.OrdinalIgnoreCase))
+        {
+            templates = templates.OrderByDescending(n => byKey.TryGetValue(n.Key, out var t) ? t.UpdatedUtc : DateTime.MinValue);
+        }
+
+        var ordered = folders.Concat(templates).ToList();
+
+        var items = ordered
+            .Skip(Math.Max(0, skip))
+            .Take(Math.Clamp(take, 0, MaxTake))
+            .Select(n => n.IsFolder || !byKey.TryGetValue(n.Key, out var t)
+                ? new TemplateCollectionItemResponse(n.Key, "folder", n.Name, n.ParentKey, true, null, null, null, null, null, null)
+                : new TemplateCollectionItemResponse(
+                    n.Key, "template", n.Name, n.ParentKey, t.IsEnabled, t.DocTypeAliases, t.TargetPropertyAlias,
+                    t.Layers.Count, t.Canvas.Width, t.Canvas.Height, t.UpdatedUtc))
+            .ToList();
+
+        return Ok(new TemplateCollectionResponse(ordered.Count, items));
+    }
+
     [HttpPut("templates/{key:guid}/move")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

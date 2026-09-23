@@ -1,7 +1,7 @@
 import type {
   DiDocumentType, DiFont, DiFontStyle, DiHealthReport, DiJob, DiLayout, DiLinkedProperties,
   DiProperty, DiRegisterWebFontRequest, DiRegisterWebFontResponse, DiSampleContentItem,
-  DiSyncStatus, DiTemplate, DiTemplateFolder, DiTemplateSaveResponse, DiTemplateSummary, DiTreeItem, DiUsage,
+  DiCollectionItem, DiSyncStatus, DiTemplate, DiTemplateFolder, DiTemplateSaveResponse, DiTemplateSummary, DiTreeItem, DiUsage,
 } from "./types.js";
 
 export type TokenGetter = () => Promise<string | undefined> | undefined;
@@ -134,6 +134,25 @@ export async function fetchTreeItems(keys: string[], getToken: TokenGetter): Pro
   const search = new URLSearchParams();
   for (const key of keys) search.append("key", key);
   return json(await request(`/item?${search}`, getToken));
+}
+
+export async function fetchCollection(
+  query: { parentKey: string | null; filter?: string; skip?: number; take?: number; orderBy?: "name" | "updated" },
+  getToken: TokenGetter,
+): Promise<DiPaged<DiCollectionItem>> {
+  const search = new URLSearchParams({ skip: String(query.skip ?? 0), take: String(query.take ?? 100) });
+  if (query.parentKey) search.set("parentKey", query.parentKey);
+  if (query.filter) search.set("filter", query.filter);
+  if (query.orderBy) search.set("orderBy", query.orderBy);
+  return json(await request(`/collection/templates?${search}`, getToken));
+}
+
+/**
+ * A rendered thumbnail of a saved template against sample data. Fetched rather than put in an
+ * `<img src>`, because the Management API needs the bearer token an image request cannot carry.
+ */
+export async function fetchThumbnail(key: string, width: number, getToken: TokenGetter): Promise<Blob> {
+  return (await request(`/templates/${key}/thumbnail?width=${width}`, getToken)).blob();
 }
 
 export const createFolder = async (

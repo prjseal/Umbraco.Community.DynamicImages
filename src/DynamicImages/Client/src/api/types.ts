@@ -265,6 +265,21 @@ export interface DiTreeItem {
   isEnabled: boolean;
 }
 
+/** A row of `collection/templates`. The template-only fields are null on a folder. */
+export interface DiCollectionItem {
+  key: string;
+  entityType: "folder" | "template";
+  name: string;
+  parentKey: string | null;
+  isEnabled: boolean;
+  docTypeAliases: string[] | null;
+  targetPropertyAlias: string | null;
+  layerCount: number | null;
+  canvasWidth: number | null;
+  canvasHeight: number | null;
+  updatedUtc: string | null;
+}
+
 export interface DiTemplateFolder {
   key: string;
   name: string;

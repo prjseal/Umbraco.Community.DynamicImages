@@ -2,6 +2,7 @@ import { DiTemplateWorkspaceContext } from "./workspace/di-template-workspace.co
 import { TEMPLATE_ENTITY_TYPE } from "./api/dynamic-images-api.js";
 import { manifests as treeManifests } from "./tree/manifests.js";
 import { manifests as entityActionManifests } from "./entity-actions/manifests.js";
+import { manifests as collectionManifests } from "./collection/manifests.js";
 
 /**
  * Every extension that references an element or the workspace context is registered here rather
@@ -15,6 +16,7 @@ import { manifests as entityActionManifests } from "./entity-actions/manifests.j
 export const manifests: Array<UmbExtensionManifest> = [
   ...treeManifests,
   ...entityActionManifests,
+  ...collectionManifests,
 
   // ---------------------------------------------------------------- sidebar
   //

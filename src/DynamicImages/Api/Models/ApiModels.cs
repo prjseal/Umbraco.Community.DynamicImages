@@ -57,6 +57,25 @@ public sealed record CreateTemplateFolderRequest(string Name, Guid? ParentKey = 
 
 public sealed record UpdateTemplateFolderRequest(string Name);
 
+/// <summary>
+/// One row of the Templates collection: a folder, or a template with the columns the table view
+/// shows. The template-only fields are null on a folder.
+/// </summary>
+public sealed record TemplateCollectionItemResponse(
+    Guid Key,
+    string EntityType,
+    string Name,
+    Guid? ParentKey,
+    bool IsEnabled,
+    IReadOnlyList<string>? DocTypeAliases,
+    string? TargetPropertyAlias,
+    int? LayerCount,
+    int? CanvasWidth,
+    int? CanvasHeight,
+    DateTime? UpdatedUtc);
+
+public sealed record TemplateCollectionResponse(int Total, IReadOnlyList<TemplateCollectionItemResponse> Items);
+
 /// <summary>Null <c>TargetKey</c> is the Templates root.</summary>
 public sealed record MoveRequest(Guid? TargetKey);
 

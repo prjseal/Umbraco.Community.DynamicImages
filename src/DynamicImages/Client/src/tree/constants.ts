@@ -29,3 +29,6 @@ export const DI_DUPLICATE_TEMPLATE_REPOSITORY_ALIAS = "DynamicImages.Repository.
 export const DI_TEMPLATE_ICON = "icon-picture";
 export const DI_TEMPLATE_DISABLED_ICON = "icon-picture color-grey";
 export const DI_TEMPLATE_FOLDER_ICON = "icon-folder";
+
+export const DI_TEMPLATE_COLLECTION_ALIAS = "DynamicImages.Collection.Templates";
+export const DI_TEMPLATE_COLLECTION_REPOSITORY_ALIAS = "DynamicImages.Repository.TemplateCollection";
