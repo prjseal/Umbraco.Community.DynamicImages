@@ -8,6 +8,12 @@ public static class DynamicImagesConstants
     /// <summary>Entity type of the routable template workspace.</summary>
     public const string TemplateEntityType = "di-template";
 
+    /// <summary>Entity type of a folder in the Templates tree.</summary>
+    public const string TemplateFolderEntityType = "di-template-folder";
+
+    /// <summary>Entity type of the Templates tree's root.</summary>
+    public const string TemplateRootEntityType = "di-template-root";
+
     /// <summary>Full access to the Dynamic Images section and everything it configures.</summary>
     public const string SectionAccessPolicy = "DynamicImages.SectionAccess";
 
@@ -42,6 +48,7 @@ public static class DynamicImagesConstants
 
     public const string TemplateTableName = "DynamicImages_Template";
     public const string FontTableName = "DynamicImages_Font";
+    public const string TemplateFolderTableName = "DynamicImages_TemplateFolder";
 
     /// <summary>Current template JSON schema version.</summary>
     public const int CurrentSchemaVersion = 2;

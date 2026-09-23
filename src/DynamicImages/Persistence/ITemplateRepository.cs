@@ -23,6 +23,9 @@ public interface ITemplateRepository
     /// </summary>
     Template? Update(Template template, DateTime? expectedUpdatedUtc, Guid? userKey);
 
+    /// <summary>Sets the template's folder (null for the root) without touching anything else.</summary>
+    bool Move(Guid key, Guid? parentKey);
+
     bool Delete(Guid key);
 
     int Count();

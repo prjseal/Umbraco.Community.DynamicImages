@@ -18,11 +18,18 @@ public class USyncTemplateSerializerTests
     private static readonly Guid FontKey = Guid.Parse("6a0d0e5b-7f4a-4c4f-9b22-1d9d5a8e7c31");
 
     private static (DynamicImagesTemplateSerializer Serializer, FakeTemplateService Templates) Build()
+        => Build(out _);
+
+    private static (DynamicImagesTemplateSerializer Serializer, FakeTemplateService Templates) Build(out TemplateFolderService folders)
     {
         var templates = new FakeTemplateService();
+        folders = new TemplateFolderService(
+            new InMemoryTemplateFolderRepository(), new FakeTemplateCache(templates), new NullEventAggregator());
+
         var scopeFactory = new StubScopeFactory(new Dictionary<Type, object>
         {
             [typeof(ITemplateService)] = templates,
+            [typeof(ITemplateFolderService)] = folders,
             [typeof(ITemplateJsonMigrator)] = new TemplateJsonMigrator()
         });
 
@@ -202,6 +209,58 @@ public class USyncTemplateSerializerTests
 
         Assert.False(imported.Success);
         Assert.Contains("The Title layer has no font.", imported.Message);
+    }
+
+    [Fact]
+    public async Task A_template_in_a_folder_round_trips_with_its_parent_and_level()
+    {
+        var (serializer, templates) = Build(out var folders);
+        var outer = folders.Create("Social", null).Folder!;
+        var inner = folders.Create("Articles", outer.Key).Folder!;
+
+        var template = Sample();
+        template.ParentKey = inner.Key;
+
+        var node = (await serializer.SerializeAsync(template, new SyncSerializerOptions())).Item!;
+
+        Assert.Equal(inner.Key.ToString(), node.Element("Info")!.Element("Parent")!.Value);
+        Assert.Equal("2", node.Attribute("Level")!.Value);
+        Assert.DoesNotContain("parentKey", node.Element("Design")!.Value, StringComparison.Ordinal);
+
+        var imported = await serializer.DeserializeAsync(node, new SyncSerializerOptions());
+
+        Assert.True(imported.Success);
+        Assert.Equal(inner.Key, templates.Get(template.Key)!.ParentKey);
+    }
+
+    [Fact]
+    public async Task A_template_whose_folder_is_missing_imports_to_the_root()
+    {
+        var (serializer, templates) = Build();
+        var node = (await serializer.SerializeAsync(Sample(), new SyncSerializerOptions())).Item!;
+        node.Element("Info")!.Element("Parent")!.Value = Guid.NewGuid().ToString();
+
+        var imported = await serializer.DeserializeAsync(node, new SyncSerializerOptions());
+
+        Assert.True(imported.Success);
+        Assert.Null(templates.Get(Sample().Key)!.ParentKey);
+    }
+
+    [Fact]
+    public async Task Reimporting_into_another_folder_moves_the_template()
+    {
+        var (serializer, templates) = Build(out var folders);
+        var folder = folders.Create("Social", null).Folder!;
+
+        var node = (await serializer.SerializeAsync(Sample(), new SyncSerializerOptions())).Item!;
+        await serializer.DeserializeAsync(node, new SyncSerializerOptions());
+        Assert.Null(templates.Get(Sample().Key)!.ParentKey);
+
+        node.Element("Info")!.Element("Parent")!.Value = folder.Key.ToString();
+        await serializer.DeserializeAsync(node, new SyncSerializerOptions());
+
+        Assert.Equal(folder.Key, templates.Get(Sample().Key)!.ParentKey);
+        Assert.Equal(1, templates.Moves);
     }
 
     private static string JsonNodeWithSchemaVersion(Template template, int version)

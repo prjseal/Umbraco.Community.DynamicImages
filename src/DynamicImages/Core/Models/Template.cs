@@ -19,6 +19,13 @@ public class Template
 
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>
+    /// The folder the template sits in, or null for the Templates root. Carried in the JSON so an
+    /// exported file keeps its place, but the <c>parentKey</c> column is authoritative - and it
+    /// only changes through a move, never through an ordinary save.
+    /// </summary>
+    public Guid? ParentKey { get; set; }
+
     public List<string> DocTypeAliases { get; set; } = [];
 
     /// <summary>Media picker property the generated image is written to.</summary>

@@ -44,6 +44,12 @@ public interface ITemplateService
 
     bool Delete(Guid key);
 
+    /// <summary>
+    /// Puts a template in a folder, or at the root when <paramref name="targetKey"/> is null. The
+    /// only way a template's folder changes: an ordinary update keeps the stored one.
+    /// </summary>
+    Task<TreeOperationOutcome> MoveAsync(Guid key, Guid? targetKey, CancellationToken cancellationToken = default);
+
     /// <summary>Copies a template under a new key, alias and name.</summary>
     Task<SaveResult> DuplicateAsync(Guid key, Guid? userKey, CancellationToken cancellationToken = default);
 

@@ -45,6 +45,22 @@ public class TemplateDto
     [NullSetting(NullSetting = NullSettings.Null)]
     public string? DocTypeAliases { get; set; }
 
+    /// <summary>
+    /// The folder the template sits in. Null is the Templates root, which is where every template
+    /// that existed before folders did still is - so the migration adding this has nothing to
+    /// backfill. Nullable also because AddColumn&lt;T&gt; copies this definition onto a table that
+    /// already has rows.
+    /// </summary>
+    [Column("parentKey")]
+    [NullSetting(NullSetting = NullSettings.Null)]
+    [Index(IndexTypes.NonClustered, Name = "IX_DynamicImages_Template_parentKey")]
+    public Guid? ParentKey { get; set; }
+
+    /// <summary>Stored for a future sort action. Zero for everything today; the tree orders by name.</summary>
+    [Column("sortOrder")]
+    [Constraint(Default = "0")]
+    public int SortOrder { get; set; }
+
     [Column("createdUtc")]
     public DateTime CreatedUtc { get; set; }
 

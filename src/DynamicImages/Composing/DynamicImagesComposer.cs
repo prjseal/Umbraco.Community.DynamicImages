@@ -59,6 +59,7 @@ public class DynamicImagesComposer : IComposer
         // Scoped: both take a database scope from the ambient Umbraco scope.
         builder.Services.AddScoped<ITemplateRepository, TemplateRepository>();
         builder.Services.AddScoped<IFontRepository, FontRepository>();
+        builder.Services.AddScoped<ITemplateFolderRepository, TemplateFolderRepository>();
         builder.Services.AddSingleton<ITemplateJsonMigrator, TemplateJsonMigrator>();
     }
 
@@ -164,6 +165,7 @@ public class DynamicImagesComposer : IComposer
 
         // Scoped, because they compose the scoped repositories.
         builder.Services.AddScoped<ITemplateService, TemplateService>();
+        builder.Services.AddScoped<ITemplateFolderService, TemplateFolderService>();
         builder.Services.AddScoped<ITemplateValidator, TemplateValidator>();
         builder.Services.AddScoped<IFontService, FontService>();
         builder.Services.AddScoped<IRegenerationService, RegenerationService>();

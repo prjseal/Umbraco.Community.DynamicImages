@@ -24,7 +24,41 @@ public sealed record TemplateListResponse(int Total, IReadOnlyList<TemplateSumma
 /// <summary>A save's outcome, so the designer can show validation warnings on a successful save too.</summary>
 public sealed record TemplateSaveResponse(Template Template, IReadOnlyList<ValidationIssue> Warnings);
 
-public sealed record TemplateImportRequest(string Json, string Mode = "create");
+/// <summary><c>ParentKey</c> is the folder the import was started from; null is the Templates root.</summary>
+public sealed record TemplateImportRequest(string Json, string Mode = "create", Guid? ParentKey = null);
+
+// ---------------------------------------------------------------- tree and folders
+
+/// <summary>
+/// One row of the Templates tree. <c>EntityType</c> is <c>"folder"</c> or <c>"template"</c>; the
+/// client maps it to its own entity types.
+/// </summary>
+public sealed record TemplateTreeItemResponse(
+    Guid Key,
+    string Name,
+    string EntityType,
+    Guid? ParentKey,
+    bool HasChildren,
+    bool IsEnabled)
+{
+    public static TemplateTreeItemResponse From(TemplateTreeNode node) => new(
+        node.Key, node.Name, node.IsFolder ? "folder" : "template", node.ParentKey, node.HasChildren, node.IsEnabled);
+}
+
+public sealed record TemplateTreeResponse(int Total, IReadOnlyList<TemplateTreeItemResponse> Items);
+
+public sealed record TemplateFolderResponse(Guid Key, string Name, Guid? ParentKey)
+{
+    public static TemplateFolderResponse From(TemplateFolder folder) => new(folder.Key, folder.Name, folder.ParentKey);
+}
+
+/// <summary><c>Key</c> is optional: the backoffice's folder modal chooses one up front.</summary>
+public sealed record CreateTemplateFolderRequest(string Name, Guid? ParentKey = null, Guid? Key = null);
+
+public sealed record UpdateTemplateFolderRequest(string Name);
+
+/// <summary>Null <c>TargetKey</c> is the Templates root.</summary>
+public sealed record MoveRequest(Guid? TargetKey);
 
 // ---------------------------------------------------------------- fonts
 

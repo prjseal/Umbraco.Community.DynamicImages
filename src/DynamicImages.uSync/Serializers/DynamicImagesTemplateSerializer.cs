@@ -32,16 +32,30 @@ public class DynamicImagesTemplateSerializer(
 {
     private const string UpdatedUtcProperty = "updatedUtc";
 
+    /// <summary>Written once, as <c>Info/Parent</c>, rather than twice with the two able to disagree.</summary>
+    private const string ParentKeyProperty = "parentKey";
+
     public override string ItemAlias(Template item) => item.Alias;
 
     public override Guid ItemKey(Template item) => item.Key;
 
     protected override Task<SyncAttempt<XElement>> SerializeCoreAsync(Template item, SyncSerializerOptions options)
     {
-        var node = InitializeBaseNode(item, item.Alias);
+        // Level is the folder depth, so uSync's report and its level-ordered import read the same
+        // way the tree does. Folders have their own handler, which runs first.
+        using var scope = scopeFactory.CreateScope();
+        var tree = scope.ServiceProvider.GetService<ITemplateFolderService>()?.GetTree();
+        var parent = tree is not null && item.ParentKey is { } parentKey && tree.FolderExists(parentKey) ? parentKey : (Guid?)null;
+
+        // 0 at the root, which is where every template exported before folders sits - so those
+        // files do not change.
+        var level = parent is { } folderKey ? tree!.DepthOf(folderKey) + 1 : 0;
+
+        var node = InitializeBaseNode(item, item.Alias, level);
 
         node.Add(new XElement("Info",
             new XElement("Name", item.Name),
+            new XElement("Parent", parent?.ToString() ?? string.Empty),
             new XElement("Enabled", item.IsEnabled),
             new XElement("SchemaVersion", item.SchemaVersion),
             new XElement("DocTypeAliases", string.Join(',', item.DocTypeAliases))));
@@ -65,7 +79,11 @@ public class DynamicImagesTemplateSerializer(
     private static string DesignJson(Template item)
     {
         var node = JsonNode.Parse(JsonSerializer.Serialize(item, DynamicImagesJsonOptions.Default));
-        if (node is JsonObject document) document.Remove(UpdatedUtcProperty);
+        if (node is JsonObject document)
+        {
+            document.Remove(UpdatedUtcProperty);
+            document.Remove(ParentKeyProperty);
+        }
 
         return node?.ToJsonString(DynamicImagesJsonOptions.Indented) ?? "{}";
     }
@@ -115,10 +133,26 @@ public class DynamicImagesTemplateSerializer(
         template.IsEnabled = ReadBool(info?.Element("Enabled")?.Value, template.IsEnabled);
         template.DocTypeAliases = SplitAliases(info?.Element("DocTypeAliases")?.Value);
 
+        // A parent that has not arrived in this environment puts the template at the root rather
+        // than failing the import: the folder is organisation, not behaviour.
+        var folders = scope.ServiceProvider.GetService<ITemplateFolderService>();
+        Guid? parent = Guid.TryParse(info?.Element("Parent")?.Value, out var parentKey)
+            && folders?.Get(parentKey) is not null
+                ? parentKey
+                : null;
+        template.ParentKey = parent;
+
         var result = await SaveAsync(templates, template);
         if (result.Outcome != SaveOutcome.Saved)
         {
             return SyncAttempt<Template>.Fail(name, ChangeType.ImportFail, Describe(result));
+        }
+
+        // An update keeps the stored folder by design, so the file's folder is applied as a move.
+        // (The save may have reset template.ParentKey to the stored one, hence the local.)
+        if (templates.Get(key) is { } stored && stored.ParentKey != parent)
+        {
+            await templates.MoveAsync(key, parent);
         }
 
         // saved: true stops SyncSerializerRoot.DeserializeAsync calling SaveItemAsync again.
