@@ -2,7 +2,31 @@
 
 ## Unreleased
 
+### Added
+
+- **A native Templates tree with folders.** The section's hand-built template menu is now a real
+  tree, like Settings → Document Types: folders, *Create…*, *Move to…*, *Duplicate*, *Delete*,
+  **Import JSON** into a folder and **Export JSON**, all from each node's ⋯. A migration adds the
+  folder table and a parent on every template; existing templates stay at the root. uSync and file
+  sync carry folders too.
+- **A collection view of templates**, on the Templates root and each folder: a list with document
+  types, target property, canvas, layers, enabled and last updated, or a grid of thumbnails rendered
+  against sample data.
+- **More gradients.** Angular (conic), diamond and reflected gradients beside linear and radial;
+  radial as an ellipse or a circle, reaching the closest or farthest side or corner; any number of
+  colour stops; Reverse. Templates saved before render exactly as they did.
+- **An Add shape menu** with circle, rounded rectangle, triangle and the rest, and a *Lock aspect
+  ratio* that keeps a circle a circle.
+- **Multi-hop property paths in the designer**: a dropdown for every reference the renderer follows,
+  up to three, one under the other.
+
 ### Changed
+
+- **Native pickers.** Document types, the output folder, the base image and the preview page use
+  Umbraco's own pickers and show what is chosen the way the rest of the backoffice does. The
+  Overview dashboard keeps its counts and Needs attention; templates live in the tree.
+- **The designer's inspector stacks every field**, grouped property dropdowns follow the document
+  type's tab and group order, and colours use Umbraco's colour picker with opacity.
 
 - **Umbraco 17.5.3 is now the minimum.** Every 17.x below it has published security advisories
   against it, so there is nothing to be gained by supporting them; it is also the version whose
