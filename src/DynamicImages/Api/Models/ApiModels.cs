@@ -87,6 +87,18 @@ public sealed record TemplateCollectionResponse(int Total, IReadOnlyList<Templat
 /// <summary>Null <c>TargetKey</c> is the Templates root.</summary>
 public sealed record MoveRequest(Guid? TargetKey);
 
+/// <summary>A collection selection going to one folder, or the root when <c>TargetKey</c> is null.</summary>
+public sealed record BulkRequest(IReadOnlyList<Guid> Keys, Guid? TargetKey);
+
+/// <summary>
+/// The copies a bulk duplicate made, the folders in the selection it skipped (folders are not
+/// duplicated), and one message per template it could not copy.
+/// </summary>
+public sealed record BulkDuplicateResponse(
+    IReadOnlyList<TemplateSummary> Created,
+    IReadOnlyList<string> SkippedFolders,
+    IReadOnlyList<string> Errors);
+
 public sealed record SortItemRequest(Guid Key, int SortOrder);
 
 /// <summary>

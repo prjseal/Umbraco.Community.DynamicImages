@@ -12,6 +12,7 @@ namespace Umbraco.Community.DynamicImages.Api.Controllers;
 
 public class TemplatesController(
     ITemplateService templateService,
+    ITemplateFolderService folderService,
     ITemplateJsonMigrator migrator,
     IBackOfficeSecurityAccessor backOfficeSecurityAccessor) : DynamicImagesControllerBase
 {
@@ -115,6 +116,55 @@ public class TemplatesController(
         var result = await templateService.DuplicateAsync(key, targetKey, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
 
         return DuplicateResult(result, key);
+    }
+
+    /// <summary>
+    /// The collection's bulk Duplicate to. Templates are copied into the target; folders in the
+    /// selection are skipped and named, since folders are not duplicated (core's data types do not
+    /// duplicate folders either).
+    /// </summary>
+    [HttpPost("templates/bulk-duplicate")]
+    [ProducesResponseType(typeof(BulkDuplicateResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> BulkDuplicate([FromBody] BulkRequest request, CancellationToken cancellationToken)
+    {
+        var tree = folderService.GetTree();
+        if (request.TargetKey is { } target && !tree.FolderExists(target))
+            return DuplicateResult(SaveResult.Failed(SaveOutcome.TargetNotFound), target);
+
+        var created = new List<TemplateSummary>();
+        var skipped = new List<string>();
+        var errors = new List<string>();
+
+        foreach (var key in (request.Keys ?? []).Distinct())
+        {
+            var node = tree.Find(key);
+            if (node is null)
+            {
+                errors.Add($"{key}: it no longer exists.");
+                continue;
+            }
+
+            if (node.IsFolder)
+            {
+                skipped.Add(node.Name);
+                continue;
+            }
+
+            var result = await templateService.DuplicateAsync(
+                key, request.TargetKey, CurrentUserKey(backOfficeSecurityAccessor), cancellationToken);
+
+            if (result.Outcome == SaveOutcome.Saved)
+            {
+                created.Add(Summarise(result.Template!));
+                continue;
+            }
+
+            var why = string.Join(" ", result.Validation.Errors.Select(e => e.Message));
+            errors.Add($"{node.Name}: {(why.Length > 0 ? why : "it could not be copied.")}");
+        }
+
+        return Ok(new BulkDuplicateResponse(created, skipped, errors));
     }
 
     private IActionResult DuplicateResult(SaveResult result, Guid key) => result.Outcome switch

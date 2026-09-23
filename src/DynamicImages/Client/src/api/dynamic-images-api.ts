@@ -188,6 +188,17 @@ export async function moveFolder(key: string, targetKey: string | null, getToken
   await request(`/folders/${key}/move`, getToken, { method: "PUT", json: { targetKey } });
 }
 
+/** Moves folders and templates together; a 400 names each one that could not move. */
+export async function bulkMove(keys: string[], targetKey: string | null, getToken: TokenGetter): Promise<void> {
+  await request("/tree/bulk-move", getToken, { method: "PUT", json: { keys, targetKey } });
+}
+
+/** Copies the templates among `keys` into `targetKey`; folders are skipped and named. */
+export const bulkDuplicate = async (
+  keys: string[], targetKey: string | null, getToken: TokenGetter,
+): Promise<{ created: DiTemplateSummary[]; skippedFolders: string[]; errors: string[] }> =>
+  json(await request("/templates/bulk-duplicate", getToken, { method: "POST", json: { keys, targetKey } }));
+
 /**
  * The sort modal's result: the dragged children of `parentKey` (null is the root), each with its
  * final index. The server fills in the rest.
