@@ -189,7 +189,7 @@ export const manifests: Array<UmbExtensionManifest> = [
     api: () => import("./import-template.action.js"),
     forEntityTypes: CONTAINERS,
     weight: 300,
-    meta: { icon: "icon-page-up", label: "Import JSON…", additionalOptions: true },
+    meta: { icon: "icon-page-up", label: "Import JSON", additionalOptions: true },
   },
   {
     type: "entityAction",

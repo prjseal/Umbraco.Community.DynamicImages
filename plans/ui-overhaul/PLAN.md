@@ -276,6 +276,34 @@ the "+ Create template" row is a link.
   through the `isEnabled` flag in the item model and a `treeItem` element override *only if* core's
   default cannot express it. Otherwise leave it for later.
 
+**As built - where the code differs**
+
+- The installed `@umbraco-cms/backoffice` is **17.5.3** (the served backoffice on the test site is
+  17.7.0). Every kind above was checked against 17.5.3 before use.
+- **No tree store.** 17.5.3 marks `UmbUniqueTreeStore` deprecated ("use the tree repository"), and
+  `UmbTreeRepositoryBase`'s store argument is optional; the tree, the tree picker and the
+  collection all read through `requestTreeRootItems` / `requestTreeItemsOf`.
+- **The tree is worked out in memory** (`Core/Services/TemplateTree.cs`) from the folder rows and
+  the cached templates, rather than through `TemplateRepository.GetChildren` / `HasChildren`
+  queries. Both lists are small, and it makes the ordering and the move cycle guard testable
+  without a database.
+- **A template's folder only changes through a move.** An ordinary update keeps the stored
+  `parentKey` (a designer left open cannot undo a move made in the tree), and a move does not bump
+  `updatedUtc` (no spurious 412). The `Update` SQL writes `parentKey` but not `sortOrder`.
+- The create route is core's `create/parent/:parentEntityType/:parentUnique`, not `?parent=<key>`.
+- The root workspace is kind `default` with a headline, as core's document type root is.
+- The tree endpoints take `foldersOnly`, which core's move picker passes.
+- A disabled template shows a greyed icon (`icon-picture color-grey`) rather than a `treeItem`
+  override. Sorting was left out, as recommended.
+- **Moving reloads the destination.** Core's `moveTo` action reloads only the source (its code
+  carries "TODO: Reload destination"), so the move repositories dispatch a reload of the target.
+- The uSync design JSON omits `parentKey` (`Info/Parent` is the one copy), and a root template
+  keeps `Level="0"` so existing uSync files do not change. Folders import through their own
+  handler, between fonts and templates; a missing parent imports to the root.
+- Known console noise: on the very first visit to the section after the bundle loads, core's tree
+  logs "repository is missing" / "Tree context is not set" once while the extensions register. The
+  tree works, and it does not recur.
+
 ### 2. Templates overview: a native collection — **M**
 
 **Current:** the Templates box on the Overview dashboard, with custom cards and Create / Import
@@ -318,6 +346,17 @@ JSON buttons (`before/01-overview-dashboard.png`).
 cache. The card should lazy-load (`loading="lazy"`), and the cache keeps it to one render per
 save. Rendering is already capped by `RenderLimits`.
 
+**As built - where the code differs**
+
+- The thumbnail cannot be an `<img loading="lazy">`: the Management API needs a bearer token an
+  image request cannot send. The card fetches it when an `IntersectionObserver` sees it and shows
+  it from an object URL - the same lazy behaviour.
+- A collection context (`DiTemplateCollectionContext`) supplies each item's link, as core's user
+  group collection does; the default context links nothing.
+- Delete, Move, Export, Import and Regenerate carry `additionalOptions`, so they sit in the ⋯ menu
+  rather than inline. The Overview's Templates tile links to the root; the dashboard still listens
+  to `TEMPLATES_CHANGED_EVENT` for its counts.
+
 ### 3. Template settings: native pickers and selected-item display — **S**
 
 **Current:** alias tags plus a *Choose document types* button; a raw key in a read-only input
@@ -348,6 +387,9 @@ plus *Choose* (`before/04-settings.png`).
 **Future (out of scope):** multi-document-type support already exists. What a future change
 might add is a target property *per* document type, a `Dictionary<docTypeAlias,
 propertyAlias>` on `Template`, if types stop sharing the property alias.
+
+**As built:** a stored alias that no document type has any more is kept, and named under the
+picker, rather than silently dropped by the key-based picker.
 
 ### 4. Designer: the layer panel — non-property layers on top, and an Add shape chooser — **S–M**
 
@@ -392,6 +434,9 @@ Rectangle and Ellipse chips.
 the unknown property. `TemplateValidator` warns when `LockAspect` is set and width ≠ height,
 which is possible via JSON import.
 
+**As built:** the palette payload carries a `preset` rather than a `ShapeKind`, and the presets live
+in `SHAPE_PRESETS` in `models/layer-factories.ts`. `LockAspectNotSquare` is the validator warning.
+
 ### 5. Designer and Preview: preview content selection — **S**
 
 **Current:** a header button labelled with the node's name or "Sample data", opening a custom
@@ -416,6 +461,15 @@ modal. The designer's preview strip has no indication of what it renders
 
 **Server-side impact:** none. The picker needs document type **keys**, which `fetchDocumentTypes`
 already returns alongside the aliases.
+
+**As built - where the code differs**
+
+- One element, `workspace/views/di-preview-content-picker.element.ts`, is used in both places.
+- Remembering the chosen page per template moved into the workspace context, since it is now set
+  from two places. It is still the `di:sample-node:<key>` entry (in `localStorage`, as before), and
+  the old stored shape still reads.
+- `umb-input-document` is loaded through a guarded dynamic import: a static import makes vitest's
+  browser mode evaluate a second copy of core and redefine its elements.
 
 ### 6. Designer: binding to a property — full width, grouped — **S–M**
 
@@ -442,6 +496,13 @@ already returns alongside the aliases.
 inspector sorts client-side. Add controller-level tests for the tab/group derivation (a group
 with no tab, a composition's groups, and a tab with properties directly on it).
 
+**As built - where the code differs**
+
+- `uui-select` has no per-option title, so the selected property's alias is the select's own
+  `title`.
+- `uui-select` renders ungrouped options after its groups, so `- none -` (and a stale alias) come
+  last rather than first. The ordering and labels live in `models/property-options.ts`.
+
 ### 7. Designer: nested (rich) properties stacked below — **S**
 
 **Current:** `.path` is a three-column grid, so the second dropdown sits to the right and is cut
@@ -463,6 +524,11 @@ off.
 resolves one hop from a *document type*. Add `…/linked?path=a.b` (or accept a dotted
 `propertyAlias`) so the server walks the path, inferring target types at each hop with the
 existing `InferTargets`. Test it in `PropertyPathTests`.
+
+**As built:** the linked endpoint takes the dotted path in its existing `propertyAlias` segment
+(`…/properties/author.employer/linked`), walked by `Api/Controllers/LinkedPath.cs`. The context
+loads every prefix breadth first down to `MAX_HOPS`, capped at 36 prefixes, with a caption per
+prefix.
 
 ### 8. Designer: fill layer and colours — **M client, M server**
 
@@ -548,6 +614,17 @@ stops.
   320px for each layer type and gradient kind, and asserts that no descendant has `scrollWidth >
   clientWidth` and that every control's right edge is within the host.
 - The Settings view keeps `uui-box` + `umb-property-layout`, which is already core's pattern.
+
+**As built**
+
+- Every inspector field is `umb-property-layout orientation="vertical"`, tightened for the panel:
+  core pads 24px above and below, so the inspector uses `--uui-size-space-3` (the user asked for
+  even padding above and below each field). `di-number-field` renders its label through the same
+  layout, with a `compact` mode that keeps the canvas toolbar's zoom box as it was.
+- `inspector-overflow.browser.test.ts` covers every layer type and every gradient kind at 320px,
+  and was checked to fail on a deliberately over-wide control.
+- The browser tests now load UUI's `custom-properties.css`: without the tokens every `var()` is
+  invalid, so paddings and borders collapse and a layout assertion measured nothing real.
 
 ## Files
 

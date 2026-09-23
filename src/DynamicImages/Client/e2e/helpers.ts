@@ -37,12 +37,67 @@ export async function openSection(page: Page): Promise<void> {
   await expect(page.locator("umb-section-sidebar")).toBeVisible();
 }
 
-/** Opens a template's workspace from the Templates menu in the sidebar. */
-export async function openTemplate(page: Page, name = TEMPLATE_NAME): Promise<void> {
-  await expect(page.locator("uui-menu-item[label='Templates']")).toBeVisible({ timeout: 60_000 });
+/**
+ * The Templates tree's node for a template or folder. Scoped to `umb-tree-item`, so it cannot
+ * catch a same-named item anywhere else in the backoffice.
+ */
+export function treeItem(page: Page, name: string): Locator {
+  return page.locator(`umb-tree-item uui-menu-item[label='${name}']`).first();
+}
 
-  await page.locator(`uui-menu-item[label='${name}']`).click();
+/**
+ * Selects a tree node by its own label. An expanded node's box includes its children, so a plain
+ * click on it lands on whichever child sits in the middle.
+ */
+export async function selectTreeItem(page: Page, name: string): Promise<void> {
+  await treeItem(page, name).locator("#label-button").first().click();
+}
+
+/** Expands the Templates root in the sidebar tree, if it is not open already. */
+export async function expandTemplatesTree(page: Page): Promise<void> {
+  const root = treeItem(page, "Templates");
+  await expect(root).toBeVisible({ timeout: 60_000 });
+
+  if ((await root.getAttribute("show-children")) === null) {
+    await root.locator("#caret-button").click();
+  }
+}
+
+/** Opens a template's workspace from the Templates tree in the sidebar. */
+export async function openTemplate(page: Page, name = TEMPLATE_NAME): Promise<void> {
+  await expandTemplatesTree(page);
+
+  await selectTreeItem(page, name);
   await expect(page.locator("di-template-editor")).toBeVisible({ timeout: 60_000 });
+}
+
+/**
+ * An inspector or settings field, by its label. Every field is core's `umb-property-layout`, and
+ * a di-number-field wraps one of its own, so the label is the one stable handle on either.
+ */
+export function field(scope: string, label: string): string {
+  return `${scope} umb-property-layout[label="${label}"]`;
+}
+
+/**
+ * Chooses a page in a Preview content picker - core's document picker, searched by name. `scope`
+ * picks which of the two pickers (Preview & test's, or the designer strip's).
+ */
+export async function choosePreviewContent(page: Page, name: string, scope = "di-preview-view"): Promise<void> {
+  const picker = page.locator(`${scope} di-preview-content-picker umb-input-document`);
+  await expect(picker).toBeVisible({ timeout: 60_000 });
+  await picker.locator("#btn-add").click();
+
+  const modal = page.locator("umb-tree-picker-modal");
+  await expect(modal).toBeVisible({ timeout: 60_000 });
+
+  await modal.locator("uui-tab").filter({ hasText: "Search" }).click();
+  await modal.locator("umb-picker-search-field input").first().fill(name);
+  await modal.locator(`umb-document-picker-search-result-item uui-ref-node[name='${name}']`).first().click();
+  await modal.locator("uui-button[label='Choose']").click();
+
+  await expect(modal).toBeHidden({ timeout: 30_000 });
+  await expect(picker).toContainText(name, { timeout: 60_000 });
 }
 
 /**
