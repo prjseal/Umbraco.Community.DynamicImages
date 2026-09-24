@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { fixedBox, resetBody, settle } from "../testing/browser-fixtures.js";
 import { createTemplate } from "../models/layer-factories.js";
 import "./di-designer-canvas.element.js";
@@ -25,7 +25,7 @@ afterEach(() => {
   resetBody();
 });
 
-async function mountCanvas(boxWidth: number, boxHeight: number) {
+async function mountCanvas(boxWidth: number, boxHeight: number, showRulers = false) {
   resetBody();
 
   const scales: number[] = [];
@@ -36,7 +36,7 @@ async function mountCanvas(boxWidth: number, boxHeight: number) {
 
   const canvas = document.createElement("di-designer-canvas");
   canvas.template = createTemplate("Scroll fixture");
-  canvas.showRulers = false;
+  canvas.showRulers = showRulers;
   box.append(canvas);
 
   await settle(canvas, 4);
@@ -59,12 +59,30 @@ function artboardOf(canvas: HTMLElement): HTMLElement {
  * Every spec that relies on it asserts the premise before asserting the fix.
  */
 function giveScrollbarsWidth(canvas: HTMLElement) {
+  // The canvas hides its scrollbars, and a non-auto `scrollbar-width` makes Chromium ignore
+  // `::-webkit-scrollbar` altogether - so both are undone here, or the premise never holds. The
+  // doubled class is for specificity: the element's own adopted stylesheet cascades after any
+  // <style> in its shadow root, so an equally specific rule here would lose.
   const style = document.createElement("style");
   style.textContent = `
-    .viewport::-webkit-scrollbar { width: 15px; height: 15px; }
-    .viewport::-webkit-scrollbar-thumb { background: #888; }
+    .viewport.viewport { scrollbar-width: auto; }
+    .viewport.viewport::-webkit-scrollbar { display: block; width: 15px; height: 15px; }
+    .viewport.viewport::-webkit-scrollbar-thumb { background: #888; }
   `;
   canvas.shadowRoot!.append(style);
+}
+
+function hairlinesOf(canvas: HTMLElement): NodeListOf<Element> {
+  const rulers = canvas.shadowRoot!.querySelector("di-rulers")!;
+  return rulers.shadowRoot!.querySelectorAll(".hairline");
+}
+
+function stageOf(canvas: HTMLElement): HTMLElement {
+  return canvas.shadowRoot!.querySelector<HTMLElement>(".stage")!;
+}
+
+function moveTo(clientX: number, clientY: number) {
+  window.dispatchEvent(new PointerEvent("pointermove", { clientX, clientY, pointerId: 1, bubbles: true }));
 }
 
 /** Forces the viewport to overflow with something the fit calculation has no say over. */
@@ -140,5 +158,59 @@ describe("di-designer-canvas scroll stability", () => {
     const viewport = viewportOf(canvas);
     expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
     expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight);
+  });
+
+  /**
+   * A different flicker: the canvas tracked the pointer across the whole window, so with the
+   * pointer right of or below the stage the ruler hairline sat past the end of its ruler and
+   * became scrollable overflow. Both scrollbars appeared, and vanished again on the way back.
+   */
+  it("does not overflow when the pointer is off the canvas", async () => {
+    const { canvas } = await mountCanvas(400, 300, true);
+    const viewport = viewportOf(canvas);
+
+    moveTo(2000, 2000);
+    await settle(canvas, 2);
+
+    expect(viewport.scrollWidth).toBeLessThanOrEqual(viewport.clientWidth);
+    expect(viewport.scrollHeight).toBeLessThanOrEqual(viewport.clientHeight);
+    expect(hairlinesOf(canvas)).toHaveLength(0);
+
+    const stage = stageOf(canvas).getBoundingClientRect();
+    moveTo(stage.left + stage.width / 2, stage.top + stage.height / 2);
+    await settle(canvas, 2);
+
+    expect(hairlinesOf(canvas)).toHaveLength(2);
+  });
+
+  it("does not re-render for pointer moves off the canvas", async () => {
+    const { canvas } = await mountCanvas(400, 300, true);
+    const render = vi.spyOn(canvas, "render");
+
+    moveTo(2000, 2000);
+    await settle(canvas, 1);
+    moveTo(2100, 2100);
+    await settle(canvas, 1);
+
+    expect(render).not.toHaveBeenCalled();
+  });
+
+  it("can reach the top-left of a zoomed-in canvas", async () => {
+    const { canvas } = await mountCanvas(400, 300, true);
+
+    canvas.zoom = 3;
+    await settle(canvas, 4);
+
+    const viewport = viewportOf(canvas);
+    viewport.scrollLeft = 0;
+    viewport.scrollTop = 0;
+    await settle(canvas, 1);
+
+    // Flex centring pushed the overflow off both edges, and only the right and bottom can be
+    // scrolled to - so at scroll 0 the stage started somewhere left of and above the viewport.
+    const stage = stageOf(canvas).getBoundingClientRect();
+    const box = viewport.getBoundingClientRect();
+    expect(stage.left).toBeGreaterThanOrEqual(box.left);
+    expect(stage.top).toBeGreaterThanOrEqual(box.top);
   });
 });

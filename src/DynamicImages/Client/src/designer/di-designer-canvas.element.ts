@@ -1,4 +1,4 @@
-import { css, customElement, html, nothing, property, repeat, state, styleMap } from "@umbraco-cms/backoffice/external/lit";
+import { classMap, css, customElement, html, nothing, property, repeat, state, styleMap } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { DiLayer, DiLayerBounds, DiPosition, DiTemplate } from "../api/types.js";
 import { anchorToTopLeft, positionForTopLeft, topLeftToAnchor, type Box } from "../models/anchor.js";
@@ -7,6 +7,7 @@ import { checkerboard } from "./checkerboard.js";
 import { isRelative, isTracked, resolveAll, type ResolvedLayer, type Size } from "../models/relative-layout.js";
 import { extent, normalise, rotatePoint, toLocal } from "../models/rotation.js";
 import { snap, type Guide } from "./snap.js";
+import { isTypingTarget } from "./keyboard.js";
 import type { DragHandle, LayerDragEventDetail, ResizeHandle } from "./di-layer-box.element.js";
 import "./di-layer-box.element.js";
 import "./di-guides.element.js";
@@ -61,6 +62,14 @@ interface DragState {
   altKey: boolean;
 }
 
+interface PanState {
+  pointerId: number;
+  startX: number;
+  startY: number;
+  scrollLeft: number;
+  scrollTop: number;
+}
+
 /**
  * The artboard: a fixed-size stage in image pixels, scaled to fit, with one layer box per layer.
  *
@@ -109,7 +118,16 @@ export class DiDesignerCanvasElement extends UmbLitElement {
   @state()
   private _dropTarget = false;
 
+  /** Space is held with the pointer over the canvas: the next press pans instead of editing. */
+  @state()
+  private _spaceHeld = false;
+
+  @state()
+  private _panning = false;
+
   #drag?: DragState;
+  #pan?: PanState;
+  #hovering = false;
   #resizeObserver?: ResizeObserver;
 
   /** Every layer's resolved position and box, recomputed once per render. */
@@ -128,6 +146,9 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     window.addEventListener("pointermove", this.#onPointerMove);
     window.addEventListener("pointerup", this.#onPointerUp);
     window.addEventListener("pointercancel", this.#onPointerUp);
+    window.addEventListener("keydown", this.#onKeyDown);
+    window.addEventListener("keyup", this.#onKeyUp);
+    window.addEventListener("blur", this.#onWindowBlur);
   }
 
   override disconnectedCallback() {
@@ -137,6 +158,9 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     window.removeEventListener("pointermove", this.#onPointerMove);
     window.removeEventListener("pointerup", this.#onPointerUp);
     window.removeEventListener("pointercancel", this.#onPointerUp);
+    window.removeEventListener("keydown", this.#onKeyDown);
+    window.removeEventListener("keyup", this.#onKeyUp);
+    window.removeEventListener("blur", this.#onWindowBlur);
   }
 
   override updated(changed: Map<string, unknown>) {
@@ -308,7 +332,19 @@ export class DiDesignerCanvasElement extends UmbLitElement {
   };
 
   #onPointerMove = (event: PointerEvent) => {
-    this._pointer = this.#toImagePixels(event.clientX, event.clientY);
+    this.#trackPointer(event.clientX, event.clientY);
+
+    const pan = this.#pan;
+    if (pan) {
+      if (event.pointerId !== pan.pointerId) return;
+
+      const viewport = this.#viewport();
+      if (viewport) {
+        viewport.scrollLeft = pan.scrollLeft - (event.clientX - pan.startX);
+        viewport.scrollTop = pan.scrollTop - (event.clientY - pan.startY);
+      }
+      return;
+    }
 
     const drag = this.#drag;
     if (!drag) return;
@@ -473,7 +509,15 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     );
   }
 
-  #onPointerUp = () => {
+  #onPointerUp = (event: PointerEvent) => {
+    if (this.#pan) {
+      if (event.pointerId !== this.#pan.pointerId) return;
+
+      this.#pan = undefined;
+      this._panning = false;
+      return;
+    }
+
     if (!this.#drag) return;
 
     const moved = this.#drag.moved;
@@ -519,6 +563,92 @@ export class DiDesignerCanvasElement extends UmbLitElement {
 
     return { x, y, width: Math.max(4, width), height: Math.max(4, height) };
   }
+
+  // ------------------------------------------------------------------ pointer tracking, panning
+
+  /**
+   * The rulers' hairlines follow the pointer only while it is over the stage. Tracked anywhere
+   * else, a hairline past the end of its ruler became scrollable overflow and the scrollbars came
+   * and went with the mouse - and every move anywhere in the backoffice re-rendered the canvas.
+   */
+  #trackPointer(clientX: number, clientY: number) {
+    const canvas = this.template?.canvas;
+    const point = canvas ? this.#toImagePixels(clientX, clientY) : undefined;
+    const next =
+      canvas && point && point.x >= 0 && point.y >= 0 && point.x <= canvas.width && point.y <= canvas.height
+        ? point
+        : undefined;
+
+    if (next?.x === this._pointer?.x && next?.y === this._pointer?.y) return;
+    this._pointer = next;
+  }
+
+  #viewport(): HTMLElement | null {
+    return this.renderRoot.querySelector<HTMLElement>(".viewport");
+  }
+
+  /**
+   * Capture phase, so it decides before a layer box starts a drag: middle button, Space held, or a
+   * press on the bare checkerboard around the artboard all grab the view instead. Panning moves the
+   * viewport's scroll position, and every pointer conversion reads the stage's rect, so nothing
+   * else has to know it happened.
+   */
+  #panListener = {
+    capture: true,
+    handleEvent: (event: PointerEvent) => {
+      const viewport = event.currentTarget as HTMLElement;
+      const origin = event.composedPath()[0] as HTMLElement | undefined;
+      const onBare = origin === viewport || origin?.classList?.contains("artboard") === true;
+      const pan = event.button === 1 || (event.button === 0 && (this._spaceHeld || onBare));
+      if (!pan) return;
+
+      // No middle-click autoscroll, no text selection, and no layer drag starting underneath.
+      event.preventDefault();
+      event.stopPropagation();
+
+      try {
+        viewport.setPointerCapture(event.pointerId);
+      } catch {
+        // Only a pointer the browser knows about can be captured; the window listeners still see the drag.
+      }
+
+      this.#pan = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        scrollLeft: viewport.scrollLeft,
+        scrollTop: viewport.scrollTop,
+      };
+      this._panning = true;
+    },
+  };
+
+  /** Chromium starts autoscroll on the middle button's mousedown, which a cancelled pointerdown may not stop. */
+  #onMouseDown = (event: MouseEvent) => {
+    if (event.button === 1) event.preventDefault();
+  };
+
+  #onKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== " " || !this.#hovering || isTypingTarget(event)) return;
+
+    // No page scroll, and no pressing whichever button happens to have focus.
+    event.preventDefault();
+    if (event.repeat) return;
+
+    this._spaceHeld = true;
+  };
+
+  #onKeyUp = (event: KeyboardEvent) => {
+    if (event.key !== " " || !this._spaceHeld) return;
+
+    event.preventDefault();
+    this._spaceHeld = false;
+  };
+
+  /** A Space released in another window never arrives here. */
+  #onWindowBlur = () => {
+    this._spaceHeld = false;
+  };
 
   // ------------------------------------------------------------------ drop, zoom, deselect
 
@@ -604,7 +734,20 @@ export class DiDesignerCanvasElement extends UmbLitElement {
 
     return html`
       <div
-        class="viewport ${this._dropTarget ? "drop-target" : ""}"
+        class=${classMap({
+          viewport: true,
+          "drop-target": this._dropTarget,
+          "pan-ready": this._spaceHeld,
+          panning: this._panning,
+        })}
+        @pointerdown=${this.#panListener}
+        @mousedown=${this.#onMouseDown}
+        @pointerenter=${() => {
+          this.#hovering = true;
+        }}
+        @pointerleave=${() => {
+          this.#hovering = false;
+        }}
         @wheel=${this.#onWheel}
         @dragover=${this.#onDragOver}
         @dragleave=${this.#onDragLeave}
@@ -693,12 +836,18 @@ export class DiDesignerCanvasElement extends UmbLitElement {
       width: 100%;
       height: 100%;
       overflow: auto;
+      /* Panning replaces the scrollbars; the viewport still scrolls for the wheel and trackpad. */
+      scrollbar-width: none;
       display: flex;
-      align-items: center;
-      justify-content: center;
       padding: 24px;
       box-sizing: border-box;
+      /* The bare checkerboard is a handle for the view. */
+      cursor: grab;
       ${checkerboard}
+    }
+
+    .viewport::-webkit-scrollbar {
+      display: none;
     }
 
     .viewport.drop-target {
@@ -706,12 +855,34 @@ export class DiDesignerCanvasElement extends UmbLitElement {
       outline-offset: -8px;
     }
 
+    .viewport.pan-ready,
+    .viewport.pan-ready * {
+      cursor: grab;
+    }
+
+    .viewport.panning,
+    .viewport.panning * {
+      cursor: grabbing;
+    }
+
+    /* Layer boxes set their own cursors inside their shadow roots, which no rule here can reach -
+       so while Space is held they stop taking the pointer and the stage's grab shows through. */
+    .viewport.pan-ready .stage > *,
+    .viewport.panning .stage > * {
+      pointer-events: none;
+    }
+
     .artboard {
       position: relative;
       flex: 0 0 auto;
+      /* Centres the artboard while it fits. Flex centring pushed the overflow of a zoomed-in
+         artboard off both edges, and only the right and bottom can be scrolled to; auto margins
+         collapse to zero instead, so every edge stays reachable. */
+      margin: auto;
     }
 
     .stage {
+      cursor: default;
       position: absolute;
       top: var(--di-gutter, 0px);
       left: var(--di-gutter, 0px);

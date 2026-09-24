@@ -13,6 +13,7 @@ import {
 } from "../../models/layer-factories.js";
 import { ZOOM_BOUNDS } from "../../inputs/number-bounds.js";
 import { loadFonts } from "../../designer/fonts/font-face-loader.js";
+import { isTypingTarget } from "../../designer/keyboard.js";
 import type { PalettePayload } from "../../designer/di-property-palette.element.js";
 import "../../designer/di-designer-canvas.element.js";
 import "../../designer/di-property-palette.element.js";
@@ -339,9 +340,7 @@ export class DiDesignViewElement extends UmbLitElement {
 
   #onKeyDown = (event: KeyboardEvent) => {
     // Never steal keys from a field the editor is typing in.
-    const target = event.composedPath()[0] as HTMLElement | undefined;
-    if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-    if (target?.isContentEditable) return;
+    if (isTypingTarget(event)) return;
 
     const context = this.#context;
     if (!context) return;

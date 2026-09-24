@@ -118,6 +118,8 @@ export class DiRulersElement extends UmbLitElement {
       position: absolute;
       background: var(--uui-color-surface-alt);
       z-index: 2;
+      /* A hairline past the end of its ruler must never become the viewport's scrollable overflow. */
+      overflow: hidden;
     }
 
     .top {

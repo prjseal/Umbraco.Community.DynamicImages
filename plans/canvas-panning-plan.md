@@ -108,6 +108,15 @@ checkerboard (`.viewport` itself, which covers the artboard's surroundings) `cur
 the canvas overflows. The simple version: always `grab` on bare checkerboard, and the stage sets
 `cursor: default` so layer interaction looks the same as it does now.
 
+As built, three additions:
+- Layer boxes set their cursors inside their own shadow roots, which `.pan-ready *` can't reach.
+  So while `pan-ready` or `panning` is on, `.stage > *` gets `pointer-events: none` and the grab
+  cursor shows through. The capture-phase listener still starts the pan, because Space is held.
+- A `mousedown` listener on `.viewport` cancels the middle button's default, since cancelling
+  `pointerdown` isn't guaranteed to stop Chromium's autoscroll.
+- keyup also calls `preventDefault()` when it releases a held Space, so a focused button isn't
+  clicked on release.
+
 ### 5. Hidden scrollbars (`di-designer-canvas.element.ts` styles)
 
 ```css
@@ -119,6 +128,12 @@ the canvas overflows. The simple version: always `grab` on bare checkerboard, an
 scrollbars width. Check that its "premise" assertion still holds, because the injected rule has
 to win against `display: none`. If it doesn't, make the injected rule set `display: block` as
 well. That spec protects the fit loop, which still matters: the viewport still overflows.
+
+As built: the premise did fail, and `display: block` alone wasn't enough. The element's own
+styles are an adopted stylesheet, which cascades after any `<style>` in the shadow root, so an
+equally specific injected rule loses. And a non-auto `scrollbar-width` makes Chromium ignore
+`::-webkit-scrollbar` entirely. `giveScrollbarsWidth` now uses `.viewport.viewport` selectors and
+sets `scrollbar-width: auto` as well as `display: block`.
 
 ## Files
 
