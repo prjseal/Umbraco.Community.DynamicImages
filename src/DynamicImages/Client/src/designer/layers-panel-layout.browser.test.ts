@@ -86,4 +86,95 @@ describe("di-layers-panel collapsing", () => {
     // Three layers plus the Background row.
     expect(panel.shadowRoot!.querySelectorAll(".row").length).toBe(4);
   });
+
+  // The panel is docked at the bottom and grows upwards, so up opens it and down closes it -
+  // the same convention as the preview strip beside it.
+  it("points its chevron up when collapsed and down when expanded", async () => {
+    resetBody();
+    const panel = document.createElement("di-layers-panel");
+    panel.layers = templateWithLayers(3).layers;
+    document.body.append(panel);
+    await settle(panel, 3);
+
+    const icon = () => panel.shadowRoot!.querySelector(".toggle uui-icon")!.getAttribute("name");
+    expect(icon()).toBe("icon-navigation-up");
+
+    panel.shadowRoot!.querySelector<HTMLButtonElement>(".toggle")!.click();
+    await settle(panel, 3);
+
+    expect(icon()).toBe("icon-navigation-down");
+  });
+});
+
+describe("di-layers-panel Background row", () => {
+  async function mountExpanded(selectedLayerKey?: string) {
+    resetBody();
+    const panel = document.createElement("di-layers-panel");
+    panel.layers = templateWithLayers(3).layers;
+    panel.selectedLayerKey = selectedLayerKey;
+    panel.expanded = true;
+    document.body.append(panel);
+    await settle(panel, 3);
+
+    const background = panel.shadowRoot!.querySelector<HTMLElement>(".row.background")!;
+    return { panel, background };
+  }
+
+  /** Every `di-layer-select` the panel dispatches, as its detail. */
+  function recordSelects(panel: HTMLElement): { key?: string }[] {
+    const details: { key?: string }[] = [];
+    panel.addEventListener("di-layer-select", (event) => details.push((event as CustomEvent).detail));
+    return details;
+  }
+
+  it("is still the last row, labelled exactly Background", async () => {
+    const { panel, background } = await mountExpanded();
+
+    const rows = [...panel.shadowRoot!.querySelectorAll(".row")];
+    expect(rows.length).toBe(4);
+    expect(rows[rows.length - 1]).toBe(background);
+    expect(background.innerText.trim()).toBe("Background");
+    expect(background.getAttribute("draggable")).toBeNull();
+  });
+
+  it("reads as selected when no layer is", async () => {
+    const { background } = await mountExpanded();
+
+    expect(background.getAttribute("role")).toBe("button");
+    expect(background.getAttribute("aria-pressed")).toBe("true");
+    expect(background.classList.contains("selected")).toBe(true);
+  });
+
+  it("does not read as selected while a layer is", async () => {
+    const layers = templateWithLayers(3).layers;
+    const { background } = await mountExpanded(layers[0].key);
+
+    expect(background.getAttribute("aria-pressed")).toBe("false");
+    expect(background.classList.contains("selected")).toBe(false);
+  });
+
+  it("selects no layer when clicked, which shows the canvas pane", async () => {
+    const { panel, background } = await mountExpanded(templateWithLayers(1).layers[0].key);
+    const selects = recordSelects(panel);
+
+    background.click();
+
+    expect(selects).toHaveLength(1);
+    expect(selects[0].key).toBeUndefined();
+  });
+
+  it("selects no layer on Enter or Space", async () => {
+    const { panel, background } = await mountExpanded(templateWithLayers(1).layers[0].key);
+    const selects = recordSelects(panel);
+
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    background.dispatchEvent(enter);
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    background.dispatchEvent(space);
+
+    expect(selects).toHaveLength(2);
+    expect(selects.every((detail) => detail.key === undefined)).toBe(true);
+    // Space would otherwise scroll the panel.
+    expect(space.defaultPrevented).toBe(true);
+  });
 });

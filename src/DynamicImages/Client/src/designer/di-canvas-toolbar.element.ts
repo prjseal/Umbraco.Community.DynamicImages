@@ -1,4 +1,4 @@
-import { css, customElement, html, property } from "@umbraco-cms/backoffice/external/lit";
+import { css, customElement, html, nothing, property } from "@umbraco-cms/backoffice/external/lit";
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import { ZOOM_BOUNDS } from "../inputs/number-bounds.js";
 import "../inputs/di-number-field.element.js";
@@ -35,6 +35,13 @@ export class DiCanvasToolbarElement extends UmbLitElement {
 
   @property({ type: Boolean })
   previewing = false;
+
+  /** Whether the design view found the section's tree to fold away. No tree, no button. */
+  @property({ type: Boolean })
+  treeAvailable = false;
+
+  @property({ type: Boolean })
+  treeCollapsed = false;
 
   #emit(name: string, detail?: unknown) {
     this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true, detail }));
@@ -86,6 +93,8 @@ export class DiCanvasToolbarElement extends UmbLitElement {
   render() {
     return html`
       <div class="toolbar" @focusout=${() => this.requestUpdate()}>
+        ${this.#renderTreeToggle()}
+
         <div class="zoom">
           <!-- One segmented control, [-|27 %|+], the way Figma, Photoshop and Affinity draw zoom:
                every segment the same height and edge to edge, and no caption above the number -
@@ -147,6 +156,27 @@ export class DiCanvasToolbarElement extends UmbLitElement {
           </uui-button>
         </div>
       </div>
+    `;
+  }
+
+  /**
+   * First in the row, so it stays put whatever else wraps, and here rather than in the Elements
+   * panel so it is still there with that panel folded away. The tree folds to the left, so the
+   * chevron points left to hide it and right to bring it back.
+   */
+  #renderTreeToggle() {
+    if (!this.treeAvailable) return nothing;
+
+    return html`
+      <uui-button
+        compact
+        class="tree"
+        look="secondary"
+        label=${this.treeCollapsed ? "Show tree" : "Hide tree"}
+        @click=${() => this.#emit("di-toggle-tree")}>
+        <uui-icon name=${this.treeCollapsed ? "icon-navigation-right" : "icon-navigation-left"}></uui-icon>
+        ${this.treeCollapsed ? "Show tree" : "Hide tree"}
+      </uui-button>
     `;
   }
 

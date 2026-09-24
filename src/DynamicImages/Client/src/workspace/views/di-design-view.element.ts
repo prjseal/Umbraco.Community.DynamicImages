@@ -2,6 +2,7 @@ import { css, customElement, html, nothing, state } from "@umbraco-cms/backoffic
 import { UmbLitElement } from "@umbraco-cms/backoffice/lit-element";
 import type { ManifestWorkspaceView } from "@umbraco-cms/backoffice/workspace";
 import { UMB_NOTIFICATION_CONTEXT } from "@umbraco-cms/backoffice/notification";
+import { UMB_SECTION_CONTEXT } from "@umbraco-cms/backoffice/section";
 import { DI_TEMPLATE_WORKSPACE_CONTEXT, type DiTemplateWorkspaceContext } from "../di-template-workspace.context.js";
 import type { DiFont, DiLayer, DiLayerBounds, DiPosition, DiProperty, DiTemplate } from "../../api/types.js";
 import { detach, isTracked, type Axis } from "../../models/relative-layout.js";
@@ -14,6 +15,8 @@ import {
 import { ZOOM_BOUNDS } from "../../inputs/number-bounds.js";
 import { loadFonts } from "../../designer/fonts/font-face-loader.js";
 import { isTypingTarget } from "../../designer/keyboard.js";
+import { PALETTE_COLLAPSED_KEY, TREE_COLLAPSED_KEY, readFlag, writeFlag } from "./ui-prefs.js";
+import { SectionSidebar } from "./section-sidebar.js";
 import type { PalettePayload } from "../../designer/di-property-palette.element.js";
 import "../../designer/di-designer-canvas.element.js";
 import "../../designer/di-property-palette.element.js";
@@ -93,11 +96,35 @@ export class DiDesignViewElement extends UmbLitElement {
   @state()
   private _canRedo = false;
 
+  /** Remembered per browser, so an editor who works without the palette keeps it that way. */
+  @state()
+  private _paletteCollapsed = readFlag(PALETTE_COLLAPSED_KEY);
+
+  /** The section's tree, if it was where `SectionSidebar` expects it. */
+  #sidebar?: SectionSidebar;
+
+  @state()
+  private _treeAvailable = false;
+
+  /**
+   * The editor's preference, which outlives this view. The tree itself is only ever hidden while
+   * the Design view is on screen - the rest of the section needs it to navigate.
+   */
+  @state()
+  private _treeCollapsed = readFlag(TREE_COLLAPSED_KEY);
+
   constructor() {
     super();
 
     this.consumeContext(UMB_NOTIFICATION_CONTEXT, (context) => {
       this.#notificationContext = context;
+    });
+
+    this.consumeContext(UMB_SECTION_CONTEXT, (context) => {
+      this.#sidebar?.restore();
+      this.#sidebar = new SectionSidebar(context?.getHostElement());
+      this._treeAvailable = this.#sidebar.available;
+      if (this._treeCollapsed && this.isConnected) this.#sidebar.collapse();
     });
 
     this.consumeContext(DI_TEMPLATE_WORKSPACE_CONTEXT, (context) => {
@@ -142,11 +169,17 @@ export class DiDesignViewElement extends UmbLitElement {
   override connectedCallback() {
     super.connectedCallback();
     window.addEventListener("keydown", this.#onKeyDown);
+
+    // A view re-attached rather than recreated has its helper already, and put the tree back
+    // when it left.
+    if (this._treeCollapsed) this.#sidebar?.collapse();
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     window.removeEventListener("keydown", this.#onKeyDown);
+    // Whatever the preference says: every other view in the section navigates by the tree.
+    this.#sidebar?.restore();
     window.clearTimeout(this.#layoutTimer);
     this.#layoutAbort?.abort();
   }
@@ -415,7 +448,11 @@ export class DiDesignViewElement extends UmbLitElement {
 
     return html`
       <div
-        class="layout"
+        class="layout ${this._paletteCollapsed ? "palette-collapsed" : ""}"
+        @di-palette-toggle=${(event: CustomEvent) => {
+          this._paletteCollapsed = event.detail.collapsed;
+          writeFlag(PALETTE_COLLAPSED_KEY, this._paletteCollapsed);
+        }}
         @di-layer-change=${(event: CustomEvent) => this.#context?.updateLayer(event.detail.key, event.detail.patch)}
         @di-canvas-change=${(event: CustomEvent) => this.#context?.updateCanvas(event.detail.patch)}
         @di-layer-select=${(event: CustomEvent) => this.#context?.selectLayer(event.detail.key)}
@@ -448,6 +485,12 @@ export class DiDesignViewElement extends UmbLitElement {
           this.#canvas?.recentre();
           this._zoom = undefined;
         }}
+        @di-toggle-tree=${() => {
+          this._treeCollapsed = !this._treeCollapsed;
+          if (this._treeCollapsed) this.#sidebar?.collapse();
+          else this.#sidebar?.restore();
+          writeFlag(TREE_COLLAPSED_KEY, this._treeCollapsed);
+        }}
         @di-toggle-snap=${() => {
           this._snapEnabled = !this._snapEnabled;
         }}
@@ -462,7 +505,11 @@ export class DiDesignViewElement extends UmbLitElement {
         }}
         @di-undo=${() => this.#context?.undo()}
         @di-redo=${() => this.#context?.redo()}>
-        <di-property-palette class="palette" .properties=${this._properties}></di-property-palette>
+        <di-property-palette
+          class="palette"
+          .properties=${this._properties}
+          .collapsed=${this._paletteCollapsed}>
+        </di-property-palette>
 
         <div class="centre">
           <di-canvas-toolbar
@@ -473,7 +520,9 @@ export class DiDesignViewElement extends UmbLitElement {
             .showMeasured=${this._showMeasured}
             .canUndo=${this._canUndo}
             .canRedo=${this._canRedo}
-            .previewing=${this._previewing}>
+            .previewing=${this._previewing}
+            .treeAvailable=${this._treeAvailable}
+            .treeCollapsed=${this._treeCollapsed}>
           </di-canvas-toolbar>
 
           <di-designer-canvas
@@ -527,6 +576,11 @@ export class DiDesignViewElement extends UmbLitElement {
       min-height: 0;
     }
 
+    /* A collapsed palette is a rail wide enough for its one expand button. */
+    .layout.palette-collapsed {
+      grid-template-columns: 40px 1fr 340px;
+    }
+
     /* The canvas row has a floor. It used to be the only flexible row in the column, so it
        absorbed every shortfall: at a 1150x666 viewport the toolbar (91px) and preview strip
        (160px) left it 141px of column and it measured 650x0 - no stage at all, and no scrollbar
@@ -555,6 +609,10 @@ export class DiDesignViewElement extends UmbLitElement {
         grid-template-rows: minmax(320px, 1fr) auto;
       }
 
+      .layout.palette-collapsed {
+        grid-template-columns: 40px 1fr;
+      }
+
       .side {
         grid-column: 1 / -1;
         grid-template-rows: auto auto;
@@ -580,6 +638,17 @@ export class DiDesignViewElement extends UmbLitElement {
 
       .palette {
         max-height: 30vh;
+      }
+
+      /* One column, so the palette sits above the canvas in the row that has the canvas' floor.
+         Folded away it is only as tall as its rail, and the floor moves down to the canvas. */
+      .layout.palette-collapsed {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto minmax(320px, 1fr) auto;
+      }
+
+      .layout.palette-collapsed .palette {
+        height: auto;
       }
     }
   `;

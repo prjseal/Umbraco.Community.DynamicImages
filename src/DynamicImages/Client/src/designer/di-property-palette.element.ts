@@ -34,6 +34,14 @@ export class DiPropertyPaletteElement extends UmbLitElement {
   @property({ type: Array })
   properties: DiProperty[] = [];
 
+  /**
+   * Folded down to a rail with one button in it, so the canvas gets the column. The design view
+   * owns this state and remembers it: the buttons here only ask for the change through
+   * `di-palette-toggle`.
+   */
+  @property({ type: Boolean, reflect: true })
+  collapsed = false;
+
   @state()
   private _search = "";
 
@@ -58,20 +66,42 @@ export class DiPropertyPaletteElement extends UmbLitElement {
     if (event.dataTransfer) event.dataTransfer.effectAllowed = "copy";
   }
 
+  #toggle() {
+    this.dispatchEvent(
+      new CustomEvent("di-palette-toggle", { bubbles: true, composed: true, detail: { collapsed: !this.collapsed } }),
+    );
+  }
+
   render() {
+    if (this.collapsed) {
+      return html`
+        <div class="rail">
+          <uui-button compact look="secondary" label="Expand the elements panel" @click=${this.#toggle}>
+            <uui-icon name="icon-navigation-right"></uui-icon>
+          </uui-button>
+        </div>
+      `;
+    }
+
     const grouped = groupByGroup(this.#filtered);
 
+    // The panel folds away to the left, so its chevron points left to collapse and right to expand.
     return html`
       <div class="palette">
-        <uui-input
-          type="search"
-          label="Search properties"
-          placeholder="Search"
-          .value=${this._search}
-          @input=${(event: Event) => {
-            this._search = (event.target as HTMLInputElement).value;
-          }}>
-        </uui-input>
+        <div class="top">
+          <uui-input
+            type="search"
+            label="Search properties"
+            placeholder="Search"
+            .value=${this._search}
+            @input=${(event: Event) => {
+              this._search = (event.target as HTMLInputElement).value;
+            }}>
+          </uui-input>
+          <uui-button compact look="secondary" label="Collapse the elements panel" @click=${this.#toggle}>
+            <uui-icon name="icon-navigation-left"></uui-icon>
+          </uui-button>
+        </div>
 
         ${this.#renderStaticGroup()}
 
@@ -203,10 +233,31 @@ export class DiPropertyPaletteElement extends UmbLitElement {
       background: var(--uui-color-surface);
     }
 
+    :host([collapsed]) {
+      overflow: hidden;
+    }
+
     .palette {
       padding: var(--uui-size-space-3);
       display: grid;
       gap: var(--uui-size-space-4);
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      gap: var(--uui-size-space-2);
+    }
+
+    .top uui-input {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .rail {
+      display: flex;
+      justify-content: center;
+      padding: var(--uui-size-space-2) 0;
     }
 
     .group h5 {

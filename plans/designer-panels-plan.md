@@ -51,6 +51,10 @@ Four problems with the panels around the Design view's canvas (`di-design-view`)
   Its `#divider` (with a 12px drag touch area) is in its own open shadow root.
 - The section also sets `--umb-split-panel-slot-overflow: visible`, so a 0px sidebar would still
   paint its contents. The sidebar element has to be `display: none` as well.
+- The split panel's `#main` is a three-column grid, start | divider | end, and the divider's
+  column is 0px. The divider must stay in that grid: with `display: none` on it, the end slot
+  (the whole workspace) slides into the 0px column and the section goes blank. Found by the E2E
+  spec during implementation; the divider is hidden with `visibility: hidden` instead.
 - `UMB_SECTION_CONTEXT` (from `@umbraco-cms/backoffice/section`) is provided on the
   `umb-section-default` element. `consumeContext(UMB_SECTION_CONTEXT, ctx => ctx.getHostElement())`
   from the design view gives that element directly, with no DOM walking.
@@ -101,7 +105,10 @@ strip.
   - default: `.layout.palette-collapsed { grid-template-columns: 40px 1fr 340px; }`
   - inside `@media (max-width: 1280px)`: `40px 1fr`
   - under 860px the layout is one column, so a collapsed palette is just its rail's height.
-    Make sure the `.palette { max-height: 30vh }` rule doesn't give it more.
+    Make sure the `.palette { max-height: 30vh }` rule doesn't give it more. As built: the
+    palette sits in the first row there, which is the `minmax(320px, 1fr)` canvas row inherited
+    from the 1280px query, so a collapsed palette sets `grid-template-rows: auto minmax(320px, 1fr)
+    auto` and `.palette { height: auto }`, moving the floor down to the canvas.
 
 ### 4. Collapsible tree sidebar
 
@@ -125,11 +132,14 @@ export class SectionSidebar {
   - Remember `splitPanel.position`.
   - Set `--umb-split-panel-start-min-width: 0px` on the split panel's inline style.
   - Set `sidebar.style.display = "none"`.
-  - Hide `splitPanel.shadowRoot?.querySelector("#divider")` with `display: none`. Dragging it
-    would fire `position-changed` and overwrite Umbraco's saved width.
+  - Hide `splitPanel.shadowRoot?.querySelector("#divider")` with `visibility: hidden`, never
+    `display: none` (see the grid fact above). Dragging it would fire `position-changed` and
+    overwrite Umbraco's saved width; hidden, it takes no pointer events and no focus.
   - Set `splitPanel.position = "0px"`.
 - `restore()` (does nothing if not collapsed):
-  - Remove the inline property and the two inline `display` values.
+  - Put back the inline values it changed (the min-width property, the sidebar's `display`, the
+    divider's `visibility`) as they were before `collapse()`, rather than clearing them, in case
+    Umbraco had set one.
   - Set `position` back to the remembered value. If that is empty or `0`, use
     `localStorage["umb-split-panel-position"]` instead, and `"300px"` if that is missing too.
     Wrap the localStorage read in try/catch.
@@ -149,7 +159,8 @@ export class SectionSidebar {
 **`di-canvas-toolbar.element.ts`**
 - New `@property({ type: Boolean }) treeAvailable = false` and `treeCollapsed = false`.
 - When `treeAvailable` is true, render `uui-button compact look="secondary"` first in `.toolbar`,
-  before `.zoom`. Its label is `treeCollapsed ? "Show tree" : "Hide tree"`. Its icon is
+  before `.zoom`. Its label is `treeCollapsed ? "Show tree" : "Hide tree"`, shown as visible
+  text beside the icon as well as being the accessible name. Its icon is
   `icon-navigation-right` when collapsed and `icon-navigation-left` when expanded. It emits
   `di-toggle-tree`.
 - When the helper finds no sidebar (in unit tests, or after a future Umbraco change), the button
@@ -157,9 +168,9 @@ export class SectionSidebar {
 
 ### localStorage
 
-Follow the try/catch pattern in `di-template-workspace.context.ts:570-594`. Put small
-`readFlag(key)` / `writeFlag(key, value)` helpers in `section-sidebar.ts`, or in a tiny
-`workspace/views/ui-prefs.ts` if that reads better. Key names use a colon prefix (`di:designer:…`),
+Follow the try/catch pattern in `di-template-workspace.context.ts:570-594`. As built, small
+`readFlag(key)` / `writeFlag(key, value)` helpers and the two key constants live in
+`workspace/views/ui-prefs.ts`. Key names use a colon prefix (`di:designer:…`),
 never a `"di-…"` literal: `event-contract.test.ts` treats every `"di-…"` string as an event name.
 
 ## Files
@@ -181,6 +192,7 @@ never a `"di-…"` literal: `event-contract.test.ts` treats every `"di-…"` str
 
 **New**
 - `src/DynamicImages/Client/src/workspace/views/section-sidebar.ts`
+- `src/DynamicImages/Client/src/workspace/views/ui-prefs.ts`
 - `src/DynamicImages/Client/src/workspace/views/section-sidebar.browser.test.ts`
 - `src/DynamicImages/Client/src/designer/palette-collapse.browser.test.ts`
 - `src/DynamicImages/Client/e2e/designer-panels.spec.ts`
@@ -224,7 +236,7 @@ never a `"di-…"` literal: `event-contract.test.ts` treats every `"di-…"` str
   `umb-split-panel` element (with a `position` property and its own shadow root holding
   `#divider`) and a `umb-section-sidebar`:
   - `collapse()` sets the min-width property, hides the sidebar and the divider, and sets
-    `position` to `"0px"`.
+    `position` to `"0px"`. The divider's `display` is left alone.
   - `restore()` puts the old position back, with the fallback when the old one was `0px`.
   - A host with no split panel gives `available === false`, and every call does nothing.
   - Guard the stub tag names with `customElements.get` in case the backoffice registers the real

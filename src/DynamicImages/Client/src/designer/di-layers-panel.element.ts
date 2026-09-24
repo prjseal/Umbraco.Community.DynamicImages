@@ -67,12 +67,14 @@ export class DiLayersPanelElement extends UmbLitElement {
     return html`
       <div class="panel" @drop=${this.#onDrop}>
         <h5>
+          <!-- The panel is docked at the bottom and grows upwards, so the chevron points where the
+               header is about to move: up to open, down to close - the same as the preview strip. -->
           <button
             class="toggle"
             type="button"
             aria-expanded=${this.expanded}
             @click=${() => (this.expanded = !this.expanded)}>
-            <uui-icon name=${this.expanded ? "icon-navigation-down" : "icon-navigation-right"}></uui-icon>
+            <uui-icon name=${this.expanded ? "icon-navigation-down" : "icon-navigation-up"}></uui-icon>
             Layers <span class="count">(${reversed.length})</span>
           </button>
         </h5>
@@ -92,11 +94,37 @@ export class DiLayersPanelElement extends UmbLitElement {
               (layer, index) => this.#renderRow(layer, index),
             )}
 
-        <div class="row background">
-          <uui-icon name="icon-picture"></uui-icon>
-          <span class="name">Background</span>
-          <uui-icon name="icon-lock" title="The base image and canvas fill are edited in the inspector"></uui-icon>
-        </div>
+        ${this.#renderBackgroundRow()}
+    `;
+  }
+
+  /**
+   * The canvas itself, always at the bottom of the stack. Selecting it selects no layer, which is
+   * what a click on bare stage does too, and the inspector shows its Canvas pane for that. Not
+   * draggable and not a drop target: nothing can go underneath the background.
+   *
+   * The text stays exactly "Background" - `e2e/helpers.ts` filters the rows on it.
+   */
+  #renderBackgroundRow() {
+    const selected = !this.selectedLayerKey;
+    const select = () => this.#emit("di-layer-select", { key: undefined });
+
+    return html`
+      <div
+        class="row background ${selected ? "selected" : ""}"
+        role="button"
+        tabindex="0"
+        aria-pressed=${selected}
+        title="Canvas settings: size, fill and base image"
+        @click=${select}
+        @keydown=${(event: KeyboardEvent) => {
+          if (event.key !== "Enter" && event.key !== " ") return;
+          event.preventDefault();
+          select();
+        }}>
+        <uui-icon name="icon-picture"></uui-icon>
+        <span class="name">Background</span>
+      </div>
     `;
   }
 
@@ -247,11 +275,6 @@ export class DiLayersPanelElement extends UmbLitElement {
 
     .row.drop {
       box-shadow: inset 0 2px 0 var(--uui-color-focus);
-    }
-
-    .row.background {
-      opacity: 0.6;
-      cursor: default;
     }
 
     /* The hidden state has no icon of its own to show, so it is carried by the look plus a
