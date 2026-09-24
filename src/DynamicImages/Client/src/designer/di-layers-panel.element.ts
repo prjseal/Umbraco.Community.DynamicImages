@@ -21,6 +21,10 @@ export class DiLayersPanelElement extends UmbLitElement {
   @property({ type: String })
   selectedLayerKey?: string;
 
+  /** Collapsed by default, so the inspector above gets the side column's height. */
+  @property({ type: Boolean, reflect: true })
+  expanded = false;
+
   @state()
   private _dragKey?: string;
 
@@ -62,8 +66,24 @@ export class DiLayersPanelElement extends UmbLitElement {
 
     return html`
       <div class="panel" @drop=${this.#onDrop}>
-        <h5>Layers</h5>
+        <h5>
+          <button
+            class="toggle"
+            type="button"
+            aria-expanded=${this.expanded}
+            @click=${() => (this.expanded = !this.expanded)}>
+            <uui-icon name=${this.expanded ? "icon-navigation-down" : "icon-navigation-right"}></uui-icon>
+            Layers <span class="count">(${reversed.length})</span>
+          </button>
+        </h5>
 
+        ${this.expanded ? this.#renderList(reversed) : nothing}
+      </div>
+    `;
+  }
+
+  #renderList(reversed: DiLayer[]) {
+    return html`
         ${reversed.length === 0
           ? html`<p class="empty">No layers yet. Drag a property from the left onto the canvas.</p>`
           : repeat(
@@ -77,7 +97,6 @@ export class DiLayersPanelElement extends UmbLitElement {
           <span class="name">Background</span>
           <uui-icon name="icon-lock" title="The base image and canvas fill are edited in the inspector"></uui-icon>
         </div>
-      </div>
     `;
   }
 
@@ -182,6 +201,29 @@ export class DiLayersPanelElement extends UmbLitElement {
       text-transform: uppercase;
       letter-spacing: 0.06em;
       color: var(--uui-color-text-alt);
+    }
+
+    :host(:not([expanded])) h5 {
+      margin-bottom: 0;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--uui-size-space-1);
+      width: 100%;
+      border: 0;
+      background: none;
+      color: inherit;
+      font: inherit;
+      text-transform: inherit;
+      letter-spacing: inherit;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .count {
+      text-transform: none;
     }
 
     .row {

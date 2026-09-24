@@ -89,11 +89,10 @@ describe("di-preview-strip", () => {
   it("refresh() renders immediately and expands a collapsed strip", async () => {
     const { strip, cleanup } = await mountStrip();
 
-    strip.shadowRoot!.querySelector<HTMLButtonElement>("button.toggle")!.click();
-    await settle(strip, 2);
+    // Collapsed by default, and nothing rendered while it is.
     expect(strip.shadowRoot!.querySelector("button.toggle")!.getAttribute("aria-expanded")).toBe("false");
+    expect(requests.length).toBe(0);
 
-    requests.length = 0;
     strip.refresh();
     await settle(strip, 3);
 

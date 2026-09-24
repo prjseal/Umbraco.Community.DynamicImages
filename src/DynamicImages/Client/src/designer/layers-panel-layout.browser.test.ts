@@ -22,6 +22,8 @@ async function mountPanel(layerCount: number, rowHeight: number) {
 
   const panel = document.createElement("di-layers-panel");
   panel.layers = templateWithLayers(layerCount).layers;
+  // Sizing is about the open list; the panel starts collapsed.
+  panel.expanded = true;
   side.append(panel);
 
   await settle(panel, 3);
@@ -62,5 +64,26 @@ describe("di-layers-panel sizing", () => {
     expect(empty!.getBoundingClientRect().bottom).toBeLessThanOrEqual(
       panel.getBoundingClientRect().bottom + 1,
     );
+  });
+});
+
+describe("di-layers-panel collapsing", () => {
+  it("starts collapsed, showing only its header", async () => {
+    resetBody();
+    const panel = document.createElement("di-layers-panel");
+    panel.layers = templateWithLayers(3).layers;
+    document.body.append(panel);
+    await settle(panel, 3);
+
+    const toggle = panel.shadowRoot!.querySelector<HTMLButtonElement>(".toggle")!;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(panel.shadowRoot!.querySelectorAll(".row").length).toBe(0);
+
+    toggle.click();
+    await settle(panel, 3);
+
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    // Three layers plus the Background row.
+    expect(panel.shadowRoot!.querySelectorAll(".row").length).toBe(4);
   });
 });

@@ -145,6 +145,13 @@ export async function openView(page: Page, label: string): Promise<void> {
   await page.locator(`uui-tab:has-text('${label}')`).first().click();
 }
 
+/** Opens the Design view's Server preview strip, which starts collapsed. */
+export async function expandPreviewStrip(page: Page): Promise<void> {
+  const toggle = page.locator("di-preview-strip button.toggle");
+  await expect(toggle).toBeVisible({ timeout: 60_000 });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
+}
+
 /** The workspace view tab, for asserting on which one is active. */
 export function viewTab(page: Page, label: string): Locator {
   return page.locator(`uui-tab:has-text('${label}')`).first();
@@ -167,6 +174,11 @@ export function discardModal(page: Page): Locator {
 
 /** The names in the Design view's layers panel, minus the synthetic Background row. */
 export async function layerNames(page: Page): Promise<string[]> {
+  // The panel starts collapsed.
+  const toggle = page.locator("di-layers-panel .toggle");
+  await expect(toggle).toBeVisible({ timeout: 60_000 });
+  if ((await toggle.getAttribute("aria-expanded")) === "false") await toggle.click();
+
   const rows = page.locator("di-layers-panel .row");
   await expect(rows.first()).toBeVisible({ timeout: 60_000 });
 

@@ -33,8 +33,9 @@ export class DiPreviewStripElement extends UmbLitElement {
   @state()
   private _error?: string;
 
+  /** Collapsed by default: nothing is rendered on the server until the strip is opened. */
   @state()
-  private _collapsed = false;
+  private _collapsed = true;
 
   constructor() {
     super();
@@ -158,14 +159,16 @@ export class DiPreviewStripElement extends UmbLitElement {
         ${this._collapsed
           ? nothing
           : html`
-              <di-preview-content-picker></di-preview-content-picker>
-              <div class="body">
-                ${this._loading ? html`<uui-loader-bar></uui-loader-bar>` : nothing}
-                ${this._error
-                  ? html`<span class="error" role="status">${this._error}</span>`
-                  : this._url
-                    ? html`<img src=${this._url} alt="Server-rendered preview of this template" />`
-                    : html`<span class="pending">Rendering…</span>`}
+              <div class="content">
+                <div class="body">
+                  ${this._loading ? html`<uui-loader-bar></uui-loader-bar>` : nothing}
+                  ${this._error
+                    ? html`<span class="error" role="status">${this._error}</span>`
+                    : this._url
+                      ? html`<img src=${this._url} alt="Server-rendered preview of this template" />`
+                      : html`<span class="pending">Rendering…</span>`}
+                </div>
+                <di-preview-content-picker></di-preview-content-picker>
               </div>
             `}
       </div>
@@ -183,7 +186,12 @@ export class DiPreviewStripElement extends UmbLitElement {
       padding: var(--uui-size-space-2) var(--uui-size-space-3);
     }
 
-    di-preview-content-picker {
+    /* The render on the left half, the Preview content picker on the right. */
+    .content {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: var(--uui-size-space-4);
+      align-items: start;
       margin-top: var(--uui-size-space-2);
     }
 
@@ -209,11 +217,12 @@ export class DiPreviewStripElement extends UmbLitElement {
       display: flex;
       align-items: center;
       gap: var(--uui-size-space-3);
-      margin-top: var(--uui-size-space-2);
+      min-width: 0;
       min-height: var(--di-preview-strip-body-min-height, 84px);
     }
 
     img {
+      max-width: 100%;
       max-height: var(--di-preview-strip-image-max-height, 120px);
       border-radius: var(--uui-border-radius);
       box-shadow: var(--uui-shadow-depth-2);

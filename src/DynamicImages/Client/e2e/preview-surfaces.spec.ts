@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { choosePreviewContent, layerNames, login, openSection, openTemplate, openView, recordPreviewRequests } from "./helpers.js";
+import { choosePreviewContent, expandPreviewStrip, layerNames, login, openSection, openTemplate, openView, recordPreviewRequests } from "./helpers.js";
 
 /**
  * A3 - the preview strip under the canvas ignored the node picked in Preview & test, because it
@@ -47,6 +47,7 @@ test("the designer's preview strip renders against the node picked in Preview & 
   // way would prove nothing. This is the exact mistake the manual review made first time round.
   await openView(page, "Design");
   await expect(page.locator("di-preview-strip")).toBeVisible({ timeout: 60_000 });
+  await expandPreviewStrip(page);
 
   await expect.poll(() => previews.length, { timeout: 60_000 }).toBeGreaterThan(0);
 
@@ -67,6 +68,7 @@ test("the picked node survives a full page load", async ({ page }) => {
   await expect(page.locator("di-preview-view")).toBeVisible({ timeout: 120_000 });
   await openView(page, "Design");
   await expect(page.locator("di-preview-strip")).toBeVisible({ timeout: 60_000 });
+  await expandPreviewStrip(page);
 
   await expect.poll(() => previews.filter((r) => r.contentKey !== null).length, { timeout: 60_000 })
     .toBeGreaterThan(0);
@@ -86,6 +88,7 @@ test("Server preview renders, and disables the button while it is in flight", as
   await expect(button).toBeVisible();
 
   // Wait out the strip's own first render, so what is counted is this click's.
+  await expandPreviewStrip(page);
   await expect(page.locator("di-preview-strip img")).toBeVisible({ timeout: 90_000 });
 
   const previews = recordPreviewRequests(page);
@@ -146,6 +149,7 @@ test("the designer strip shows and changes the same page as Preview & test", asy
   const contentKey = await pickSampleNode(page);
 
   await openView(page, "Design");
+  await expandPreviewStrip(page);
 
   // One value, two pickers: the strip's reads what Preview & test chose...
   const strip = page.locator("di-preview-strip di-preview-content-picker umb-input-document");
