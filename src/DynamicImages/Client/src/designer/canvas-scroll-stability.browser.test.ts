@@ -59,15 +59,10 @@ function artboardOf(canvas: HTMLElement): HTMLElement {
  * Every spec that relies on it asserts the premise before asserting the fix.
  */
 function giveScrollbarsWidth(canvas: HTMLElement) {
-  // The canvas hides its scrollbars, and a non-auto `scrollbar-width` makes Chromium ignore
-  // `::-webkit-scrollbar` altogether - so both are undone here, or the premise never holds. The
-  // doubled class is for specificity: the element's own adopted stylesheet cascades after any
-  // <style> in its shadow root, so an equally specific rule here would lose.
   const style = document.createElement("style");
   style.textContent = `
-    .viewport.viewport { scrollbar-width: auto; }
-    .viewport.viewport::-webkit-scrollbar { display: block; width: 15px; height: 15px; }
-    .viewport.viewport::-webkit-scrollbar-thumb { background: #888; }
+    .viewport::-webkit-scrollbar { width: 15px; height: 15px; }
+    .viewport::-webkit-scrollbar-thumb { background: #888; }
   `;
   canvas.shadowRoot!.append(style);
 }
@@ -93,16 +88,31 @@ function forceOverflow(canvas: HTMLElement) {
 }
 
 describe("di-designer-canvas scroll stability", () => {
-  it("does not re-fit when the viewport gains a scrollbar", async () => {
+  it("never grows a scrollbar, whatever overflows", async () => {
+    const { canvas } = await mountCanvas(400, 300);
+    giveScrollbarsWidth(canvas);
+
+    const viewport = viewportOf(canvas);
+    forceOverflow(canvas);
+    canvas.requestUpdate();
+    await settle(canvas, 6);
+
+    // The view pans by translate, so the viewport is not a scroll container at all.
+    expect(viewport.clientWidth).toBe(viewport.offsetWidth);
+    expect(viewport.clientHeight).toBe(viewport.offsetHeight);
+  });
+
+  it("does not re-fit even if the viewport did gain a scrollbar", async () => {
     const { canvas } = await mountCanvas(400, 300);
     giveScrollbarsWidth(canvas);
 
     const viewport = viewportOf(canvas);
     const before = canvas.scale;
 
-    // Force a scrollbar the fit must not see. The canvas has to measure the space it was *given*,
-    // not what is left over once its own content has decided to overflow - otherwise the two
-    // chase each other and both scrollbars flicker.
+    // Belt and braces for the fit loop: make the viewport scroll after all, and force a scrollbar
+    // the fit must not see. The canvas has to measure the space it was *given*, not what is left
+    // over once its own content has decided to overflow - otherwise the two chase each other.
+    viewport.style.overflow = "auto";
     forceOverflow(canvas);
     canvas.requestUpdate();
     await settle(canvas, 6);
@@ -147,19 +157,6 @@ describe("di-designer-canvas scroll stability", () => {
     expect(new Set(tail).size).toBeLessThanOrEqual(1);
   });
 
-  it("still scrolls when the user has genuinely zoomed in", async () => {
-    const { canvas } = await mountCanvas(400, 300);
-    giveScrollbarsWidth(canvas);
-
-    canvas.zoom = 3;
-    await settle(canvas, 6);
-
-    // The cure for flicker must not be suppressing scrolling: past fit, both bars appear and stay.
-    const viewport = viewportOf(canvas);
-    expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
-    expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight);
-  });
-
   /**
    * A different flicker: the canvas tracked the pointer across the whole window, so with the
    * pointer right of or below the stage the ruler hairline sat past the end of its ruler and
@@ -193,24 +190,5 @@ describe("di-designer-canvas scroll stability", () => {
     await settle(canvas, 1);
 
     expect(render).not.toHaveBeenCalled();
-  });
-
-  it("can reach the top-left of a zoomed-in canvas", async () => {
-    const { canvas } = await mountCanvas(400, 300, true);
-
-    canvas.zoom = 3;
-    await settle(canvas, 4);
-
-    const viewport = viewportOf(canvas);
-    viewport.scrollLeft = 0;
-    viewport.scrollTop = 0;
-    await settle(canvas, 1);
-
-    // Flex centring pushed the overflow off both edges, and only the right and bottom can be
-    // scrolled to - so at scroll 0 the stage started somewhere left of and above the viewport.
-    const stage = stageOf(canvas).getBoundingClientRect();
-    const box = viewport.getBoundingClientRect();
-    expect(stage.left).toBeGreaterThanOrEqual(box.left);
-    expect(stage.top).toBeGreaterThanOrEqual(box.top);
   });
 });

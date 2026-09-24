@@ -28,6 +28,40 @@ What we want: the canvas stays still unless you move it. You can grab it and dra
 you want to see, the way Figma and Photoshop work. Scrollbars are no longer needed, so they're
 hidden.
 
+### Revision after the first build: free panning
+
+The first build panned by `scrollLeft` / `scrollTop`, as below. In use it felt boxed in: a
+scroll container only lets you reach its own overflow, which at fit is nothing, and zoomed in
+stops dead at each edge. Paul asked to be able to drag the canvas wherever they want. So the
+"keep the scroll container" decision and the "no panning past the edges" exclusion are reversed.
+Sections 3, 4 and 5 below describe the first build. What replaced them:
+
+- **Pan offset, not scroll.** `@state() _offset = { x, y }` in screen pixels, applied as
+  `transform: translate(...)` on `.artboard`. Pointer maths is unchanged, because it already
+  reads the stage's `getBoundingClientRect()`, which includes the transform.
+- **The viewport is `overflow: clip`.** It isn't a scroll container at all, so there are no
+  scrollbars to hide or flicker, and nothing (a focused layer box, say) can scroll it behind the
+  translate's back. Flex centring is back (`align-items` / `justify-content: center`): the
+  top-left problem from section 3 was only ever a scrolling one.
+- **One limit:** `#panTo` clamps so that `PAN_MIN_VISIBLE` (48px) of the artboard always stays
+  inside the viewport, so a wild drag can't lose the canvas. The clamp subtracts the offset of
+  the *last render* (`#renderedOffset`), not the latest state, because several pointer moves can
+  land in one frame before the DOM catches up.
+- **The wheel pans** (with no Ctrl or Cmd), since nothing scrolls any more. Line-mode deltas are
+  multiplied by 16px, and Shift turns a vertical wheel sideways where the platform hasn't already.
+  Ctrl/Cmd + wheel still zooms.
+- **Zoom keeps your place.** When the effective scale changes, `willUpdate` scales the offset by
+  the same ratio. Going back to fit (`zoom` becoming undefined) resets it to zero.
+- **Fit always recentres.** The canvas has a public `recentre()`. The design view calls it on
+  `di-zoom-fit`, because when the zoom is already at fit it doesn't change, and the view would
+  otherwise stay wherever it had been panned.
+- **Specs.** `canvas-pan.browser.test.ts` asserts on where the stage lands on screen, not on
+  scroll positions. It adds specs for moving at fit, panning past the top-left corner, the
+  keep-in-view clamp, the wheel, and Fit recentring. In `canvas-scroll-stability`, "still scrolls
+  when zoomed in" and the scroll-based top-left spec are gone. The fit-loop spec now sets
+  `overflow: auto` on the viewport itself to keep its premise, and a new spec asserts that the
+  viewport never gains a scrollbar.
+
 ### Decisions (defaults, not asked)
 
 - **Keep the scroll container and pan by setting `scrollLeft` / `scrollTop`.** Don't switch to a

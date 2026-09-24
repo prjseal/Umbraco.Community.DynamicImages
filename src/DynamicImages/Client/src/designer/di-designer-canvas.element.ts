@@ -66,9 +66,14 @@ interface PanState {
   pointerId: number;
   startX: number;
   startY: number;
-  scrollLeft: number;
-  scrollTop: number;
+  startOffset: { x: number; y: number };
 }
+
+/** Screen pixels of the artboard a pan always leaves in view, so the canvas can never be lost. */
+const PAN_MIN_VISIBLE = 48;
+
+/** Pixels per line when a wheel reports its delta in lines rather than pixels. */
+const WHEEL_LINE_PX = 16;
 
 /**
  * The artboard: a fixed-size stage in image pixels, scaled to fit, with one layer box per layer.
@@ -125,9 +130,20 @@ export class DiDesignerCanvasElement extends UmbLitElement {
   @state()
   private _panning = false;
 
+  /**
+   * How far the view has been moved, in screen pixels, from the artboard's centred position.
+   * Panning is a translate rather than a scroll position, so the canvas can be moved anywhere -
+   * a scroll container only ever lets you reach its own overflow, which at fit is nothing.
+   */
+  @state()
+  private _offset = { x: 0, y: 0 };
+
   #drag?: DragState;
   #pan?: PanState;
   #hovering = false;
+
+  /** The offset the artboard's DOM was last rendered with. */
+  #renderedOffset = { x: 0, y: 0 };
   #resizeObserver?: ResizeObserver;
 
   /** Every layer's resolved position and box, recomputed once per render. */
@@ -161,6 +177,31 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     window.removeEventListener("keydown", this.#onKeyDown);
     window.removeEventListener("keyup", this.#onKeyUp);
     window.removeEventListener("blur", this.#onWindowBlur);
+  }
+
+  override willUpdate(changed: Map<string, unknown>) {
+    if (!changed.has("zoom") && !changed.has("_fitScale")) return;
+
+    // Back to fit means "show me the whole thing", so the view comes home.
+    if (changed.has("zoom") && this.zoom === undefined) {
+      this._offset = { x: 0, y: 0 };
+      return;
+    }
+
+    // Otherwise the offset scales with the canvas, so the point in the middle of the view stays
+    // in the middle of the view.
+    const previousZoom = changed.has("zoom") ? (changed.get("zoom") as number | undefined) : this.zoom;
+    const previousFit = changed.has("_fitScale") ? (changed.get("_fitScale") as number | undefined) : this._fitScale;
+    const previous = previousZoom ?? previousFit;
+    if (!previous || previous === this.scale) return;
+
+    const ratio = this.scale / previous;
+    this._offset = { x: this._offset.x * ratio, y: this._offset.y * ratio };
+  }
+
+  /** Puts the canvas back in the middle of the view, for Fit when it is already at fit. */
+  recentre() {
+    this._offset = { x: 0, y: 0 };
   }
 
   override updated(changed: Map<string, unknown>) {
@@ -338,11 +379,7 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     if (pan) {
       if (event.pointerId !== pan.pointerId) return;
 
-      const viewport = this.#viewport();
-      if (viewport) {
-        viewport.scrollLeft = pan.scrollLeft - (event.clientX - pan.startX);
-        viewport.scrollTop = pan.scrollTop - (event.clientY - pan.startY);
-      }
+      this.#panTo(pan.startOffset.x + event.clientX - pan.startX, pan.startOffset.y + event.clientY - pan.startY);
       return;
     }
 
@@ -616,12 +653,35 @@ export class DiDesignerCanvasElement extends UmbLitElement {
         pointerId: event.pointerId,
         startX: event.clientX,
         startY: event.clientY,
-        scrollLeft: viewport.scrollLeft,
-        scrollTop: viewport.scrollTop,
+        startOffset: { ...this._offset },
       };
       this._panning = true;
     },
   };
+
+  /**
+   * Moves the view to an offset, anywhere at all - except that a strip of the artboard always
+   * stays inside the viewport, so a wild drag cannot lose the canvas off the edge of the screen.
+   */
+  #panTo(x: number, y: number) {
+    const viewport = this.#viewport()?.getBoundingClientRect();
+    const artboard = this.renderRoot.querySelector<HTMLElement>(".artboard")?.getBoundingClientRect();
+
+    if (viewport && artboard) {
+      // Where the artboard sits with no offset at all. The rect is as of the last render, so it
+      // comes off with the offset that render drew - several moves can land in one frame.
+      const left = artboard.left - this.#renderedOffset.x;
+      const top = artboard.top - this.#renderedOffset.y;
+      const keepX = Math.min(PAN_MIN_VISIBLE, artboard.width);
+      const keepY = Math.min(PAN_MIN_VISIBLE, artboard.height);
+
+      x = Math.min(Math.max(x, viewport.left + keepX - (left + artboard.width)), viewport.right - keepX - left);
+      y = Math.min(Math.max(y, viewport.top + keepY - (top + artboard.height)), viewport.bottom - keepY - top);
+    }
+
+    if (x === this._offset.x && y === this._offset.y) return;
+    this._offset = { x, y };
+  }
 
   /** Chromium starts autoscroll on the middle button's mousedown, which a cancelled pointerdown may not stop. */
   #onMouseDown = (event: MouseEvent) => {
@@ -696,10 +756,22 @@ export class DiDesignerCanvasElement extends UmbLitElement {
   }
 
   #onWheel = (event: WheelEvent) => {
-    // Ctrl+wheel is the established "zoom the canvas" gesture, and trackpad pinch arrives as it.
-    if (!event.ctrlKey && !event.metaKey) return;
-
     event.preventDefault();
+
+    // Ctrl+wheel is the established "zoom the canvas" gesture, and trackpad pinch arrives as it.
+    if (!event.ctrlKey && !event.metaKey) {
+      // Nothing scrolls any more, so the wheel and a two-finger swipe pan the view instead.
+      const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? WHEEL_LINE_PX : 1;
+      let dx = event.deltaX * unit;
+      let dy = event.deltaY * unit;
+
+      // Shift turns a plain wheel sideways where the platform has not already done so.
+      if (event.shiftKey && dx === 0) [dx, dy] = [dy, 0];
+
+      this.#panTo(this._offset.x - dx, this._offset.y - dy);
+      return;
+    }
+
     const next = this.scale * (event.deltaY < 0 ? 1.1 : 1 / 1.1);
 
     this.dispatchEvent(new CustomEvent("di-zoom-change", { bubbles: true, composed: true, detail: { zoom: next } }));
@@ -731,6 +803,7 @@ export class DiDesignerCanvasElement extends UmbLitElement {
 
     // The rulers live in a gutter outside the stage, so they never cover the design itself.
     const gutter = this.showRulers ? RULER_THICKNESS : 0;
+    this.#renderedOffset = this._offset;
 
     return html`
       <div
@@ -760,6 +833,7 @@ export class DiDesignerCanvasElement extends UmbLitElement {
             width: `${width + gutter}px`,
             height: `${height + gutter}px`,
             "--di-gutter": `${gutter}px`,
+            transform: `translate(${this._offset.x}px, ${this._offset.y}px)`,
           })}>
           ${this.showRulers
             ? html`<di-rulers
@@ -835,19 +909,18 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     .viewport {
       width: 100%;
       height: 100%;
-      overflow: auto;
-      /* Panning replaces the scrollbars; the viewport still scrolls for the wheel and trackpad. */
-      scrollbar-width: none;
+      /* Not a scroll container at all: the view moves by the artboard's translate, so there are
+         no scrollbars to flicker and no edge a pan stops at. Clip rather than hidden, so nothing
+         (a focused layer box, say) can scroll it behind the translate's back either. */
+      overflow: clip;
       display: flex;
+      align-items: center;
+      justify-content: center;
       padding: 24px;
       box-sizing: border-box;
       /* The bare checkerboard is a handle for the view. */
       cursor: grab;
       ${checkerboard}
-    }
-
-    .viewport::-webkit-scrollbar {
-      display: none;
     }
 
     .viewport.drop-target {
@@ -875,10 +948,6 @@ export class DiDesignerCanvasElement extends UmbLitElement {
     .artboard {
       position: relative;
       flex: 0 0 auto;
-      /* Centres the artboard while it fits. Flex centring pushed the overflow of a zoomed-in
-         artboard off both edges, and only the right and bottom can be scrolled to; auto margins
-         collapse to zero instead, so every edge stays reachable. */
-      margin: auto;
     }
 
     .stage {

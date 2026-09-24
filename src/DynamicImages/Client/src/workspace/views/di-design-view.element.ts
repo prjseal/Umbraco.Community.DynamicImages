@@ -443,6 +443,9 @@ export class DiDesignViewElement extends UmbLitElement {
           this._zoom = Math.max(ZOOM_BOUNDS.min, Math.min(ZOOM_BOUNDS.max, event.detail.zoom));
         }}
         @di-zoom-fit=${() => {
+          // Already at fit, the zoom does not change - but a view that has been panned away
+          // still has to come home.
+          this.#canvas?.recentre();
           this._zoom = undefined;
         }}
         @di-toggle-snap=${() => {
