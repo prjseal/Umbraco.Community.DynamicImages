@@ -98,6 +98,52 @@ public class TextFittingTests
         Assert.True(narrow > wide, $"expected more lines at 400px than at 2000px, got {narrow} and {wide}");
     }
 
+    /// <summary>
+    /// Lowercase letters with no ascenders or descenders have the least ink of any line, so a
+    /// count estimated from ink height comes out short: four such lines at 1.1 spacing measured
+    /// as three. The count has to be the laid-out lines, whatever the glyphs.
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(6)]
+    public void CountLines_CountsLinesOfShortGlyphsExactly(int lines)
+    {
+        var text = string.Join('\n', Enumerable.Repeat("ace one more", lines));
+
+        Assert.Equal(lines, TextFitting.CountLines(text, Font(), Style(null, TextOverflow.Ellipsis), wrappingWidth: 2000));
+    }
+
+    [Fact]
+    public void CountLines_CountsWrappedLinesOfShortGlyphsExactly()
+    {
+        // One word per line at this width: each word is wider than half of it.
+        var text = string.Join(' ', Enumerable.Repeat("caravan", 4));
+        var style = Style(null, TextOverflow.Ellipsis);
+        var oneWord = TextMeasurer.MeasureAdvance("caravan", new TextOptions(Font())).Width;
+
+        Assert.Equal(4, TextFitting.CountLines(text, Font(), style, wrappingWidth: oneWord * 1.5f));
+    }
+
+    /// <summary>
+    /// The trim is only as good as the count: with the count short, a title trimmed to three
+    /// lines drew as four.
+    /// </summary>
+    [Fact]
+    public void Fit_EllipsisNeverLeavesMoreLinesThanTheLimit()
+    {
+        var title = string.Join(' ', Enumerable.Repeat("a museum, a new menu, a summer once more", 6));
+        var style = Style(3, TextOverflow.Ellipsis);
+
+        var result = TextFitting.Fit(title, Font(), style, wrappingWidth: 620);
+        var options = new TextOptions(Font()) { WrappingLength = 620, LineSpacing = style.LineSpacing };
+
+        Assert.True(result.Truncated);
+        Assert.Equal(3, TextMeasurer.CountLines(result.Text, options));
+    }
+
     [Theory]
     [InlineData(TextTransform.None, "Mixed Case")]
     [InlineData(TextTransform.Uppercase, "MIXED CASE")]

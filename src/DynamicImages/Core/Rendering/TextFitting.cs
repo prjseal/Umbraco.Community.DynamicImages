@@ -136,15 +136,11 @@ public static class TextFitting
             LineSpacing = style.LineSpacing <= 0 ? 1f : style.LineSpacing
         };
 
-        var bounds = TextMeasurer.MeasureBounds(text, options);
-        var lineHeight = font.FontMetrics.HorizontalMetrics.LineHeight / (float)font.FontMetrics.UnitsPerEm
-            * font.Size * (style.LineSpacing <= 0 ? 1f : style.LineSpacing);
-
-        if (lineHeight <= 0) return 1;
-
-        // MeasureBounds gives the ink extent; rounding up against the line height recovers the
-        // line count without re-running the layout engine ourselves.
-        return Math.Max(1, (int)Math.Round(bounds.Height / lineHeight, MidpointRounding.AwayFromZero));
+        // The laid-out lines, from the layout engine itself. Dividing the ink height by the line
+        // height undercounted: ink stops at the glyphs, so a line of short letters (no ascenders
+        // or descenders) is much less than a line tall, and four of them at 1.1 spacing came out
+        // as three - which let an ellipsis trim leave a line more than the limit.
+        return Math.Max(1, TextMeasurer.CountLines(text, options));
     }
 
     /// <summary>The style a loaded font resolved to, for building a resized copy of it.</summary>
