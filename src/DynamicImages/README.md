@@ -393,6 +393,13 @@ which the relation is what decides.
 | `WebFonts.MaxBytes` | `10485760` | Largest web font file accepted (10 MB, the same cap as an upload) |
 | `WebFonts.CacheFolder` | `null` | Where fetched files are cached. Null is `umbraco/Data/TEMP/DynamicImages/Fonts` under Umbraco's local temp path; a relative value is resolved against the content root |
 
+### Content Security Policy
+
+The designer shows its preview, and the render on a template's Preview & test tab, as `blob:` images. If
+your site sends a `Content-Security-Policy` header, `img-src` must allow `blob:`. Without it the browser
+blocks the image, and the Preview & test tab shows a broken image even though the render itself succeeds.
+For example: `img-src 'self' data: blob: https:;`
+
 ## Umbraco Cloud
 
 - Fonts and base images are read through Umbraco's media file system, so they work against Azure
